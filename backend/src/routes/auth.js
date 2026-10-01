@@ -120,8 +120,9 @@ router.post('/otp/verify', async (req, res) => {
     const { email, otp } = req.body;
     if (!email || !otp) return res.status(400).json({ error: 'Email and OTP required' });
     
-    if (otp === '123456') { // Mock OTP
-      res.json({ message: 'OTP verified successfully', success: true });
+    const isTestOTPEnabled = process.env.TEST_OTP_ENABLED === 'true' && process.env.NODE_ENV !== 'production';
+    if (otp === '123456' && isTestOTPEnabled) { // Test OTP
+      res.json({ message: 'OTP verified successfully (TEST MODE)', success: true });
     } else {
       res.status(400).json({ error: 'Invalid OTP' });
     }

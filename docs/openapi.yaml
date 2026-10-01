@@ -1,0 +1,105 @@
+openapi: 3.0.3
+info:
+  title: Wehere API
+  version: 1.0.0
+  description: API documentation for Wehere
+servers:
+  - url: http://localhost:4000/api
+paths:
+  /auth/anonymous:
+    post:
+      summary: Anonymous Signup
+      responses:
+        '200':
+          description: Successful signup
+  /auth/signup:
+    post:
+      summary: Signup with Email
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                password:
+                  type: string
+                pseudonym:
+                  type: string
+                images:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+      responses:
+        '200':
+          description: Successful signup
+  /auth/login:
+    post:
+      summary: Login
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Successful login
+  /auth/otp/request:
+    post:
+      summary: Request OTP
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+      responses:
+        '200':
+          description: OTP requested
+  /auth/otp/verify:
+    post:
+      summary: Verify OTP
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                otp:
+                  type: string
+      responses:
+        '200':
+          description: OTP verified
+  /auth/onboarding:
+    put:
+      summary: Complete Onboarding
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Onboarding completed
+  /users/me:
+    get:
+      summary: Get Current User Profile
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: User profile data
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
