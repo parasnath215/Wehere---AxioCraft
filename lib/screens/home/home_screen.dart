@@ -512,7 +512,7 @@ class HomeScreen extends StatelessWidget {
                 Expanded(
                   child: ListView.separated(
                     itemCount: appState.notifications.length,
-                    separatorBuilder: (ctx, i) => const Divider(height: 24, color: AppColors.border),
+                    separatorBuilder: (ctx, i) => const Divider(height: 24, color: AppColors.cardBorder),
                     itemBuilder: (ctx, i) {
                       final n = appState.notifications[i];
                       return Row(
@@ -640,7 +640,7 @@ class HomeScreen extends StatelessWidget {
         decoration: BoxDecoration(
           color: isPrimary ? color.withValues(alpha: 0.1) : AppColors.surface,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: isPrimary ? color.withValues(alpha: 0.3) : AppColors.border),
+          border: Border.all(color: isPrimary ? color.withValues(alpha: 0.3) : AppColors.cardBorder),
         ),
         child: Row(
           children: [
