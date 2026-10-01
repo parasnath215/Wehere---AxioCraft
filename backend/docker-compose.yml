@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: wehere-db
+    restart: always
+    environment:
+      POSTGRES_USER: wehere_user
+      POSTGRES_PASSWORD: wehere_password
+      POSTGRES_DB: wehere_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  api:
+    build: .
+    container_name: wehere-api
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - DATABASE_URL=postgresql://wehere_user:wehere_password@db:5432/wehere_db?schema=public
+      - JWT_SECRET=wehere_super_secret_key_123
+      - PORT=3000
+    depends_on:
+      - db
+
+volumes:
+  pgdata:

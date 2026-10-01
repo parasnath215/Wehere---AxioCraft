@@ -1,0 +1,218 @@
+import 'dart:async';
+import 'package:flutter/foundation.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../core/network/api_client.dart';
+import 'package:dio/dio.dart';
+
+enum AuthStatus { initializing, unauthenticated, authenticated }
+
+class AuthNotifier extends ChangeNotifier {
+  AuthStatus _status = AuthStatus.initializing;
+  String? _userId;
+  String _registeredName = 'User';
+  String _registeredEmail = '';
+  bool _hasSeenWalkthrough = false;
+  bool _hasCompletedOnboarding = false;
+  String? _authError;
+  bool _isLoading = false;
+
+  final FlutterSecureStorage _storage = const FlutterSecureStorage();
+
+  AuthStatus get status => _status;
+  bool get isAuthenticated => _status == AuthStatus.authenticated;
+  bool get hasSeenWalkthrough => _hasSeenWalkthrough;
+  bool get hasCompletedOnboarding => _hasCompletedOnboarding;
+  String? get authError => _authError;
+  bool get isLoading => _isLoading;
+  String? get userId => _userId;
+  String get registeredName => _registeredName;
+  String get registeredEmail => _registeredEmail;
+
+  Future<void> initializeSession() async {
+    _status = AuthStatus.initializing;
+    notifyListeners();
+
+    try {
+      final token = await _storage.read(key: 'jwt_token');
+      final savedId = await _storage.read(key: 'user_id');
+      final savedEmail = await _storage.read(key: 'user_email');
+      
+      if (token != null && savedId != null) {
+        _userId = savedId;
+        _registeredEmail = savedEmail ?? '';
+        _status = AuthStatus.authenticated;
+        _hasCompletedOnboarding = true;
+        _hasSeenWalkthrough = true;
+      } else {
+        _status = AuthStatus.unauthenticated;
+      }
+    } catch (e) {
+      _status = AuthStatus.unauthenticated;
+    }
+    notifyListeners();
+  }
+
+  Future<bool> login(String email, String password) async {
+    _isLoading = true;
+    _authError = null;
+    notifyListeners();
+
+    try {
+      final response = await apiClient.post('/auth/login', data: {
+        'email': email,
+        'password': password,
+      });
+
+      final token = response.data['token'];
+      final user = response.data['user'];
+
+      await _storage.write(key: 'jwt_token', value: token);
+      await _storage.write(key: 'user_id', value: user['id']);
+      await _storage.write(key: 'user_email', value: user['email']);
+
+      _userId = user['id'];
+      _registeredEmail = user['email'];
+      _status = AuthStatus.authenticated;
+      _hasCompletedOnboarding = true;
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } on DioException catch (e) {
+      _authError = e.response?.data?['error'] ?? 'Login failed';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    } catch (e) {
+      _authError = 'An unexpected error occurred';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  String _userHandle = '';
+  String get userHandle => _userHandle;
+
+  Future<bool> register(String name, String email, String password, {String? customHandle, List<String>? imagePaths}) async {
+    _isLoading = true;
+    _authError = null;
+    notifyListeners();
+
+    try {
+      FormData formData = FormData.fromMap({
+        'email': email,
+        'password': password,
+        'pseudonym': customHandle ?? name,
+      });
+
+      if (imagePaths != null && imagePaths.isNotEmpty) {
+        for (var path in imagePaths) {
+          formData.files.add(MapEntry(
+            'images',
+            await MultipartFile.fromFile(path),
+          ));
+        }
+      }
+
+      final response = await apiClient.post(
+        '/auth/signup',
+        data: formData,
+        options: Options(headers: {'Content-Type': 'multipart/form-data'}),
+      );
+
+      final token = response.data['token'];
+      final user = response.data['user'];
+
+      await _storage.write(key: 'jwt_token', value: token);
+      await _storage.write(key: 'user_id', value: user['id']);
+      await _storage.write(key: 'user_email', value: user['email']);
+
+      _userId = user['id'];
+      _registeredEmail = user['email'];
+      _registeredName = name;
+      _userHandle = customHandle ?? '@user_${user['id'].substring(0,5)}';
+      
+      _status = AuthStatus.authenticated;
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } on DioException catch (e) {
+      _authError = e.response?.data?['error'] ?? 'Registration failed';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    } catch (e) {
+      _authError = 'An unexpected error occurred';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> signup(String name, String email, String password, {String? customHandle, List<String>? imagePaths}) =>
+      register(name, email, password, customHandle: customHandle, imagePaths: imagePaths);
+
+  Future<bool> verifyOtp(String pin) async {
+    _isLoading = true;
+    notifyListeners();
+
+    await Future.delayed(const Duration(milliseconds: 500));
+
+    if (pin.length == 6) {
+      _status = AuthStatus.authenticated;
+      _hasCompletedOnboarding = false;
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } else {
+      _authError = 'Invalid 6-digit verification code.';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  void markWalkthroughSeen() {
+    _hasSeenWalkthrough = true;
+    notifyListeners();
+  }
+
+  Future<void> completeOnboarding({
+    required String name,
+    required String location,
+    required List<String> interests,
+    required List<String> feelings,
+    required List<String> supportTypes,
+    required bool isAnonymous,
+  }) async {
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      await apiClient.put('/auth/onboarding', data: {
+        'name': name,
+        'location': location,
+        'interests': interests,
+        'feelings': feelings,
+        'supportTypes': supportTypes,
+        'isAnonymous': isAnonymous,
+      });
+      _hasCompletedOnboarding = true;
+    } catch (e) {
+      _authError = 'Failed to save onboarding preferences';
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> logout() async {
+    await _storage.delete(key: 'jwt_token');
+    await _storage.delete(key: 'user_id');
+    await _storage.delete(key: 'user_email');
+    _userId = null;
+    _status = AuthStatus.unauthenticated;
+    _hasCompletedOnboarding = false;
+    notifyListeners();
+  }
+}

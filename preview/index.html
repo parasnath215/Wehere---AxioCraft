@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wehere - Tinder-Style Mental Wellness Mobile App</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-layout">
+    <!-- Sidebar Control Bar -->
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-emblem">
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="#5E4BEE"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+        </div>
+        <div>
+          <h2>Wehere</h2>
+          <p>Mental Wellness Platform</p>
+        </div>
+      </div>
+
+      <div class="device-toggles">
+        <button class="device-btn active" id="btn-ios" onclick="switchDevice('ios')">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 4.5c.66-.8 1.11-1.92.99-3.04-1 .04-2.14.65-2.82 1.44-.59.68-1.12 1.83-.98 2.91 1.12.09 2.15-.51 2.81-1.31z"/></svg>
+          iOS (iPhone 15 Pro)
+        </button>
+        <button class="device-btn" id="btn-android" onclick="switchDevice('android')">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M17.6 9.48l1.84-3.18c.16-.31.04-.69-.26-.85-.29-.15-.68-.05-.84.26l-1.88 3.24c-1.32-.59-2.81-.92-4.46-.92s-3.14.33-4.46.92L5.66 5.71c-.16-.31-.55-.41-.84-.26-.3.16-.42.54-.26.85l1.84 3.18C3.89 10.96 2.2 13.56 2 16.6h20c-.2-3.04-1.89-5.64-4.4-7.12zM7 13.5c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm10 0c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1z"/></svg>
+          Android (Pixel 8)
+        </button>
+      </div>
+
+      <div class="sidebar-section">
+        <h3>Screens & User Flows</h3>
+        <nav class="screen-nav">
+          <button class="nav-item active" onclick="loadScreen('splash')">1. Splash Screen</button>
+          <button class="nav-item" onclick="loadScreen('walkthrough')">2. Walkthrough (4 Slides)</button>
+          <button class="nav-item" onclick="loadScreen('login')">3. Log In Screen</button>
+          <button class="nav-item highlight" onclick="loadScreen('signup')">4. Create ID & Sign Up ✨</button>
+          <button class="nav-item" onclick="loadScreen('otp')">5. OTP Verification</button>
+          <button class="nav-item" onclick="loadScreen('onboarding')">6. Intake & Auto-Fetch (5 Steps)</button>
+          <button class="nav-item" onclick="loadScreen('home')">7. Home Dashboard</button>
+          <button class="nav-item highlight" onclick="loadScreen('discover')">8. Tinder Swipe Deck 🔥</button>
+          <button class="nav-item" onclick="loadScreen('match_modal')">9. Celebration "It's a Match!"</button>
+          <button class="nav-item" onclick="loadScreen('chat')">10. Safe Peer Chat (Riya)</button>
+          <button class="nav-item" onclick="loadScreen('journal_new')">11. New Reflection / Journal</button>
+          <button class="nav-item" onclick="loadScreen('journal_done')">12. Journal Saved ("All Set!")</button>
+          <button class="nav-item" onclick="loadScreen('progress')">13. Progress & 16-Day Streak</button>
+          <button class="nav-item" onclick="loadScreen('community')">14. Community Support Circles</button>
+          <button class="nav-item sos-nav" onclick="loadScreen('sos')">15. SOS Help Emergency Hub 🚨</button>
+          <button class="nav-item" onclick="loadScreen('profile')">16. Profile & Growth</button>
+        </nav>
+      </div>
+
+      <div class="sidebar-footer">
+        <button class="gallery-toggle-btn" onclick="toggleMockupDrawer()">
+          🖼️ Compare 32 Original Mockups
+        </button>
+      </div>
+    </aside>
+
+    <!-- Center Stage: Device Simulator -->
+    <main class="viewport-stage">
+      <div class="phone-frame ios" id="phone-frame">
+        <!-- Dynamic Island / Notch -->
+        <div class="phone-notch">
+          <div class="island"></div>
+        </div>
+
+        <!-- Phone Status Bar -->
+        <div class="status-bar">
+          <span class="time">9:41</span>
+          <div class="status-icons">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M12 3c-4.97 0-9 4.03-9 9 0 2.12.74 4.07 1.97 5.61L4.35 18.23c-.39.39-.39 1.02 0 1.41.39.39 1.02.39 1.41 0l.73-.73C8.07 19.58 9.94 20.25 12 20.25c4.97 0 9-4.03 9-9s-4.03-9-9-9zm0 2.25c3.73 0 6.75 3.02 6.75 6.75 0 1.55-.52 2.97-1.4 4.12l-9.47-9.47c1.15-.88 2.57-1.4 4.12-1.4z"/></svg>
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M12 4C7.31 4 3.07 5.9 0 8.98L12 21 24 8.98C20.93 5.9 16.69 4 12 4z"/></svg>
+            <div class="battery-icon">
+              <div class="battery-level"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Screen Container -->
+        <div class="screen-viewport" id="screen-viewport">
+          <!-- Dynamically Injected Screen Content -->
+        </div>
+
+        <!-- Home Indicator Bar -->
+        <div class="home-indicator"></div>
+      </div>
+    </main>
+
+    <!-- Side Mockup Inspection Drawer -->
+    <div class="mockup-drawer" id="mockup-drawer">
+      <div class="drawer-header">
+        <h3>32 Design Mockups (assets/mockups/)</h3>
+        <button class="close-drawer" onclick="toggleMockupDrawer()">✕</button>
+      </div>
+      <div class="drawer-grid" id="drawer-grid">
+        <!-- Populated via JS -->
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: wehere_user
+      POSTGRES_PASSWORD: wehere_password
+      POSTGRES_DB: wehere_db
+    # Port 5432 is intentionally not exposed to the host to avoid conflicting with existing DBs
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+    environment:
+      DATABASE_URL: postgresql://wehere_user:wehere_password@db:5432/wehere_db?schema=public
+      JWT_SECRET: super_secret_jwt_key_2026
+      NODE_ENV: production
+      PORT: 4000
+      FRONTEND_URL: http://localhost:8080 # Update this when deploying frontend
+      ADMIN_URL: http://localhost:3000
+      INTERNAL_API_KEY: wehere_super_secret_admin_key_2026
+    ports:
+      - "4000:4000" 
+    depends_on:
+      - db
+    command: sh -c "npx prisma db push && npm start"
+    restart: unless-stopped
+
+  admin-panel:
+    build:
+      context: ./admin-panel
+    environment:
+      NEXT_PUBLIC_API_URL: http://backend:4000
+      INTERNAL_API_KEY: wehere_super_secret_admin_key_2026
+      ADMIN_USER: admin
+      ADMIN_PASSWORD: supersecureadmin
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  pgdata:

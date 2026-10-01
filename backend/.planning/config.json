@@ -1,0 +1,6 @@
+{
+  "project_name": "Wehere Backend",
+  "workflow_mode": "interactive",
+  "parallelization": "sequential",
+  "granularity": "standard"
+}
