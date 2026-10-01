@@ -13,13 +13,15 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final TextEditingController _loginController = TextEditingController(text: 'alex@wehere.com');
-  final TextEditingController _passwordController = TextEditingController(text: '••••••••');
+  final TextEditingController _loginController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
   bool _obscurePassword = true;
   bool _rememberMe = true;
 
   @override
   Widget build(BuildContext context) {
+    final auth = context.watch<AuthNotifier>();
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -165,282 +167,68 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 12),
 
-              // Remember me & Forgot Password
+              // Remember me
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                mainAxisAlignment: MainAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      Checkbox(
-                        value: _rememberMe,
-                        activeColor: AppColors.primary,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-                        onChanged: (val) {
-                          setState(() {
-                            _rememberMe = val ?? true;
-                          });
-                        },
-                      ),
-                      Text('Remember me', style: AppTextStyles.bodySmall),
-                    ],
+                  Checkbox(
+                    value: _rememberMe,
+                    activeColor: AppColors.primary,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                    onChanged: (val) {
+                      setState(() {
+                        _rememberMe = val ?? true;
+                      });
+                    },
                   ),
-                  TextButton(
-                    onPressed: () => _showForgotPasswordSheet(context),
-                    child: Text(
-                      'Forgot Password?',
-                      style: AppTextStyles.bodySmall.copyWith(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
+                  Text('Remember me', style: AppTextStyles.bodySmall),
                 ],
               ),
 
               const SizedBox(height: 16),
 
               // Log In Button
-              ElevatedButton(
-                onPressed: () async {
-                  final auth = context.read<AuthNotifier>();
-                  final success = await auth.login(_loginController.text, _passwordController.text);
-                  if (success && context.mounted) {
-                    Navigator.pushNamedAndRemoveUntil(context, AppRoutes.main, (route) => false);
-                  } else if (context.mounted && auth.authError != null) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(auth.authError!), backgroundColor: Colors.redAccent),
-                    );
-                  }
-                },
-                child: const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text('Log In', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                    SizedBox(width: 8),
-                    Icon(Icons.arrow_forward_rounded, size: 18),
-                  ],
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton(
+                  onPressed: auth.isLoading
+                      ? null
+                      : () async {
+                          if (_loginController.text.trim().isEmpty || _passwordController.text.trim().isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Please enter email and password'), backgroundColor: Colors.redAccent),
+                            );
+                            return;
+                          }
+                          final success = await context.read<AuthNotifier>().login(_loginController.text.trim(), _passwordController.text.trim());
+                          if (success && context.mounted) {
+                            Navigator.pushNamedAndRemoveUntil(context, AppRoutes.main, (route) => false);
+                          } else if (context.mounted && context.read<AuthNotifier>().authError != null) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text(context.read<AuthNotifier>().authError!), backgroundColor: Colors.redAccent),
+                            );
+                          }
+                        },
+                  child: auth.isLoading
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text('Log In', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                            SizedBox(width: 8),
+                            Icon(Icons.arrow_forward_rounded, size: 18),
+                          ],
+                        ),
                 ),
               ),
 
               const SizedBox(height: 24),
 
-              // Divider "or continue with"
-              Row(
-                children: [
-                  const Expanded(child: Divider(color: AppColors.cardBorder)),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    child: Text('or continue with', style: AppTextStyles.caption),
-                  ),
-                  const Expanded(child: Divider(color: AppColors.cardBorder)),
-                ],
-              ),
-              const SizedBox(height: 20),
-
-              // Social OAuth Buttons (Google & Apple Only)
-              Row(
-                children: [
-                  _buildOAuthButton(
-                    label: 'Google',
-                    icon: Container(
-                      width: 22,
-                      height: 22,
-                      alignment: Alignment.center,
-                      child: const Text('G', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: Color(0xFF4285F4))),
-                    ),
-                    onTap: () async {
-                      final auth = context.read<AuthNotifier>();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Signing in with Google Account... 💜'), duration: Duration(seconds: 1)),
-                      );
-                      await auth.login('alex@gmail.com', 'demo1234');
-                      if (context.mounted) {
-                        Navigator.pushNamedAndRemoveUntil(context, AppRoutes.main, (route) => false);
-                      }
-                    },
-                  ),
-                  const SizedBox(width: 14),
-                  _buildOAuthButton(
-                    label: 'Apple',
-                    icon: const Icon(Icons.apple_rounded, size: 20, color: Colors.black),
-                    onTap: () async {
-                      final auth = context.read<AuthNotifier>();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Signing in with Apple ID... '), duration: Duration(seconds: 1)),
-                      );
-                      await auth.login('alex@apple.com', 'demo1234');
-                      if (context.mounted) {
-                        Navigator.pushNamedAndRemoveUntil(context, AppRoutes.main, (route) => false);
-                      }
-                    },
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 28),
-
-              // Your safety is our priority banner
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF3F1FD),
-                  borderRadius: BorderRadius.circular(18),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.shield_rounded, size: 20, color: AppColors.primary),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Your safety is our priority',
-                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AppColors.primaryDark),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            'We use secure encryption to keep your data private and protected.',
-                            style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const Icon(Icons.lock_rounded, size: 28, color: AppColors.primaryLight),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 20),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildOAuthButton({
-    required String label,
-    required Widget icon,
-    required VoidCallback onTap,
-  }) {
-    return Expanded(
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          height: 48,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.cardBorder),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.03),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              icon,
-              const SizedBox(width: 8),
-              Text(
-                'Continue with $label',
-                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12, color: AppColors.textPrimary),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _showForgotPasswordSheet(BuildContext context) {
-    final emailCtrl = TextEditingController(text: _loginController.text);
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
-        child: Container(
-          padding: const EdgeInsets.all(24),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  margin: const EdgeInsets.only(bottom: 16),
-                  decoration: BoxDecoration(
-                    color: AppColors.cardBorder,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              const Row(
-                children: [
-                  Icon(Icons.lock_reset_rounded, color: AppColors.primary, size: 24),
-                  SizedBox(width: 8),
-                  Text('Reset Password 🔑', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                ],
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Enter your registered email address or handle. We will send you a 6-digit recovery code.',
-                style: TextStyle(fontSize: 12, color: AppColors.textSecondary, height: 1.4),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: emailCtrl,
-                keyboardType: TextInputType.emailAddress,
-                decoration: const InputDecoration(
-                  prefixIcon: Icon(Icons.email_outlined, color: AppColors.primary),
-                  hintText: 'Enter your email or handle',
-                ),
-              ),
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: ElevatedButton(
-                  onPressed: () {
-                    final target = emailCtrl.text.trim();
-                    if (target.isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Please enter your email or handle.')),
-                      );
-                      return;
-                    }
-                    Navigator.pop(ctx);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Recovery code sent to $target! 📩'),
-                        backgroundColor: AppColors.primary,
-                      ),
-                    );
-                    Navigator.pushNamed(context, AppRoutes.resetPassword, arguments: target);
-                  },
-                  child: const Text('Send Reset Instructions', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                ),
-              ),
-              const SizedBox(height: 10),
             ],
           ),
         ),

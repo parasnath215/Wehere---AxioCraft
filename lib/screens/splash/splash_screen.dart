@@ -4,8 +4,48 @@ import '../../core/theme/app_colors.dart';
 import '../../core/routing/app_routes.dart';
 import '../../state/auth_notifier.dart';
 
-class SplashScreen extends StatelessWidget {
+class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
+
+  @override
+  State<SplashScreen> createState() => _SplashScreenState();
+}
+
+class _SplashScreenState extends State<SplashScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkAuthAndNavigate();
+    });
+  }
+
+  void _checkAuthAndNavigate() {
+    final auth = context.read<AuthNotifier>();
+    
+    // We delay slightly for branding/splash to show
+    Future.delayed(const Duration(seconds: 2), () {
+      if (!mounted) return;
+      
+      if (auth.status == AuthStatus.initializing) {
+        // Wait longer if still initializing
+        Future.delayed(const Duration(milliseconds: 500), _checkAuthAndNavigate);
+        return;
+      }
+
+      if (auth.isAuthenticated) {
+        if (!auth.hasCompletedOnboarding) {
+          Navigator.pushReplacementNamed(context, AppRoutes.onboarding);
+        } else {
+          Navigator.pushNamedAndRemoveUntil(context, AppRoutes.main, (route) => false);
+        }
+      } else if (!auth.hasSeenWalkthrough) {
+        Navigator.pushReplacementNamed(context, AppRoutes.walkthrough);
+      } else {
+        Navigator.pushReplacementNamed(context, AppRoutes.login);
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -116,60 +156,9 @@ class SplashScreen extends StatelessWidget {
                   ],
                 ),
 
-                // Bottom Action
                 Column(
                   children: [
-                    Container(
-                      width: double.infinity,
-                      height: 56,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(28),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.15),
-                            blurRadius: 18,
-                            offset: const Offset(0, 6),
-                          ),
-                        ],
-                      ),
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.white,
-                          foregroundColor: AppColors.primary,
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(28),
-                          ),
-                        ),
-                        onPressed: () {
-                          final auth = context.read<AuthNotifier>();
-                          if (auth.isAuthenticated) {
-                            Navigator.pushNamedAndRemoveUntil(context, AppRoutes.main, (route) => false);
-                          } else if (!auth.hasSeenWalkthrough) {
-                            Navigator.pushReplacementNamed(context, AppRoutes.walkthrough);
-                          } else {
-                            Navigator.pushReplacementNamed(context, AppRoutes.login);
-                          }
-                        },
-                        child: const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              'Get Started',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.primary,
-                              ),
-                            ),
-                            SizedBox(width: 8),
-                            Icon(Icons.arrow_forward_ios_rounded, size: 16, color: AppColors.primary),
-                          ],
-                        ),
-                      ),
-                    ),
                     const SizedBox(height: 16),
-
                     // Dot Indicators
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,

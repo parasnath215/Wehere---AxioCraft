@@ -100,11 +100,15 @@ class AppState extends ChangeNotifier {
 
   // Gamification XP & Level
   int _currentXp = 2350;
-  final int _targetXp = 3000;
-  final int _userLevel = 12;
+  int _targetXp = 3000;
+  int _userLevel = 12;
   int get currentXp => _currentXp;
   int get targetXp => _targetXp;
   int get userLevel => _userLevel;
+
+  int _calculateTargetXp(int level) {
+    return level * 250;
+  }
 
   // Subscription & Free Tier Limits
   bool isSubscribed = false;
