@@ -654,11 +654,21 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  void reportAndBlockPeer(String peerId, String reason) {
+  Future<void> reportAndBlockPeer(String peerId, String reason) async {
     _matchedUsers.removeWhere((u) => u.id == peerId);
     _messages.remove(peerId);
     _cards.removeWhere((c) => c.profile.id == peerId);
     notifyListeners();
+    
+    try {
+      await apiClient.post('/users/$peerId/block');
+      await apiClient.post('/users/$peerId/report', data: {
+        'reason': reason,
+        'description': 'User reported from chat'
+      });
+    } catch (e) {
+      print("Failed to report/block peer: $e");
+    }
   }
 
   Future<void> addJournalEntry(String mood, String thought, String gratitude, String category) async {

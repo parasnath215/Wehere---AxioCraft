@@ -12,7 +12,7 @@ router.get('/stats', async (req, res) => {
     const totalUsers = await prisma.user.count();
     const activeMatches = await prisma.match.count({ where: { status: 'connected' } });
     const totalMessages = await prisma.message.count();
-    const reportedUsers = 0; // Placeholder
+    const reportedUsers = await prisma.user.count({ where: { reportsReceived: { some: {} } } });
 
     const recentUsers = await prisma.user.findMany({
       orderBy: { createdAt: 'desc' },
@@ -102,6 +102,40 @@ router.get('/matches', async (req, res, next) => {
       }
     });
     res.json(matches);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// GET /admin/reports
+router.get('/reports', async (req, res, next) => {
+  try {
+    const reports = await prisma.report.findMany({
+      orderBy: { createdAt: 'desc' },
+      include: {
+        reporter: { select: { pseudonym: true, email: true } },
+        reported: { select: { pseudonym: true, email: true, isBanned: true } }
+      }
+    });
+    res.json(reports);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// PUT /admin/users/:id/ban
+router.put('/users/:id/ban', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { isBanned } = req.body; // true to ban, false to unban
+    
+    const user = await prisma.user.update({
+      where: { id },
+      data: { isBanned },
+      select: { id: true, pseudonym: true, isBanned: true }
+    });
+    
+    res.json(user);
   } catch (error) {
     next(error);
   }

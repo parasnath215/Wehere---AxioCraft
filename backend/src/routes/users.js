@@ -98,4 +98,42 @@ router.put('/me', authenticateToken, upload.single('avatar'), async (req, res, n
   }
 });
 
+// POST /users/:id/block - Block a user
+router.post('/:id/block', authenticateToken, async (req, res, next) => {
+  try {
+    const targetUserId = req.params.id;
+    const blockerId = req.user.id;
+    
+    await prisma.block.create({
+      data: { blockerId, blockedId: targetUserId }
+    });
+    
+    res.json({ success: true });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// POST /users/:id/report - Report a user
+router.post('/:id/report', authenticateToken, async (req, res, next) => {
+  try {
+    const targetUserId = req.params.id;
+    const reporterId = req.user.id;
+    const { reason, description } = req.body;
+    
+    await prisma.report.create({
+      data: {
+        reporterId,
+        reportedId: targetUserId,
+        reason,
+        description
+      }
+    });
+    
+    res.json({ success: true });
+  } catch (error) {
+    next(error);
+  }
+});
+
 module.exports = router;
