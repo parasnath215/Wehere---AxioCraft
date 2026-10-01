@@ -33,12 +33,25 @@ router.get('/', authenticateToken, async (req, res, next) => {
           select: { id: true, pseudonym: true, images: true, isAnonymous: true }
         },
         _count: {
-          select: { comments: true }
+          select: { comments: true, likes: true }
         }
       }
     });
 
-    res.json(posts);
+    // We should also let the frontend know if the current user liked the post
+    const userId = req.user.id;
+    const userLikes = await prisma.postLike.findMany({
+      where: { userId, postId: { in: posts.map(p => p.id) } }
+    });
+    
+    const likedPostIds = new Set(userLikes.map(l => l.postId));
+
+    const formattedPosts = posts.map(p => ({
+      ...p,
+      isLikedByMe: likedPostIds.has(p.id)
+    }));
+
+    res.json(formattedPosts);
   } catch (error) {
     next(error);
   }
@@ -120,6 +133,32 @@ router.post('/:id/comments', authenticateToken, async (req, res, next) => {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ error: 'Validation failed', details: error.errors });
     }
+    next(error);
+  }
+});
+
+// Toggle Like
+router.post('/:id/like', authenticateToken, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+
+    const existingLike = await prisma.postLike.findUnique({
+      where: { userId_postId: { userId, postId: id } }
+    });
+
+    if (existingLike) {
+      await prisma.postLike.delete({
+        where: { userId_postId: { userId, postId: id } }
+      });
+      res.json({ liked: false });
+    } else {
+      await prisma.postLike.create({
+        data: { userId, postId: id }
+      });
+      res.json({ liked: true });
+    }
+  } catch (error) {
     next(error);
   }
 });

@@ -366,9 +366,9 @@ class AppState extends ChangeNotifier {
             timeAgo: _formatTimeAgo(DateTime.parse(p['createdAt'])),
             topic: p['topic'],
             content: p['content'],
-            likesCount: p['likesCount'] ?? 0,
-            commentsCount: p['_count']['comments'] ?? 0,
-            isLiked: false,
+            likesCount: p['_count'] != null ? (p['_count']['likes'] ?? 0) : 0,
+            commentsCount: p['_count'] != null ? (p['_count']['comments'] ?? 0) : 0,
+            isLiked: p['isLikedByMe'] ?? false,
           ));
         }
       } catch (e) {
@@ -744,13 +744,22 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  void togglePostLike(String postId) {
+  void togglePostLike(String postId) async {
     final idx = _communityPosts.indexWhere((p) => p.id == postId);
     if (idx != -1) {
       final post = _communityPosts[idx];
       post.isLiked = !post.isLiked;
       post.likesCount += post.isLiked ? 1 : -1;
       notifyListeners();
+
+      try {
+        await apiClient.post('/community/$postId/like');
+      } catch (e) {
+        // revert on error
+        post.isLiked = !post.isLiked;
+        post.likesCount += post.isLiked ? 1 : -1;
+        notifyListeners();
+      }
     }
   }
 
