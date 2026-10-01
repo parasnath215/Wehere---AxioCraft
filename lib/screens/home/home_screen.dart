@@ -5,6 +5,7 @@ import '../../core/theme/app_text_styles.dart';
 import '../../core/routing/app_routes.dart';
 import '../../state/app_state.dart';
 
+import '../../widgets/common/mood_chip.dart';
 import '../../widgets/shared/avatar_widget.dart';
 
 class HomeScreen extends StatelessWidget {

@@ -7,8 +7,6 @@ import '../../widgets/discovery/swipeable_card.dart';
 import '../../widgets/discovery/card_action_buttons.dart';
 import '../../widgets/discovery/match_dialog.dart';
 import '../../widgets/discovery/profile_detail_sheet.dart';
-import '../../widgets/subscription/subscription_sheet.dart';
-import '../../widgets/mock_banner_ad.dart';
 import '../chat/chat_conversation_screen.dart';
 
 class DiscoverSwipeScreen extends StatefulWidget {
@@ -19,34 +17,6 @@ class DiscoverSwipeScreen extends StatefulWidget {
 }
 
 class _DiscoverSwipeScreenState extends State<DiscoverSwipeScreen> {
-  int _activeTab = 0;
-
-  void _attemptAction(AppState appState, VoidCallback action) {
-    if (appState.canSwipe()) {
-      action();
-    } else {
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      showWeherePlusSubscriptionSheet(context);
-    }
-  }
-
-  void _attemptPreferenceChange(AppState appState, VoidCallback action) {
-    if (appState.canChangePreferences()) {
-      appState.recordPreferencesChange();
-      action();
-    } else {
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Free users can change preferences once a week. Upgrade for unlimited changes!'),
-        backgroundColor: AppColors.primary,
-        behavior: SnackBarBehavior.floating,
-        duration: Duration(seconds: 2),
-      ));
-      showWeherePlusSubscriptionSheet(context);
-    }
-  }
-
-  final List<String> _tabs = ['For You', 'New', 'Active Now 🟢', 'Near You'];
 
   @override
   Widget build(BuildContext context) {
@@ -118,61 +88,7 @@ class _DiscoverSwipeScreenState extends State<DiscoverSwipeScreen> {
               ),
             ),
 
-            const SizedBox(height: 4),
-
-            // 2. Filter Tabs (For You, New, Active Now, Near You)
-            SizedBox(
-              height: 38,
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                itemCount: _tabs.length,
-                itemBuilder: (context, index) {
-                  final isSelected = _activeTab == index;
-                  return GestureDetector(
-                    onTap: () {
-                      _attemptPreferenceChange(appState, () {
-                        setState(() => _activeTab = index);
-                        appState.setDiscoveryFilter(_tabs[index].replaceAll(' 🟢', ''));
-                      });
-                    },
-                    child: Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 6),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: isSelected ? AppColors.primary : Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: isSelected ? AppColors.primary : AppColors.cardBorder),
-                        boxShadow: isSelected
-                            ? [
-                                BoxShadow(
-                                  color: AppColors.primary.withValues(alpha: 0.3),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 3),
-                                )
-                              ]
-                            : [],
-                      ),
-                      child: Text(
-                        _tabs[index],
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                          color: isSelected ? Colors.white : AppColors.textSecondary,
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-
             const SizedBox(height: 8),
-
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16),
-              child: MockBannerAd(),
-            ),
 
             // 3. Swipeable Card Stack or Empty State
             Expanded(
@@ -197,17 +113,13 @@ class _DiscoverSwipeScreenState extends State<DiscoverSwipeScreen> {
                           child: SwipeableCard(
                             card: cards.first,
                             onSwipeLeft: () {
-                              _attemptAction(appState, () {
-                                appState.swipeLeft();
-                              });
+                              appState.swipeLeft();
                             },
-                            onSwipeRight: () {
-                              _attemptAction(appState, () async {
-                                final isMatch = await appState.swipeRight();
-                                if (isMatch && appState.lastMatch != null) {
-                                  _showMatchCelebration(context, appState);
-                                }
-                              });
+                            onSwipeRight: () async {
+                              final isMatch = await appState.swipeRight();
+                              if (isMatch && appState.lastMatch != null) {
+                                _showMatchCelebration(context, appState);
+                              }
                             },
                             onTapDetail: () {
                               _openProfileDetail(context, cards.first.profile, appState);
@@ -275,22 +187,18 @@ class _DiscoverSwipeScreenState extends State<DiscoverSwipeScreen> {
             Padding(
               padding: const EdgeInsets.only(bottom: 12, top: 4),
               child: CardActionButtons(
-                onPass: () => _attemptAction(appState, () => appState.swipeLeft()),
-                onConnect: () {
-                  _attemptAction(appState, () async {
-                    final isMatch = await appState.swipeRight();
-                    if (isMatch && appState.lastMatch != null) {
-                      _showMatchCelebration(context, appState);
-                    }
-                  });
+                onPass: () => appState.swipeLeft(),
+                onConnect: () async {
+                  final isMatch = await appState.swipeRight();
+                  if (isMatch && appState.lastMatch != null) {
+                    _showMatchCelebration(context, appState);
+                  }
                 },
                 onSuperLike: () {
-                  _attemptAction(appState, () {
-                    appState.superSupport();
-                    if (appState.lastMatch != null) {
-                      _showMatchCelebration(context, appState);
-                    }
-                  });
+                  appState.superSupport();
+                  if (appState.lastMatch != null) {
+                    _showMatchCelebration(context, appState);
+                  }
                 },
                 onRewind: appState.canRewind ? () => appState.rewindLastSwipe() : null,
               ),
