@@ -46,3 +46,19 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+
+# QA / Backend / Next.js additions
+node_modules/
+.env
+.env.*
+.next/
+dist/
+tmp/
+public/uploads/
+logs/
+*.bak
+*_old
+*_copy
+.gemini/
+.agentrules
+.planning/
