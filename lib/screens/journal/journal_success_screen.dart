@@ -206,7 +206,7 @@ class JournalSuccessScreen extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Text(
-                            'Keep going, Alex!',
+                            'Keep going!',
                             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.textPrimary),
                           ),
                           const SizedBox(height: 2),

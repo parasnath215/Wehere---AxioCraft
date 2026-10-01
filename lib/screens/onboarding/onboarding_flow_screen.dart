@@ -37,7 +37,7 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final appState = Provider.of<AppState>(context, listen: false);
-      if (appState.onboardingName.isNotEmpty && appState.onboardingName != 'Alex') {
+      if (appState.onboardingName.isNotEmpty) {
         setState(() {
           _nameController.text = appState.onboardingName;
         });

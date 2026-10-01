@@ -80,12 +80,7 @@ Wehere/
 │   │   ├── sos/               # SOS emergency hub
 │   │   └── profile/           # User profile, anonymity mode, XP bar, badges
 │   └── main.dart              # Flutter App Entry point
-├── preview/                   # Interactive Mobile Device Simulator (Web)
-│   ├── index.html             # Pixel-perfect dual-frame simulator (iPhone 15 & Pixel 8)
-│   ├── style.css              # Dynamic layout, swipe physics & dark theme styling
-│   └── app.js                 # Complete interactive simulator state & mockups drawer
 ├── pubspec.yaml               # Flutter package configuration & dependencies
-└── server.js                  # Local preview server
 
 ## ⚙️ Backend & Admin Architecture
 ```
@@ -103,25 +98,6 @@ Wehere/
 ---
 
 ## 🚀 How to Run
-
-### Option 1: Instant Interactive Device Preview (In Browser)
-You can test the entire user flow right now in your browser using the built-in device simulator:
-
-1. Run the local preview server:
-   ```bash
-   node server.js
-   ```
-2. Open your browser and navigate to:
-   ```
-   http://localhost:8080
-   ```
-3. Experience:
-   - **Tinder Swipe Deck**: Drag or click heart/pass/star to match.
-   - **Match Celebration**: Triggered automatically on swipe right.
-   - **Live Safe Chat**: Send and receive peer messages with crisis keyword detection.
-   - **Mood Check-in & Journaling**: Log feelings and save reflections.
-   - **SOS Help Screen**: Click the emergency button in the top bar to inspect 24/7 helplines.
-   - **Mockup Gallery**: Click "Original Mockups" in the top bar to compare live UI side-by-side with all 32 mockups from the `assest/` folder.
 
 ### Option 2: Running via Flutter SDK (Android / iOS / Web / Desktop)
 When you have the Flutter SDK installed on your machine:

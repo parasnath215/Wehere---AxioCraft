@@ -55,7 +55,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
       'quiet_compass_19',
       'mindful_lotus_77',
       'serene_ember_33',
-      'alex_growth_94',
+      'johndoe94',
       'brave_spirit_11'
     ];
     final rand = handles[DateTime.now().millisecondsSinceEpoch % handles.length];
@@ -104,7 +104,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 controller: _handleController,
                 decoration: InputDecoration(
                   prefixIcon: const Icon(Icons.tag_rounded, color: AppColors.primary),
-                  hintText: 'Unique Handle (e.g. alex_7294)',
+                  hintText: 'Unique Handle (e.g. johndoe94)',
                   suffixIcon: TextButton.icon(
                     onPressed: _randomizeHandle,
                     icon: const Icon(Icons.shuffle_rounded, size: 14),

@@ -255,7 +255,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                           final success = await authRead.verifyOtp(pin);
                           if (success && context.mounted) {
                             appState.initializeUserFromAuth(
-                              id: authRead.userId ?? 'user_alex',
+                              id: authRead.userId ?? 'user_1',
                               name: authRead.registeredName,
                               email: authRead.registeredEmail,
                             );

@@ -73,7 +73,6 @@ class AppState extends ChangeNotifier {
         notifyListeners();
       }
     } catch (e) {
-      print('Failed to fetch user: $e');
     }
   }
 
@@ -105,14 +104,13 @@ class AppState extends ChangeNotifier {
         configLoadError = true;
       }
     } catch (e) {
-      print('Failed to load config: $e');
       configLoadError = true;
     }
     notifyListeners();
   }
 
   // Onboarding temporary state
-  String onboardingName = 'Alex';
+  String onboardingName = '';
   String onboardingDob = '14 / 08 / 1999';
   String onboardingLocation = 'Mumbai, India';
   List<String> selectedInterests = ['Mental Health', 'Personal Growth', 'Relationships'];
@@ -340,7 +338,6 @@ class AppState extends ChangeNotifier {
         _dayStreak = progressRes.data['currentStreak'] ?? _dayStreak;
         _weeklyProgress = progressRes.data['weeklyProgress'] ?? _weeklyProgress;
       } catch(e) {
-        print("Failed to fetch progress: $e");
       }
       
       // Fetch Today's Mood
@@ -348,7 +345,6 @@ class AppState extends ChangeNotifier {
         final moodRes = await apiClient.get('/progress/mood/today');
         _todayMood = moodRes.data['mood'];
       } catch(e) {
-        print("Failed to fetch mood: $e");
       }
       
       // Fetch Unread Notifications
@@ -356,7 +352,6 @@ class AppState extends ChangeNotifier {
         final notifRes = await apiClient.get('/notifications/unread');
         _unreadNotifications = notifRes.data['unreadCount'] ?? 0;
       } catch(e) {
-        print("Failed to fetch unread notifications: $e");
       }
       // Fetch Journals
       final journalRes = await apiClient.get('/journal');
@@ -378,7 +373,7 @@ class AppState extends ChangeNotifier {
         final data = meRes.data;
         final avatar = (data['images'] != null && data['images'].isNotEmpty) 
           ? '${AppConstants.apiBaseUrl}${data['images'][0]}'
-          : 'assets/mockups/user_dashboard_alex.jpeg';
+          : '';
           
         _currentUser = _currentUser.copyWith(
           id: data['id'],
@@ -392,7 +387,6 @@ class AppState extends ChangeNotifier {
         _targetXp = _calculateTargetXp(_userLevel);
         notifyListeners();
       } catch (e) {
-        print("Failed to fetch user profile: $e");
       }
 
       // Fetch Conversations
@@ -436,11 +430,9 @@ class AppState extends ChangeNotifier {
                ));
              }
           } catch(e) {
-             print("Failed to fetch messages for conv ${c['id']}: $e");
           }
         }
       } catch (e) {
-        print("Failed to fetch conversations: $e");
       }
 
       // Fetch Matches
@@ -476,7 +468,7 @@ class AppState extends ChangeNotifier {
             id: p['id'],
             authorName: p['author']['pseudonym'] ?? 'Anonymous',
             authorBadge: p['author']['isAnonymous'] ? 'Anonymous Peer' : 'Member',
-            authorAvatar: (p['author']['images'] != null && p['author']['images'].isNotEmpty) ? p['author']['images'][0] : 'assets/mockups/user_dashboard_alex.jpeg',
+            authorAvatar: (p['author']['images'] != null && p['author']['images'].isNotEmpty) ? p['author']['images'][0] : '',
             timeAgo: _formatTimeAgo(DateTime.parse(p['createdAt'])),
             topic: p['topic'],
             content: p['content'],
@@ -486,7 +478,6 @@ class AppState extends ChangeNotifier {
           ));
         }
       } catch (e) {
-        print("Failed to fetch community posts: $e");
       }
       // Fetch Goals
       try {
@@ -503,7 +494,6 @@ class AppState extends ChangeNotifier {
           ));
         }
       } catch (e) {
-        print("Failed to fetch goals: $e");
       }
 
       // Fetch SOS Contacts
@@ -519,7 +509,6 @@ class AppState extends ChangeNotifier {
           ));
         }
       } catch (e) {
-        print("Failed to fetch SOS contacts: $e");
       }
 
       // Fetch Notifications
@@ -537,10 +526,8 @@ class AppState extends ChangeNotifier {
           ));
         }
       } catch (e) {
-        print("Failed to fetch notifications: $e");
       }
     } catch (e) {
-      print("Failed to fetch backend data: $e");
     }
     isLoadingData = false;
     notifyListeners();
@@ -579,7 +566,6 @@ class AppState extends ChangeNotifier {
           'action': 'pass'
         });
       } catch (e) {
-        print("Error swiping left: $e");
       }
     }
   }
@@ -608,7 +594,6 @@ class AppState extends ChangeNotifier {
         return false;
       }
     } catch (e) {
-      print("Error swiping right: $e");
       return false;
     }
   }
@@ -669,7 +654,6 @@ class AppState extends ChangeNotifier {
       .build());
 
     _socket?.onConnect((_) {
-      print('Socket connected');
       // Ideally, the backend emits conversation IDs or we join them based on matches.
     });
 
@@ -773,7 +757,6 @@ class AppState extends ChangeNotifier {
         'description': 'User reported from chat'
       });
     } catch (e) {
-      print("Failed to report/block peer: $e");
     }
   }
 
@@ -804,7 +787,6 @@ class AppState extends ChangeNotifier {
       
       notifyListeners();
     } catch (e) {
-      print("Error creating journal: $e");
     }
   }
 
@@ -852,7 +834,6 @@ class AppState extends ChangeNotifier {
         _goals[idx] = current;
         _currentXp -= newStatus ? 50 : -50;
         notifyListeners();
-        print("Error toggling goal: $e");
       }
     }
   }
@@ -877,7 +858,6 @@ class AppState extends ChangeNotifier {
       _currentXp += 40;
       notifyListeners();
     } catch (e) {
-      print("Error adding goal: $e");
     }
   }
 
@@ -926,7 +906,7 @@ class AppState extends ChangeNotifier {
         id: p['id'],
         authorName: p['author']['pseudonym'] ?? 'Anonymous',
         authorBadge: p['author']['isAnonymous'] ? 'Anonymous Peer' : 'Member',
-        authorAvatar: (p['author']['images'] != null && p['author']['images'].isNotEmpty) ? p['author']['images'][0] : 'assets/mockups/user_dashboard_alex.jpeg',
+        authorAvatar: (p['author']['images'] != null && p['author']['images'].isNotEmpty) ? p['author']['images'][0] : '',
         timeAgo: 'Just now',
         topic: p['topic'],
         content: p['content'],
@@ -938,7 +918,6 @@ class AppState extends ChangeNotifier {
       _currentXp += 75;
       notifyListeners();
     } catch (e) {
-      print("Error creating post: $e");
     }
   }
 
@@ -954,7 +933,7 @@ class AppState extends ChangeNotifier {
       final comment = CommunityComment(
         id: c['id'],
         authorName: c['author']['pseudonym'] ?? 'Anonymous',
-        authorAvatar: (c['author']['images'] != null && c['author']['images'].isNotEmpty) ? c['author']['images'][0] : 'assets/mockups/user_dashboard_alex.jpeg',
+        authorAvatar: (c['author']['images'] != null && c['author']['images'].isNotEmpty) ? c['author']['images'][0] : '',
         text: c['text'],
         timeAgo: 'Just now',
       );
@@ -967,7 +946,6 @@ class AppState extends ChangeNotifier {
       _currentXp += 20;
       notifyListeners();
     } catch (e) {
-      print("Error adding comment: $e");
     }
   }
 
@@ -987,7 +965,6 @@ class AppState extends ChangeNotifier {
       _emergencyContacts.add(contact);
       notifyListeners();
     } catch (e) {
-      print("Failed to add SOS contact: $e");
     }
   }
 
@@ -997,7 +974,6 @@ class AppState extends ChangeNotifier {
       _emergencyContacts.removeWhere((c) => c.id == id);
       notifyListeners();
     } catch (e) {
-      print("Failed to delete SOS contact: $e");
     }
   }
 
@@ -1123,7 +1099,7 @@ class AppState extends ChangeNotifier {
             : _currentUser.bio);
 
     _currentUser = _currentUser.copyWith(
-      name: isAnonymousMode ? 'Kind Peer' : (onboardingName.isNotEmpty ? onboardingName : 'Alex'),
+      name: isAnonymousMode ? 'Kind Peer' : (onboardingName.isNotEmpty ? onboardingName : 'User'),
       age: age ?? _currentUser.age,
       location: onboardingLocation.isNotEmpty ? onboardingLocation : 'Mumbai, India',
       interests: selectedInterests,
@@ -1152,7 +1128,6 @@ class AppState extends ChangeNotifier {
       }
       notifyListeners();
     } catch (e) {
-      print("Failed to mark notifications read: $e");
     }
   }
 }
