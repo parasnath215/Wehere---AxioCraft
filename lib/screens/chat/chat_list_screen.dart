@@ -4,7 +4,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/routing/app_routes.dart';
 import '../../state/app_state.dart';
-import '../../widgets/mock_banner_ad.dart';
+import '../../widgets/shared/avatar_widget.dart';
 
 class ChatListScreen extends StatefulWidget {
   const ChatListScreen({super.key});
@@ -57,10 +57,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 20),
-              child: MockBannerAd(),
-            ),
+
             // Search Bar
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
@@ -131,12 +128,9 @@ class _ChatListScreenState extends State<ChatListScreen> {
                                   shape: BoxShape.circle,
                                   gradient: AppColors.primaryGradient,
                                 ),
-                                child: CircleAvatar(
+                                child: AvatarWidget(
+                                  imageUrl: user.avatarUrl,
                                   radius: 26,
-                                  backgroundImage: AssetImage(user.avatarUrl),
-                                  onBackgroundImageError: (_, __) {},
-                                  backgroundColor: AppColors.primarySoft,
-                                  child: const Icon(Icons.person, color: AppColors.primary),
                                 ),
                               ),
                               Positioned(
@@ -198,12 +192,9 @@ class _ChatListScreenState extends State<ChatListScreen> {
                             },
                             leading: Stack(
                               children: [
-                                CircleAvatar(
+                                AvatarWidget(
+                                  imageUrl: user.avatarUrl,
                                   radius: 26,
-                                  backgroundImage: AssetImage(user.avatarUrl),
-                                  onBackgroundImageError: (_, __) {},
-                                  backgroundColor: AppColors.primarySoft,
-                                  child: const Icon(Icons.person, color: AppColors.primary),
                                 ),
                                 if (user.isOnline)
                                   Positioned(
