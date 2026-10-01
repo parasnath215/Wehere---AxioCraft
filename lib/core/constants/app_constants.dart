@@ -1,5 +1,5 @@
 class AppConstants {
-  static const String apiBaseUrl = String.fromEnvironment('API_URL', defaultValue: 'http://10.0.2.2:4000/api');
+  static const String apiBaseUrl = String.fromEnvironment('API_URL', defaultValue: 'https://api.wehere.app/api');
   static const String appName = 'Wehere';
   static const String appTagline = 'A safe place to talk, connect and heal.';
   static const String safeSpaceNotice =

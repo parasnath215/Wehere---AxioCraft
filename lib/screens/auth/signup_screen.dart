@@ -16,16 +16,15 @@ class SignUpScreen extends StatefulWidget {
 }
 
 class _SignUpScreenState extends State<SignUpScreen> {
-  final TextEditingController _handleController = TextEditingController(text: 'alex_7294');
-  final TextEditingController _nameController = TextEditingController(text: 'Alex');
-  final TextEditingController _emailController = TextEditingController(text: 'alex@example.com');
-  final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _handleController = TextEditingController();
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController = TextEditingController();
 
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
-  bool _agreedToTerms = true;
+  bool _agreedToTerms = false;
   
   final List<String> _imagePaths = [];
   final ImagePicker _picker = ImagePicker();
@@ -67,6 +66,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final auth = context.watch<AuthNotifier>();
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -189,17 +190,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
               ),
               const SizedBox(height: 14),
 
-              // Phone Number (Optional)
-              TextField(
-                controller: _phoneController,
-                keyboardType: TextInputType.phone,
-                decoration: const InputDecoration(
-                  prefixIcon: Icon(Icons.phone_iphone_rounded, color: AppColors.primary),
-                  hintText: 'Phone Number (Optional)',
-                ),
-              ),
-              const SizedBox(height: 14),
-
               // Password
               TextField(
                 controller: _passwordController,
@@ -281,52 +271,83 @@ class _SignUpScreenState extends State<SignUpScreen> {
               const SizedBox(height: 20),
 
               // Sign Up Button
-              ElevatedButton(
-                onPressed: () async {
-                  if (_imagePaths.length < 2) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Please select at least 2 profile images.'), backgroundColor: Colors.redAccent),
-                    );
-                    return;
-                  }
-                  
-                  final auth = context.read<AuthNotifier>();
-                  final appState = context.read<AppState>();
-                  final name = _nameController.text.trim();
-                  final email = _emailController.text.trim();
-                  final pass = _passwordController.text.trim();
-                  final handle = _handleController.text.trim();
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton(
+                  onPressed: auth.isLoading
+                      ? null
+                      : () async {
+                          if (!_agreedToTerms) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Please agree to the Terms of Service & Privacy Policy.'), backgroundColor: Colors.redAccent),
+                            );
+                            return;
+                          }
+                          if (_imagePaths.length < 2) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Please select at least 2 profile images.'), backgroundColor: Colors.redAccent),
+                            );
+                            return;
+                          }
+                          final name = _nameController.text.trim();
+                          final email = _emailController.text.trim();
+                          final pass = _passwordController.text.trim();
+                          final confirmPass = _confirmPasswordController.text.trim();
+                          final handle = _handleController.text.trim();
 
-                  final success = await auth.register(
-                    name.isNotEmpty ? name : 'Alex',
-                    email.isNotEmpty ? email : 'alex@wehere.com',
-                    pass.isNotEmpty ? pass : 'secret123',
-                    customHandle: handle.isNotEmpty ? handle : null,
-                    imagePaths: _imagePaths,
-                  );
+                          if (name.isEmpty || email.isEmpty || pass.isEmpty || handle.isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Please fill all the required fields.'), backgroundColor: Colors.redAccent),
+                            );
+                            return;
+                          }
 
-                  if (success) {
-                    appState.onboardingName = name.isNotEmpty ? name : 'Alex';
-                    if (context.mounted) {
-                      Navigator.pushNamed(
-                        context,
-                        AppRoutes.otp,
-                        arguments: email,
-                      );
-                    }
-                  } else if (context.mounted && auth.authError != null) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(auth.authError!), backgroundColor: Colors.redAccent),
-                    );
-                  }
-                },
-                child: const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text('Create ID & Continue', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                    SizedBox(width: 8),
-                    Icon(Icons.arrow_forward_rounded, size: 18),
-                  ],
+                          if (pass != confirmPass) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Passwords do not match.'), backgroundColor: Colors.redAccent),
+                            );
+                            return;
+                          }
+
+                          final appState = context.read<AppState>();
+                          final success = await auth.register(
+                            name,
+                            email,
+                            pass,
+                            customHandle: handle,
+                            imagePaths: _imagePaths,
+                          );
+
+                          if (success) {
+                            appState.onboardingName = name;
+                            if (context.mounted) {
+                              Navigator.pushNamed(
+                                context,
+                                AppRoutes.otp,
+                                arguments: email,
+                              );
+                            }
+                          } else if (context.mounted && auth.authError != null) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text(auth.authError!), backgroundColor: Colors.redAccent),
+                            );
+                          }
+                        },
+                  child: auth.isLoading
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text('Create ID & Continue', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                            SizedBox(width: 8),
+                            Icon(Icons.arrow_forward_rounded, size: 18),
+                          ],
+                        ),
                 ),
               ),
               const SizedBox(height: 16),
@@ -353,116 +374,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
               const SizedBox(height: 24),
 
-              // Divider "or sign up with"
-              Row(
-                children: [
-                  const Expanded(child: Divider(color: AppColors.cardBorder)),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    child: Text('or sign up with', style: AppTextStyles.caption),
-                  ),
-                  const Expanded(child: Divider(color: AppColors.cardBorder)),
-                ],
-              ),
-              const SizedBox(height: 20),
-
-              // Social OAuth Buttons (Google & Apple Only)
-              Row(
-                children: [
-                  _buildOAuthButton(
-                    label: 'Google',
-                    icon: Container(
-                      width: 22,
-                      height: 22,
-                      alignment: Alignment.center,
-                      child: const Text('G', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: Color(0xFF4285F4))),
-                    ),
-                    onTap: () async {
-                      final auth = context.read<AuthNotifier>();
-                      final appState = context.read<AppState>();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Signing up with Google Account... 🌱'), duration: Duration(seconds: 1)),
-                      );
-                      final success = await auth.register(
-                        _nameController.text.isNotEmpty ? _nameController.text : 'Alex',
-                        'alex@gmail.com',
-                        'demo1234',
-                        customHandle: _handleController.text.isNotEmpty ? _handleController.text : null,
-                      );
-                      if (success) {
-                        appState.onboardingName = _nameController.text.isNotEmpty ? _nameController.text : 'Alex';
-                        if (context.mounted) {
-                          Navigator.pushNamed(context, AppRoutes.onboarding);
-                        }
-                      }
-                    },
-                  ),
-                  const SizedBox(width: 14),
-                  _buildOAuthButton(
-                    label: 'Apple',
-                    icon: const Icon(Icons.apple_rounded, size: 20, color: Colors.black),
-                    onTap: () async {
-                      final auth = context.read<AuthNotifier>();
-                      final appState = context.read<AppState>();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Signing up with Apple ID... '), duration: Duration(seconds: 1)),
-                      );
-                      final success = await auth.register(
-                        _nameController.text.isNotEmpty ? _nameController.text : 'Alex',
-                        'alex@apple.com',
-                        'demo1234',
-                        customHandle: _handleController.text.isNotEmpty ? _handleController.text : null,
-                      );
-                      if (success) {
-                        appState.onboardingName = _nameController.text.isNotEmpty ? _nameController.text : 'Alex';
-                        if (context.mounted) {
-                          Navigator.pushNamed(context, AppRoutes.onboarding);
-                        }
-                      }
-                    },
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildOAuthButton({
-    required String label,
-    required Widget icon,
-    required VoidCallback onTap,
-  }) {
-    return Expanded(
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          height: 48,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.cardBorder),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.03),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              icon,
-              const SizedBox(width: 8),
-              Text(
-                'Sign up with $label',
-                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12, color: AppColors.textPrimary),
-              ),
             ],
           ),
         ),

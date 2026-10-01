@@ -7,7 +7,7 @@ class ApiClient {
 
   ApiClient() {
     dio = Dio(BaseOptions(
-      baseUrl: const String.fromEnvironment('API_URL', defaultValue: 'http://localhost:3000/api'),
+      baseUrl: const String.fromEnvironment('API_URL', defaultValue: 'https://api.wehere.app/api'),
       connectTimeout: const Duration(seconds: 10),
       receiveTimeout: const Duration(seconds: 10),
       headers: {
