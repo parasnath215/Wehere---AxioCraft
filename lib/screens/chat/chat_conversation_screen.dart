@@ -33,11 +33,16 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
   @override
   void initState() {
     super.initState();
-    if (widget.autoSendIcebreaker) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final appState = Provider.of<AppState>(context, listen: false);
+      final conversationId = appState.getConversationId(widget.peer.id);
+      if (conversationId != null) {
+        appState.joinConversation(conversationId);
+      }
+      if (widget.autoSendIcebreaker) {
         _sendPrompt("What's one good thing that happened today? ✨");
-      });
-    }
+      }
+    });
   }
 
   void _scrollToBottom() {
@@ -54,7 +59,10 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
 
   void _sendPrompt(String text) {
     final appState = Provider.of<AppState>(context, listen: false);
-    appState.sendMessage(widget.peer.id, text, isIcebreaker: true);
+    final conversationId = appState.getConversationId(widget.peer.id);
+    if (conversationId != null) {
+      appState.sendMessage(widget.peer.id, text, conversationId, isIcebreaker: true);
+    }
     _scrollToBottom();
   }
 
@@ -76,7 +84,10 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
     }
 
     final appState = Provider.of<AppState>(context, listen: false);
-    appState.sendMessage(widget.peer.id, text);
+    final conversationId = appState.getConversationId(widget.peer.id);
+    if (conversationId != null) {
+      appState.sendMessage(widget.peer.id, text, conversationId);
+    }
     _textController.clear();
     _scrollToBottom();
   }

@@ -7,6 +7,9 @@ import '../models/journal_entry.dart';
 import '../models/community_post.dart';
 import '../models/emergency_contact.dart';
 import '../core/network/api_client.dart';
+import 'package:socket_io_client/socket_io_client.dart' as io;
+import '../core/constants/app_constants.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class AppState extends ChangeNotifier {
   // Current Logged-in User
@@ -141,6 +144,9 @@ class AppState extends ChangeNotifier {
   // Chats: map from userId -> list of ChatMessages
   final Map<String, List<ChatMessage>> _messages = {};
   Map<String, List<ChatMessage>> get messages => _messages;
+  
+  final Map<String, String> _conversationIds = {};
+  String? getConversationId(String peerId) => _conversationIds[peerId];
 
   // Typing status per peer
   final Map<String, bool> _typingStatus = {};
@@ -228,6 +234,12 @@ class AppState extends ChangeNotifier {
     isLoadingData = true;
     notifyListeners();
     try {
+      const storage = FlutterSecureStorage();
+      final token = await storage.read(key: 'jwt_token');
+      if (token != null) {
+        initSocket(token);
+      }
+
       // Fetch User Progress
       final progressRes = await apiClient.get('/progress');
       _currentXp = progressRes.data['xp'] ?? _currentXp;
@@ -267,6 +279,53 @@ class AppState extends ChangeNotifier {
         notifyListeners();
       } catch (e) {
         print("Failed to fetch user profile: $e");
+      }
+
+      // Fetch Conversations
+      try {
+        final convRes = await apiClient.get('/conversations');
+        _messages.clear();
+        for (var c in convRes.data) {
+          _conversationIds[c['peerId']] = c['id'];
+          // fetch messages for conversation
+          try {
+             final msgRes = await apiClient.get('/conversations/${c['id']}/messages');
+             List<ChatMessage> chatMessages = [];
+             for (var m in msgRes.data) {
+                chatMessages.add(ChatMessage(
+                  id: m['id'],
+                  senderId: m['senderId'],
+                  text: m['content'],
+                  timestamp: DateTime.parse(m['createdAt']),
+                  isMine: m['senderId'] == _currentUser.id,
+                ));
+             }
+             _messages[c['peerId']] = chatMessages;
+             
+             // Also ensure matchedUsers has the peer
+             if (!_matchedUsers.any((u) => u.id == c['peerId'])) {
+               _matchedUsers.add(UserProfile(
+                 id: c['peerId'],
+                 name: c['peerName'],
+                 age: 24,
+                 location: '',
+                 bio: '',
+                 avatarUrl: c['peerAvatar'] ?? 'assets/mockups/discover_swipe.jpeg',
+                 isVerified: true,
+                 isOnline: true,
+                 moodStatus: '',
+                 matchPercentage: 90,
+                 interests: [],
+                 lookingFor: '',
+                 values: [],
+               ));
+             }
+          } catch(e) {
+             print("Failed to fetch messages for conv ${c['id']}: $e");
+          }
+        }
+      } catch (e) {
+        print("Failed to fetch conversations: $e");
       }
 
       // Fetch Matches
@@ -470,24 +529,50 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  void sendMessage(String receiverId, String text, {bool isIcebreaker = false}) {
+  // --- SOCKET.IO CHAT INTEGRATION ---
+  io.Socket? _socket;
+
+  void initSocket(String token) {
+    if (_socket != null) return;
+    
+    _socket = io.io(AppConstants.apiBaseUrl, io.OptionBuilder()
+      .setTransports(['websocket'])
+      .setAuth({'token': token})
+      .build());
+
+    _socket?.onConnect((_) {
+      print('Socket connected');
+      // Ideally, the backend emits conversation IDs or we join them based on matches.
+    });
+
+    _socket?.on('receive_message', (data) {
+      final msg = ChatMessage(
+        id: data['id'],
+        senderId: data['senderId'],
+        text: data['content'],
+        timestamp: DateTime.parse(data['createdAt']),
+        isMine: data['senderId'] == _currentUser.id,
+      );
+      // We need to know which peer this belongs to. 
+      // If we sent it, it's already in UI, but to avoid duplication we could ignore if isMine
+      if (!msg.isMine) {
+        _messages.putIfAbsent(data['senderId'], () => []).add(msg);
+        notifyListeners();
+      }
+    });
+  }
+
+  void joinConversation(String conversationId) {
+    _socket?.emit('join_conversation', conversationId);
+  }
+
+  void sendMessage(String receiverId, String text, String conversationId, {bool isIcebreaker = false}) {
     if (text.trim().isEmpty) return;
     final cleanText = text.trim();
 
     // Check crisis keywords
     final lower = cleanText.toLowerCase();
-    const crisisKeywords = [
-      'suicide',
-      'kill myself',
-      'end it all',
-      'self-harm',
-      'self harm',
-      'hurt myself',
-      'want to die',
-      'hopeless',
-      "can't go on",
-      'no reason to live'
-    ];
+    const crisisKeywords = ['suicide', 'kill myself', 'end it all', 'self-harm', 'self harm', 'hurt myself', 'want to die', 'hopeless', "can't go on", 'no reason to live'];
     final isCrisis = crisisKeywords.any((keyword) => lower.contains(keyword));
 
     if (isCrisis) {
@@ -495,7 +580,7 @@ class AppState extends ChangeNotifier {
     }
 
     final msg = ChatMessage(
-      id: 'msg_${DateTime.now().millisecondsSinceEpoch}',
+      id: 'temp_${DateTime.now().millisecondsSinceEpoch}',
       senderId: _currentUser.id,
       text: cleanText,
       timestamp: DateTime.now(),
@@ -507,33 +592,10 @@ class AppState extends ChangeNotifier {
     _currentXp += 10;
     notifyListeners();
 
-    // Simulate realistic Peer response with typing delay
-    _typingStatus[receiverId] = true;
-    notifyListeners();
-
-    Timer(const Duration(milliseconds: 1400), () {
-      _typingStatus[receiverId] = false;
-      String replyText = "Thank you for sharing that with me. It takes real strength to open up. I'm right here listening. 💜";
-
-      if (lower.contains('anxious') || lower.contains('anxiety') || lower.contains('scared') || lower.contains('panic')) {
-        replyText = "Anxiety can feel so heavy and overwhelming, but you're safe right now. Let's take one slow, deep breath together. Inhale... exhale. 🌿";
-      } else if (lower.contains('tired') || lower.contains('burnout') || lower.contains('exhausted')) {
-        replyText = "Rest is productive too. Please make sure to give yourself permission to do nothing and recharge tonight. You've been carrying a lot. 🛋️";
-      } else if (lower.contains('grateful') || lower.contains('happy') || lower.contains('good') || lower.contains('proud') || lower.contains('win')) {
-        replyText = "I love hearing that! ✨ Celebrating those little wins with you. They matter so much!";
-      } else if (isIcebreaker) {
-        replyText = "That's such a thoughtful question! For me, a quiet walk or listening to acoustic music always helps center my thoughts. What about you? 🎶";
-      }
-
-      final replyMsg = ChatMessage(
-        id: 'reply_${DateTime.now().millisecondsSinceEpoch}',
-        senderId: receiverId,
-        text: replyText,
-        timestamp: DateTime.now(),
-        isMine: false,
-      );
-      _messages.putIfAbsent(receiverId, () => []).add(replyMsg);
-      notifyListeners();
+    // Emit to backend
+    _socket?.emit('send_message', {
+      'conversationId': conversationId,
+      'content': cleanText
     });
   }
 

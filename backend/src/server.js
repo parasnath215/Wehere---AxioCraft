@@ -8,6 +8,7 @@ const http = require('http');
 const path = require('path');
 const { Server } = require('socket.io');
 const { PrismaClient } = require('@prisma/client');
+const jwt = require('jsonwebtoken');
 
 const app = express();
 const server = http.createServer(app);
@@ -52,6 +53,7 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/journal', require('./routes/journal'));
 app.use('/api/match', require('./routes/match'));
+app.use('/api/conversations', require('./routes/conversations'));
 app.use('/api/sos', require('./routes/sos'));
 app.use('/api/community', require('./routes/community'));
 app.use('/api/goals', require('./routes/goals'));
@@ -75,19 +77,50 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Socket.io connection
-io.on('connection', (socket) => {
-  console.log('User connected:', socket.id);
+// Socket.io JWT Auth Middleware
+io.use((socket, next) => {
+  const token = socket.handshake.auth.token;
+  if (!token) return next(new Error('Authentication error'));
+  
+  jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+    if (err) return next(new Error('Authentication error'));
+    socket.user = decoded;
+    next();
+  });
+});
 
-  socket.on('join_conversation', (conversationId) => {
-    socket.join(conversationId);
-    console.log(`User ${socket.id} joined conversation ${conversationId}`);
+io.on('connection', (socket) => {
+  console.log('User connected:', socket.id, 'User ID:', socket.user.id);
+
+  socket.on('join_conversation', async (conversationId) => {
+    try {
+      const conv = await prisma.conversation.findUnique({
+        where: { id: conversationId },
+        include: { match: true }
+      });
+      if (conv && (conv.match.userAId === socket.user.id || conv.match.userBId === socket.user.id)) {
+        socket.join(conversationId);
+        console.log(`User ${socket.id} joined conversation ${conversationId}`);
+      }
+    } catch (e) {
+      console.error(e);
+    }
   });
 
   socket.on('send_message', async (data) => {
     try {
-      const { conversationId, senderId, content } = data;
+      const { conversationId, content } = data;
+      const senderId = socket.user.id;
       
+      const conv = await prisma.conversation.findUnique({
+        where: { id: conversationId },
+        include: { match: true }
+      });
+
+      if (!conv || (conv.match.userAId !== senderId && conv.match.userBId !== senderId)) {
+        return; // Unauthorized
+      }
+
       // Save message to DB
       const message = await prisma.message.create({
         data: { conversationId, senderId, content }
