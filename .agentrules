@@ -1,6 +1,0 @@
-# Coding Standards
-
-- **Style & Architecture**: Write concise, idiomatic code. Prioritize simple, reusable functions over redundant single-use classes or unnecessary abstraction layers.
-- **Security**: Strictly enforce OWASP security standards (use parameterized queries, strict input validation/sanitization, and zero hardcoded secrets/credentials).
-- **Clean Output**: Avoid synthetic boilerplate, obvious "AI-style" code patterns, and redundant explanatory comments within the code.
-- **Error Handling**: Handle all errors explicitly. Never use empty catch blocks or silent fallbacks.
