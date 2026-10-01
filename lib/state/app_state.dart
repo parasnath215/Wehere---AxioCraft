@@ -10,6 +10,7 @@ import '../core/network/api_client.dart';
 import 'package:socket_io_client/socket_io_client.dart' as io;
 import '../core/constants/app_constants.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../models/notification.dart';
 
 class AppState extends ChangeNotifier {
   // Current Logged-in User
@@ -216,6 +217,9 @@ class AppState extends ChangeNotifier {
     ),
   ];
   List<EmergencyContact> get emergencyContacts => _emergencyContacts;
+  // Notifications
+  final List<UserNotification> _notifications = [];
+  List<UserNotification> get notifications => _notifications;
 
   AppState() {
     _initMockData();
@@ -406,6 +410,24 @@ class AppState extends ChangeNotifier {
         }
       } catch (e) {
         print("Failed to fetch SOS contacts: $e");
+      }
+
+      // Fetch Notifications
+      try {
+        final notifRes = await apiClient.get('/notifications');
+        _notifications.clear();
+        for (var n in notifRes.data) {
+          _notifications.add(UserNotification(
+            id: n['id'],
+            title: n['title'],
+            content: n['content'],
+            type: n['type'],
+            isRead: n['isRead'] ?? false,
+            createdAt: DateTime.parse(n['createdAt']),
+          ));
+        }
+      } catch (e) {
+        print("Failed to fetch notifications: $e");
       }
     } catch (e) {
       print("Failed to fetch backend data: $e");
@@ -987,5 +1009,24 @@ class AppState extends ChangeNotifier {
 
     _recalculateMatchScores();
     notifyListeners();
+  }
+
+  Future<void> markNotificationsRead() async {
+    try {
+      await apiClient.put('/notifications/read-all');
+      for (var i = 0; i < _notifications.length; i++) {
+        _notifications[i] = UserNotification(
+          id: _notifications[i].id,
+          title: _notifications[i].title,
+          content: _notifications[i].content,
+          type: _notifications[i].type,
+          isRead: true,
+          createdAt: _notifications[i].createdAt,
+        );
+      }
+      notifyListeners();
+    } catch (e) {
+      print("Failed to mark notifications read: $e");
+    }
   }
 }

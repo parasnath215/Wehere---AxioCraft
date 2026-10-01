@@ -92,7 +92,7 @@ class HomeScreen extends StatelessWidget {
               ),
               const SizedBox(width: 16),
               GestureDetector(
-                onTap: () => _showNotifications(context),
+                onTap: () => _showNotifications(context, appState),
                 child: const Icon(Icons.notifications_none_rounded, color: AppColors.textPrimary, size: 26),
               ),
               const SizedBox(width: 16),
@@ -536,58 +536,68 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  void _showNotifications(BuildContext context) {
+  void _showNotifications(BuildContext context, AppState appState) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        padding: const EdgeInsets.all(24),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('Supportive Alerts 🔔', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                Text('Clear All', style: TextStyle(color: AppColors.primary, fontSize: 12, fontWeight: FontWeight.bold)),
-              ],
-            ),
-            const SizedBox(height: 16),
-            ListTile(
-              leading: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: const BoxDecoration(color: AppColors.primarySoft, shape: BoxShape.circle),
-                child: const Icon(Icons.favorite, color: AppColors.primary, size: 20),
+      isScrollControlled: true,
+      builder: (ctx) {
+        return Container(
+          height: MediaQuery.of(context).size.height * 0.7,
+          padding: const EdgeInsets.all(24),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Supportive Alerts 🔔', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                  GestureDetector(
+                    onTap: () async {
+                      await appState.markNotificationsRead();
+                    },
+                    child: const Text('Mark all read', style: TextStyle(color: AppColors.primary, fontSize: 12, fontWeight: FontWeight.bold)),
+                  ),
+                ],
               ),
-              title: const Text('Riya replied to your message', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-              subtitle: const Text('“Small wins matter a lot 💜 Celebrate them always!” • 5m ago', style: TextStyle(fontSize: 11)),
-            ),
-            ListTile(
-              leading: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: const BoxDecoration(color: Color(0xFFFEF3C7), shape: BoxShape.circle),
-                child: const Icon(Icons.local_fire_department, color: Color(0xFFF59E0B), size: 20),
-              ),
-              title: const Text('16-Day Streak Active! 🔥', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-              subtitle: const Text('You’re building steady consistency. Keep it going!', style: TextStyle(fontSize: 11)),
-            ),
-            ListTile(
-              leading: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: const BoxDecoration(color: Color(0xFFE0F2FE), shape: BoxShape.circle),
-                child: const Icon(Icons.spa, color: Color(0xFF0284C7), size: 20),
-              ),
-              title: const Text('Daily Mindfulness Prompt', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-              subtitle: const Text('Remember to pause and take 3 deep breaths today.', style: TextStyle(fontSize: 11)),
-            ),
-          ],
-        ),
-      ),
+              const SizedBox(height: 16),
+              if (appState.notifications.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.all(32.0),
+                  child: Center(child: Text("You're all caught up!", style: TextStyle(color: Colors.grey))),
+                )
+              else
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: appState.notifications.length,
+                    itemBuilder: (ctx, i) {
+                      final n = appState.notifications[i];
+                      return ListTile(
+                        leading: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(color: n.isRead ? Colors.grey.shade100 : AppColors.primarySoft, shape: BoxShape.circle),
+                          child: Icon(
+                            n.type == 'match' ? Icons.favorite : 
+                            n.type == 'community' ? Icons.people : 
+                            n.type == 'progress' ? Icons.local_fire_department : Icons.notifications, 
+                            color: n.isRead ? Colors.grey : AppColors.primary, size: 20
+                          ),
+                        ),
+                        title: Text(n.title, style: TextStyle(fontWeight: n.isRead ? FontWeight.normal : FontWeight.bold, fontSize: 13)),
+                        subtitle: Text(n.content, style: TextStyle(fontSize: 11)),
+                      );
+                    },
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
     );
   }
   void _showEditMoodDialog(BuildContext context, AppState appState) {

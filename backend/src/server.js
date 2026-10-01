@@ -58,6 +58,7 @@ app.use('/api/sos', require('./routes/sos'));
 app.use('/api/community', require('./routes/community'));
 app.use('/api/goals', require('./routes/goals'));
 app.use('/api/progress', require('./routes/progress'));
+app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/admin', require('./routes/admin'));
 
 app.get('/health', async (req, res) => {
