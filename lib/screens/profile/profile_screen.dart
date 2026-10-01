@@ -493,9 +493,9 @@ class ProfileScreen extends StatelessWidget {
               children: avatars.map((url) {
                 final isSelected = appState.currentUser.avatarUrl == url;
                 return GestureDetector(
-                  onTap: () {
+                  onTap: () async {
                     // Update user avatar
-                    appState.updateProfile(
+                    await appState.updateProfile(
                       name: appState.currentUser.name,
                       bio: appState.currentUser.bio,
                       location: appState.currentUser.location,
@@ -576,8 +576,8 @@ class ProfileScreen extends StatelessWidget {
               ),
               const SizedBox(height: 18),
               ElevatedButton(
-                onPressed: () {
-                  appState.updateProfile(
+                onPressed: () async {
+                  await appState.updateProfile(
                     name: nameCtrl.text.trim().isNotEmpty ? nameCtrl.text.trim() : user.name,
                     bio: bioCtrl.text.trim(),
                     location: locCtrl.text.trim(),

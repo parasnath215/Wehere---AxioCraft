@@ -156,16 +156,26 @@ class AuthNotifier extends ChangeNotifier {
     _isLoading = true;
     notifyListeners();
 
-    await Future.delayed(const Duration(milliseconds: 500));
+    try {
+      final res = await apiClient.post('/auth/otp/verify', data: {
+        'email': _registeredEmail,
+        'otp': pin,
+      });
 
-    if (pin.length == 6) {
-      _status = AuthStatus.authenticated;
-      _hasCompletedOnboarding = false;
-      _isLoading = false;
-      notifyListeners();
-      return true;
-    } else {
-      _authError = 'Invalid 6-digit verification code.';
+      if (res.data['success'] == true) {
+        _status = AuthStatus.authenticated;
+        _hasCompletedOnboarding = false;
+        _isLoading = false;
+        notifyListeners();
+        return true;
+      } else {
+        _authError = 'Invalid verification code.';
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
+    } catch (e) {
+      _authError = 'Failed to verify OTP. Check your connection.';
       _isLoading = false;
       notifyListeners();
       return false;

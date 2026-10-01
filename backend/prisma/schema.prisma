@@ -141,4 +141,90 @@ model WellnessGoal {
   title         String
   subtitle      String?
   categoryColor String   @default("0xFF22C55E")
-  progress      Fl
+  progress      Float    @default(0.0)
+  isCompleted   Boolean  @default(false)
+  createdAt     DateTime @default(now())
+
+  user          User     @relation(fields: [userId], references: [id])
+  userId        String
+}
+
+model EmergencyContact {
+  id            String   @id @default(uuid())
+  name          String
+  phone         String
+  relationship  String?
+  createdAt     DateTime @default(now())
+
+  user          User     @relation(fields: [userId], references: [id])
+  userId        String
+}
+
+model Swipe {
+  id        String   @id @default(uuid())
+  isRight   Boolean
+  createdAt DateTime @default(now())
+
+  swiper    User   @relation("SwipesInitiated", fields: [swiperId], references: [id])
+  swiperId  String
+
+  swiped    User   @relation("SwipesReceived", fields: [swipedId], references: [id])
+  swipedId  String
+
+  @@unique([swiperId, swipedId])
+  @@index([swiperId])
+  @@index([swipedId])
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  type      String   // match, message, comment, like
+  title     String
+  body      String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+
+  @@index([userId])
+}
+
+model Block {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+
+  blocker   User   @relation("BlocksInitiated", fields: [blockerId], references: [id])
+  blockerId String
+
+  blocked   User   @relation("BlocksReceived", fields: [blockedId], references: [id])
+  blockedId String
+
+  @@unique([blockerId, blockedId])
+}
+
+model Report {
+  id         String   @id @default(uuid())
+  reason     String
+  status     String   @default("pending") // pending, reviewed, resolved
+  createdAt  DateTime @default(now())
+
+  reporter   User   @relation("ReportsSubmitted", fields: [reporterId], references: [id])
+  reporterId String
+
+  reported   User   @relation("ReportsReceived", fields: [reportedId], references: [id])
+  reportedId String
+}
+
+model PostLike {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+
+  post      CommunityPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  postId    String
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+
+  @@unique([postId, userId])
+}

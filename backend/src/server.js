@@ -117,4 +117,5 @@ io.on('connection', (socket) => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.l
+  console.log(`Wehere Backend running on port ${PORT}`);
+});

@@ -127,4 +127,49 @@ router.post('/otp/request', async (req, res) => {
     // For now, auto-approve or return a mock token.
     res.json({ message: 'OTP sent successfully (mock)', success: true });
   } catch (error) {
-    res.status(500).json({ error: 'In
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// Fake OTP Verify
+router.post('/otp/verify', async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+    if (!email || !otp) return res.status(400).json({ error: 'Email and OTP required' });
+    
+    if (otp === '123456') { // Mock OTP
+      res.json({ message: 'OTP verified successfully', success: true });
+    } else {
+      res.status(400).json({ error: 'Invalid OTP' });
+    }
+  } catch (error) {
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// Complete Onboarding
+router.put('/onboarding', authenticate, async (req, res) => {
+  try {
+    const { name, location, interests, feelings, supportTypes, isAnonymous } = req.body;
+    const userId = req.user.id; // from authenticate middleware
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        pseudonym: name,
+        location: location,
+        interests: interests || [],
+        feelings: feelings || [],
+        supportTypes: supportTypes || [],
+        isAnonymous: isAnonymous || false,
+      },
+    });
+
+    res.json({ message: 'Onboarding completed', user: updatedUser });
+  } catch (error) {
+    console.error('Onboarding Error:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+module.exports = router;

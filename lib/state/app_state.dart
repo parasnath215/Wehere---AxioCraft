@@ -404,17 +404,22 @@ class AppState extends ChangeNotifier {
     _swipedHistory.add(popped);
     
     try {
-      await apiClient.post('/match/swipe', data: {
+      final res = await apiClient.post('/match/swipe', data: {
         'targetUserId': popped.profile.id,
         'action': 'connect'
       });
       
-      _matchedUsers.insert(0, popped.profile);
-      _lastMatch = popped;
-      _currentXp += 50;
-
-      notifyListeners();
-      return true; // Match happened!
+      if (res.data['isMatch'] == true) {
+        _matchedUsers.insert(0, popped.profile);
+        _lastMatch = popped;
+        // _currentXp += 50; // XP is now updated from backend. You could fetch profile again or just add locally for optimistic update.
+        _currentXp += 50; 
+        notifyListeners();
+        return true; 
+      } else {
+        notifyListeners();
+        return false;
+      }
     } catch (e) {
       print("Error swiping right: $e");
       return false;
@@ -792,15 +797,31 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  void updateProfile({required String name, required String bio, required String location, required String lookingFor}) {
-    _currentUser = _currentUser.copyWith(
-      name: name,
-      bio: bio,
-      location: location,
-      lookingFor: lookingFor,
-    );
-    onboardingName = name;
-    notifyListeners();
+  Future<void> updateProfile({required String name, required String bio, required String location, required String lookingFor}) async {
+    try {
+      final res = await apiClient.put('/users/me', data: {
+        'pseudonym': name,
+        'bio': bio,
+        'location': location,
+        'lookingFor': lookingFor,
+      });
+      final data = res.data;
+      final avatar = (data['images'] != null && data['images'].isNotEmpty) 
+          ? '${AppConstants.apiBaseUrl}${data['images'][0]}'
+          : _currentUser.avatarUrl;
+          
+      _currentUser = _currentUser.copyWith(
+        name: data['pseudonym'] ?? _currentUser.name,
+        bio: data['bio'] ?? _currentUser.bio,
+        location: data['location'] ?? _currentUser.location,
+        lookingFor: data['lookingFor'] ?? _currentUser.lookingFor,
+        avatarUrl: avatar,
+      );
+      onboardingName = name;
+      notifyListeners();
+    } catch (e) {
+      print("Failed to update profile: $e");
+    }
   }
 
   /// Automatically initialize and hydrate user profile from newly created auth registration
@@ -874,4 +895,26 @@ class AppState extends ChangeNotifier {
     if (location != null && location.trim().isNotEmpty) onboardingLocation = location.trim();
     if (interests != null && interests.isNotEmpty) selectedInterests = interests;
     if (feelings != null && feelings.isNotEmpty) selectedFeelings = feelings;
-    if (supportTypes != null && supportTypes.isNotEmpty) selectedSupportTypes = suppor
+    if (supportTypes != null && supportTypes.isNotEmpty) selectedSupportTypes = supportTypes;
+    if (isAnonymous != null) isAnonymousMode = isAnonymous;
+
+    final derivedBio = bio != null && bio.trim().isNotEmpty
+        ? bio.trim()
+        : (selectedFeelings.isNotEmpty
+            ? 'Navigating ${selectedFeelings.join(' & ')} one day at a time. Here for kind peer support. 🌱'
+            : _currentUser.bio);
+
+    _currentUser = _currentUser.copyWith(
+      name: isAnonymousMode ? 'Kind Peer' : (onboardingName.isNotEmpty ? onboardingName : 'Alex'),
+      age: age ?? _currentUser.age,
+      location: onboardingLocation.isNotEmpty ? onboardingLocation : 'Mumbai, India',
+      interests: selectedInterests,
+      lookingFor: selectedSupportTypes.isNotEmpty ? selectedSupportTypes.join(' & ') : _currentUser.lookingFor,
+      isAnonymous: isAnonymousMode,
+      bio: derivedBio,
+    );
+
+    _recalculateMatchScores();
+    notifyListeners();
+  }
+}
