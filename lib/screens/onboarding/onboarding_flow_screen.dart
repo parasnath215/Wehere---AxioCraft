@@ -17,27 +17,20 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
   int _currentStep = 1;
 
   // Form Controllers
-  final TextEditingController _nameController = TextEditingController(text: 'Alex');
-  final TextEditingController _dobController = TextEditingController(text: '14 / 08 / 1999');
-  final TextEditingController _locationController = TextEditingController(text: 'Mumbai, India');
-  String _selectedRole = 'Working Professional';
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _locationController = TextEditingController();
 
   // Step 2 Interests
-  final Set<String> _selectedInterests = {'Mental Health', 'Personal Growth', 'Relationships', 'Career'};
+  final Set<String> _selectedInterests = {};
 
   // Step 3 Feelings Lately
-  final Set<String> _selectedFeelings = {'Lonely', 'Burnout'};
+  final Set<String> _selectedFeelings = {};
 
   // Step 4 Looking For
-  final Set<String> _selectedLookingFor = {'Someone to Talk To', 'Emotional Support'};
+  final Set<String> _selectedLookingFor = {};
 
   // Step 5 Anonymity / Photos
   bool _isAnonymous = false;
-
-  // Step 6 Notifications
-  bool _pushNotifications = true;
-  bool _emailNotifications = true;
-  bool _smsNotifications = false;
 
   @override
   void initState() {
@@ -69,17 +62,17 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
             }
           },
         ),
-        title: Text('Step $_currentStep of 6',
+        title: Text('Step $_currentStep of 5',
             style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primary, fontWeight: FontWeight.bold)),
       ),
       body: SafeArea(
         child: Column(
           children: [
-            // Top Step Progress Indicator Bar (6 Steps)
+            // Top Step Progress Indicator Bar (5 Steps)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 6),
               child: Row(
-                children: List.generate(6, (index) {
+                children: List.generate(5, (index) {
                   final stepNum = index + 1;
                   final isDone = stepNum < _currentStep;
                   final isCurrent = stepNum == _currentStep;
@@ -133,7 +126,24 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
   void _handleNext() async {
     final appState = Provider.of<AppState>(context, listen: false);
 
-    if (_currentStep < 6) {
+    if (_currentStep == 1 && _nameController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter your name.')));
+      return;
+    }
+    if (_currentStep == 2 && _selectedInterests.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select at least one interest.')));
+      return;
+    }
+    if (_currentStep == 3 && _selectedFeelings.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select how you are feeling.')));
+      return;
+    }
+    if (_currentStep == 4 && _selectedLookingFor.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select what you are looking for.')));
+      return;
+    }
+
+    if (_currentStep < 5) {
       setState(() {
         _currentStep++;
       });
@@ -177,9 +187,7 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
       case 4:
         return _buildStep4LookingFor();
       case 5:
-        return _buildStep5Notifications();
-      case 6:
-        return _buildStep6Summary();
+        return _buildStep6Summary(); // Privacy is now step 5
       default:
         return const SizedBox.shrink();
     }
@@ -229,15 +237,7 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
           controller: _nameController,
           decoration: const InputDecoration(
             prefixIcon: Icon(Icons.person_outline_rounded, color: AppColors.primary),
-            labelText: 'Full Name',
-          ),
-        ),
-        const SizedBox(height: 14),
-        TextField(
-          controller: _dobController,
-          decoration: const InputDecoration(
-            prefixIcon: Icon(Icons.calendar_today_outlined, color: AppColors.primary),
-            labelText: 'Date of Birth (DD / MM / YYYY)',
+            labelText: 'Full Name (Or Pseudonym)',
           ),
         ),
         const SizedBox(height: 14),
@@ -247,21 +247,6 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
             prefixIcon: Icon(Icons.location_on_outlined, color: AppColors.primary),
             labelText: 'Location (Optional)',
           ),
-        ),
-        const SizedBox(height: 14),
-        DropdownButtonFormField<String>(
-          initialValue: _selectedRole,
-          decoration: const InputDecoration(
-            prefixIcon: Icon(Icons.badge_outlined, color: AppColors.primary),
-            labelText: 'What best describes you?',
-          ),
-          items: const [
-            DropdownMenuItem(value: 'Working Professional', child: Text('Working Professional')),
-            DropdownMenuItem(value: 'College Student', child: Text('College Student')),
-            DropdownMenuItem(value: 'Freelancer / Creator', child: Text('Freelancer / Creator')),
-            DropdownMenuItem(value: 'Taking a Break', child: Text('Taking a Break')),
-          ],
-          onChanged: (val) => setState(() => _selectedRole = val ?? _selectedRole),
         ),
         const SizedBox(height: 24),
         _buildPrivacyBadge('Your information is safe with us. We respect your privacy and never share your data.'),
@@ -552,49 +537,7 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
     );
   }
 
-  // STEP 5: Notifications
-  Widget _buildStep5Notifications() {
-    return Column(
-      children: [
-        Container(
-          width: 84,
-          height: 84,
-          decoration: const BoxDecoration(color: AppColors.primarySoft, shape: BoxShape.circle),
-          child: const Icon(Icons.notifications_active_outlined, size: 44, color: AppColors.primary),
-        ),
-        const SizedBox(height: 20),
-        Text('Stay Updated ✨', style: AppTextStyles.h1),
-        const SizedBox(height: 8),
-        Text('Choose how you’d like to receive notifications from us.', textAlign: TextAlign.center, style: AppTextStyles.bodyMedium),
-        const SizedBox(height: 24),
-        _buildNotificationTile(
-          icon: Icons.notifications_none_rounded,
-          title: 'Push Notifications',
-          subtitle: 'Receive alerts and reminders on your device.',
-          value: _pushNotifications,
-          onChanged: (val) => setState(() => _pushNotifications = val),
-        ),
-        const SizedBox(height: 12),
-        _buildNotificationTile(
-          icon: Icons.mail_outline_rounded,
-          title: 'Email Notifications',
-          subtitle: 'Get news, tips and updates in your inbox.',
-          value: _emailNotifications,
-          onChanged: (val) => setState(() => _emailNotifications = val),
-        ),
-        const SizedBox(height: 12),
-        _buildNotificationTile(
-          icon: Icons.sms_outlined,
-          title: 'SMS Notifications (Optional)',
-          subtitle: 'Receive important alerts via text message.',
-          value: _smsNotifications,
-          onChanged: (val) => setState(() => _smsNotifications = val),
-        ),
-        const SizedBox(height: 20),
-        _buildPrivacyBadge('You’re in control. You can update your notification preferences anytime from settings.'),
-      ],
-    );
-  }
+
 
   // STEP 6: You're All Set Summary
   Widget _buildStep6Summary() {
@@ -643,60 +586,12 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
                 'About You',
                 _isAnonymous ? 'Anonymous Mode (Safe Pseudonym)' : '${_nameController.text}, ${_locationController.text}',
               ),
-              const Divider(height: 24),
-              _buildSummaryRow(
-                Icons.notifications_rounded,
-                'Notifications',
-                'Push, Email',
-              ),
             ],
           ),
         ),
         const SizedBox(height: 20),
         _buildPrivacyBadge('Great things take time. You’ve taken the first step today. We’re here for you, every step of the way. 💜'),
       ],
-    );
-  }
-
-  Widget _buildNotificationTile({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required bool value,
-    required Function(bool) onChanged,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.cardBorder),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: const BoxDecoration(color: AppColors.primarySoft, shape: BoxShape.circle),
-            child: Icon(icon, color: AppColors.primary, size: 20),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: AppTextStyles.h3.copyWith(fontSize: 14)),
-                const SizedBox(height: 2),
-                Text(subtitle, style: AppTextStyles.bodySmall),
-              ],
-            ),
-          ),
-          Switch(
-            value: value,
-            activeThumbColor: AppColors.primary,
-            onChanged: onChanged,
-          ),
-        ],
-      ),
     );
   }
 

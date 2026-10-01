@@ -28,13 +28,6 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
   @override
   void initState() {
     super.initState();
-    // Pre-fill a sample code for frictionless testing
-    _controllers[0].text = '7';
-    _controllers[1].text = '4';
-    _controllers[2].text = '2';
-    _controllers[3].text = '9';
-    _controllers[4].text = '1';
-    _controllers[5].text = '0';
 
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (_secondsRemaining > 0) {
@@ -61,6 +54,8 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final auth = context.watch<AuthNotifier>();
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -241,33 +236,50 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
               const SizedBox(height: 36),
 
               // Verify & Continue Button
-              ElevatedButton(
-                onPressed: () async {
-                  final pin = _controllers.map((c) => c.text).join();
-                  final auth = context.read<AuthNotifier>();
-                  final appState = context.read<AppState>();
-                  final success = await auth.verifyOtp(pin);
-
-                  if (success && context.mounted) {
-                    appState.initializeUserFromAuth(
-                      id: auth.userId ?? 'user_alex',
-                      name: auth.registeredName,
-                      email: auth.registeredEmail,
-                    );
-                    Navigator.pushReplacementNamed(context, AppRoutes.onboarding);
-                  } else if (context.mounted && auth.authError != null) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(auth.authError!), backgroundColor: Colors.redAccent),
-                    );
-                  }
-                },
-                child: const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text('Verify & Continue', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                    SizedBox(width: 8),
-                    Icon(Icons.arrow_forward_rounded, size: 18),
-                  ],
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton(
+                  onPressed: auth.isLoading
+                      ? null
+                      : () async {
+                          final pin = _controllers.map((c) => c.text).join();
+                          if (pin.length < 6) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Please enter all 6 digits.'), backgroundColor: Colors.redAccent),
+                            );
+                            return;
+                          }
+                          final authRead = context.read<AuthNotifier>();
+                          final appState = context.read<AppState>();
+                          final success = await authRead.verifyOtp(pin);
+                          if (success && context.mounted) {
+                            appState.initializeUserFromAuth(
+                              id: authRead.userId ?? 'user_alex',
+                              name: authRead.registeredName,
+                              email: authRead.registeredEmail,
+                            );
+                            Navigator.pushReplacementNamed(context, AppRoutes.onboarding);
+                          } else if (context.mounted && authRead.authError != null) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text(authRead.authError!), backgroundColor: Colors.redAccent),
+                            );
+                          }
+                        },
+                  child: auth.isLoading
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text('Verify & Continue', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                            SizedBox(width: 8),
+                            Icon(Icons.arrow_forward_rounded, size: 18),
+                          ],
+                        ),
                 ),
               ),
 
