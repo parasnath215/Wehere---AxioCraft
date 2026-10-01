@@ -18,6 +18,18 @@ router.get('/', authenticateToken, async (req, res, next) => {
   }
 });
 
+// Get unread count
+router.get('/unread', authenticateToken, async (req, res, next) => {
+  try {
+    const count = await prisma.notification.count({
+      where: { userId: req.user.id, isRead: false }
+    });
+    res.json({ unreadCount: count });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // Mark notification as read
 router.put('/:id/read', authenticateToken, async (req, res, next) => {
   try {

@@ -19,24 +19,36 @@ class HomeScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.only(bottom: 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildHeader(context, appState, user),
-              const SizedBox(height: 16),
-              _buildDailyCheckIn(context, appState),
-              const SizedBox(height: 20),
-              _buildProgressBanner(context, appState),
-              const SizedBox(height: 24),
-              _buildCoreNavigationGrid(context, appState),
-              _buildCoreNavigationGrid(context, appState),
-            ],
+        child: RefreshIndicator(
+          onRefresh: () async {
+            await context.read<AppState>().fetchBackendData();
+          },
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.only(bottom: 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildHeader(context, appState, user),
+                const SizedBox(height: 16),
+                _buildDailyCheckIn(context, appState),
+                const SizedBox(height: 24),
+                _buildProgressBanner(context, appState),
+                const SizedBox(height: 24),
+                _buildCoreNavigationGrid(context, appState),
+              ],
+            ),
           ),
         ),
       ),
     );
+  }
+
+  String _getGreeting() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return 'Good morning';
+    if (hour < 17) return 'Good afternoon';
+    return 'Good evening';
   }
 
   // --- Helper Methods for Redesign ---
@@ -54,7 +66,7 @@ class HomeScreen extends StatelessWidget {
               Row(
                 children: [
                   Text(
-                    'Hi, ${user.isAnonymous ? 'Friend' : user.name}',
+                    '${_getGreeting()}, ${user.isAnonymous ? 'Friend' : user.name}',
                     style: AppTextStyles.h2.copyWith(fontSize: 20),
                   ),
                   const SizedBox(width: 4),
@@ -93,11 +105,34 @@ class HomeScreen extends StatelessWidget {
               const SizedBox(width: 16),
               GestureDetector(
                 onTap: () => _showNotifications(context, appState),
-                child: const Icon(Icons.notifications_none_rounded, color: AppColors.textPrimary, size: 26),
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    const Icon(Icons.notifications_none_rounded, color: AppColors.textPrimary, size: 26),
+                    if (appState.unreadNotifications > 0)
+                      Positioned(
+                        top: -2,
+                        right: -2,
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: const BoxDecoration(
+                            color: Colors.red,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Text(
+                            appState.unreadNotifications > 9 ? '9+' : '${appState.unreadNotifications}',
+                            style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
               ),
               const SizedBox(width: 16),
               GestureDetector(
-                onTap: () => _showAppMenu(context, appState),
+                onTap: () {
+                  appState.setTabIndex(4);
+                },
                 child: AvatarWidget(
                   imageUrl: user.avatarUrl,
                   radius: 18,
@@ -121,40 +156,56 @@ class HomeScreen extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              MoodChip(
-                label: 'Great',
-                emoji: '😄',
-                tintColor: const Color(0xFF22C55E),
-                isSelected: appState.todayMood == 'Great',
-                onTap: () => appState.checkInMood('Great'),
+              Expanded(
+                child: MoodChip(
+                  label: 'Great',
+                  emoji: '😄',
+                  tintColor: const Color(0xFF22C55E),
+                  isSelected: appState.todayMood == 'Great',
+                  onTap: () => appState.checkInMood('Great'),
+                ),
               ),
-              MoodChip(
-                label: 'Good',
-                emoji: '🙂',
-                tintColor: const Color(0xFF3B82F6),
-                isSelected: appState.todayMood == 'Good',
-                onTap: () => appState.checkInMood('Good'),
+              Expanded(
+                child: MoodChip(
+                  label: 'Good',
+                  emoji: '🙂',
+                  tintColor: const Color(0xFF3B82F6),
+                  isSelected: appState.todayMood == 'Good',
+                  onTap: () => appState.checkInMood('Good'),
+                ),
               ),
-              MoodChip(
-                label: 'Okay',
-                emoji: '😐',
-                tintColor: const Color(0xFFF59E0B),
-                isSelected: appState.todayMood == 'Okay',
-                onTap: () => appState.checkInMood('Okay'),
+              Expanded(
+                child: MoodChip(
+                  label: 'Okay',
+                  emoji: '😐',
+                  tintColor: const Color(0xFFF59E0B),
+                  isSelected: appState.todayMood == 'Okay',
+                  onTap: () => appState.checkInMood('Okay'),
+                ),
               ),
-              MoodChip(
-                label: 'Not Good',
-                emoji: '🙁',
-                tintColor: const Color(0xFFF97316),
-                isSelected: appState.todayMood == 'Not Good',
-                onTap: () => appState.checkInMood('Not Good'),
+              Expanded(
+                child: MoodChip(
+                  label: 'Not Good',
+                  emoji: '🙁',
+                  tintColor: const Color(0xFFF97316),
+                  isSelected: appState.todayMood == 'Not Good',
+                  onTap: () {
+                    appState.checkInMood('Not Good');
+                    _showGentleSheet(context, appState);
+                  },
+                ),
               ),
-              MoodChip(
-                label: 'Struggling',
-                emoji: '😣',
-                tintColor: const Color(0xFFEF4444),
-                isSelected: appState.todayMood == 'Struggling',
-                onTap: () => appState.checkInMood('Struggling'),
+              Expanded(
+                child: MoodChip(
+                  label: 'Struggling',
+                  emoji: '😣',
+                  tintColor: const Color(0xFFEF4444),
+                  isSelected: appState.todayMood == 'Struggling',
+                  onTap: () {
+                    appState.checkInMood('Struggling');
+                    _showGentleSheet(context, appState);
+                  },
+                ),
               ),
             ],
           ),
@@ -193,17 +244,17 @@ class HomeScreen extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text('${appState.dayStreak}-Day Streak!', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.primaryDark)),
-                      const Text('7/7', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AppColors.primary)),
+                      Text('${appState.weeklyProgress}/7 days', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AppColors.primary)),
                     ],
                   ),
                   const SizedBox(height: 6),
                   ClipRRect(
                     borderRadius: BorderRadius.circular(6),
-                    child: const LinearProgressIndicator(
-                      value: 1.0,
+                    child: LinearProgressIndicator(
+                      value: appState.weeklyProgress / 7.0,
                       minHeight: 6,
                       backgroundColor: Colors.white,
-                      valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+                      valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
                     ),
                   ),
                   const SizedBox(height: 10),
@@ -217,7 +268,23 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
+  String _formatJournalDate(DateTime date) {
+    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    final hour = date.hour > 12 ? date.hour - 12 : (date.hour == 0 ? 12 : date.hour);
+    final amPm = date.hour >= 12 ? 'PM' : 'AM';
+    final minute = date.minute.toString().padLeft(2, '0');
+    return '${months[date.month - 1]} ${date.day}, ${date.year} | $hour:$minute $amPm';
+  }
+
   Widget _buildCoreNavigationGrid(BuildContext context, AppState appState) {
+    final journalCount = appState.journalEntries.length;
+    final lastJournalDate = journalCount > 0 
+        ? _formatJournalDate(appState.journalEntries.first.date)
+        : 'Reflect on your day';
+
+    final peersCount = appState.cards.length;
+    final communityCount = appState.communityPosts.length;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Column(
@@ -229,40 +296,36 @@ class HomeScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                child: Column(
-                  children: [
-                    _buildNavCard(
-                      title: 'Find Peers',
-                      subtitle: 'Connect with a supportive community',
-                      icon: Icons.groups_rounded,
-                      color: AppColors.onlineGreen,
-                      onTap: () => appState.setTabIndex(1),
-                      gradient: const LinearGradient(colors: [Color(0xFFE0F2FE), Color(0xFFF1F5F9)], begin: Alignment.topLeft, end: Alignment.bottomRight),
-                    ),
-                    const SizedBox(height: 16),
-                    _buildNavCard(
-                      title: 'Community Board',
-                      subtitle: 'Share posts and discuss topics',
-                      icon: Icons.forum_rounded,
-                      color: const Color(0xFF8B5CF6),
-                      onTap: () => appState.setTabIndex(2), // Assume Community is tab 2
-                      gradient: const LinearGradient(colors: [Color(0xFFEDE9FE), Color(0xFFF1F5F9)], begin: Alignment.topLeft, end: Alignment.bottomRight),
-                    ),
-                  ],
+                child: _buildNavCard(
+                  title: 'Find Peers',
+                  subtitle: peersCount > 0 ? '$peersCount peers nearby' : 'Connect with community',
+                  icon: Icons.groups_rounded,
+                  color: AppColors.onlineGreen,
+                  onTap: () => appState.setTabIndex(1),
+                  gradient: const LinearGradient(colors: [Color(0xFFE0F2FE), Color(0xFFF1F5F9)], begin: Alignment.topLeft, end: Alignment.bottomRight),
                 ),
               ),
               const SizedBox(width: 16),
               Expanded(
                 child: _buildNavCard(
                   title: 'My Journal',
-                  subtitle: 'Mar 11, 2023 | 1:10 PM\nReflect on your day',
+                  subtitle: lastJournalDate,
                   icon: Icons.menu_book_rounded,
                   color: const Color(0xFFD97706),
-                  onTap: () => appState.setTabIndex(3), // Assume Journal is tab 3
+                  onTap: () => appState.setTabIndex(3),
                   gradient: const LinearGradient(colors: [Color(0xFFFFEDD5), Color(0xFFF1F5F9)], begin: Alignment.topLeft, end: Alignment.bottomRight),
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 16),
+          _buildNavCard(
+            title: 'Community Board',
+            subtitle: communityCount > 0 ? '$communityCount active discussions' : 'Share posts and discuss topics',
+            icon: Icons.forum_rounded,
+            color: const Color(0xFF8B5CF6),
+            onTap: () => appState.setTabIndex(2),
+            gradient: const LinearGradient(colors: [Color(0xFFEDE9FE), Color(0xFFF1F5F9)], begin: Alignment.topLeft, end: Alignment.bottomRight),
           ),
         ],
       ),
@@ -306,100 +369,6 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  void _showAppMenu(BuildContext context, AppState appState) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        padding: const EdgeInsets.all(24),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: AppColors.cardBorder,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 18),
-            Row(
-              children: [
-                CircleAvatar(
-                  radius: 20,
-                  backgroundImage: AssetImage(appState.currentUser.avatarUrl),
-                  backgroundColor: AppColors.primarySoft,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(appState.currentUser.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                      GestureDetector(
-                        onTap: () {
-                          Navigator.pop(ctx);
-                          _showEditMoodDialog(context, appState);
-                        },
-                        child: Row(
-                          children: [
-                            Flexible(child: Text(appState.currentUser.moodStatus, style: const TextStyle(fontSize: 12, color: AppColors.primary), overflow: TextOverflow.ellipsis)),
-                            const SizedBox(width: 4),
-                            const Icon(Icons.edit, size: 12, color: AppColors.primary),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const Divider(height: 24),
-            ListTile(
-              leading: const Icon(Icons.edit, color: AppColors.primary),
-              title: const Text('Edit Profile', style: TextStyle(fontWeight: FontWeight.w600)),
-              onTap: () {
-                Navigator.pop(ctx);
-                appState.setTabIndex(4);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.settings_rounded, color: AppColors.primary),
-              title: const Text('Settings', style: TextStyle(fontWeight: FontWeight.w600)),
-              onTap: () {
-                Navigator.pop(ctx);
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Settings available in next update.')));
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.bar_chart_rounded, color: Color(0xFF10B981)),
-              title: const Text('Progress & Milestones', style: TextStyle(fontWeight: FontWeight.w600)),
-              onTap: () {
-                Navigator.pop(ctx);
-                Navigator.pushNamed(context, AppRoutes.progress);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.health_and_safety_outlined, color: AppColors.sosRed),
-              title: const Text('24/7 Crisis Help & Helplines', style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.sosRed)),
-              onTap: () {
-                Navigator.pop(ctx);
-                Navigator.pushNamed(context, AppRoutes.sos);
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   void _showNotifications(BuildContext context, AppState appState) {
     showModalBottomSheet(
@@ -486,6 +455,54 @@ class HomeScreen extends StatelessWidget {
             child: const Text('Save'),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showGentleSheet(BuildContext context, AppState appState) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.all(24),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('We are here for you 💜', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            const SizedBox(height: 12),
+            const Text('It takes courage to admit you\'re struggling. What would help you right now?', style: TextStyle(color: AppColors.textSecondary, fontSize: 14)),
+            const SizedBox(height: 24),
+            ListTile(
+              leading: const Icon(Icons.people_alt_outlined, color: AppColors.primary),
+              title: const Text('Find a peer to talk to'),
+              onTap: () {
+                Navigator.pop(ctx);
+                appState.setTabIndex(1);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.menu_book_rounded, color: Color(0xFFD97706)),
+              title: const Text('Journal my thoughts'),
+              onTap: () {
+                Navigator.pop(ctx);
+                appState.setTabIndex(3);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.health_and_safety_outlined, color: AppColors.sosRed),
+              title: const Text('I need urgent help (SOS)'),
+              onTap: () {
+                Navigator.pop(ctx);
+                Navigator.pushNamed(context, AppRoutes.sos);
+              },
+            ),
+          ],
+        ),
       ),
     );
   }

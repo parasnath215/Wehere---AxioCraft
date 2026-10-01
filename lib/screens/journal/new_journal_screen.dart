@@ -16,12 +16,8 @@ class NewJournalScreen extends StatefulWidget {
 
 class _NewJournalScreenState extends State<NewJournalScreen> {
   String _selectedMood = 'Amazing';
-  final TextEditingController _thoughtController = TextEditingController(
-    text: 'Today was a productive day. I finished my tasks, spent quality time with myself and learned something new. I’m grateful for all the little things. 💜',
-  );
-  final TextEditingController _gratitudeController = TextEditingController(
-    text: 'Quiet morning coffee, positive match conversations, deep sleep.',
-  );
+  final TextEditingController _thoughtController = TextEditingController();
+  final TextEditingController _gratitudeController = TextEditingController();
   String _selectedCategory = 'General';
   bool _isPrivateOnly = true;
   bool _setReminder = false;

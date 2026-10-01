@@ -46,7 +46,16 @@ app.use(compression());
 app.use(helmet());
 
 // Serve static images uploaded by users
-app.use('/uploads', express.static(path.join(__dirname, '../../public/uploads')));
+app.use('/uploads', express.static(path.join(__dirname, '../../public/uploads'), {
+  setHeaders: (res, path, stat) => {
+    res.set('X-Content-Type-Options', 'nosniff');
+    if (path.endsWith('.webp') || path.endsWith('.jpg') || path.endsWith('.jpeg') || path.endsWith('.png')) {
+      // Allow these image types
+    } else {
+      res.set('Content-Type', 'application/octet-stream'); // Fallback
+    }
+  }
+}));
 
 // Routes
 app.use('/api/auth', require('./routes/auth'));
@@ -59,6 +68,7 @@ app.use('/api/community', require('./routes/community'));
 app.use('/api/goals', require('./routes/goals'));
 app.use('/api/progress', require('./routes/progress'));
 app.use('/api/notifications', require('./routes/notifications'));
+app.use('/api/config', require('./routes/config'));
 app.use('/api/admin', require('./routes/admin'));
 
 app.get('/health', async (req, res) => {

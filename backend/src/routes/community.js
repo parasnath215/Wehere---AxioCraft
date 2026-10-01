@@ -5,6 +5,14 @@ const prisma = new PrismaClient();
 const { authenticateToken } = require('../middleware/auth');
 const { z } = require('zod');
 
+function applyAnonymity(author) {
+  if (author && author.isAnonymous) {
+    author.pseudonym = "Anonymous";
+    author.images = [];
+  }
+  return author;
+}
+
 const postSchema = z.object({
   topic: z.string().min(1).max(100),
   content: z.string().min(1).max(2000),
@@ -46,10 +54,13 @@ router.get('/', authenticateToken, async (req, res, next) => {
     
     const likedPostIds = new Set(userLikes.map(l => l.postId));
 
-    const formattedPosts = posts.map(p => ({
-      ...p,
-      isLikedByMe: likedPostIds.has(p.id)
-    }));
+    const formattedPosts = posts.map(p => {
+      p.author = applyAnonymity(p.author);
+      return {
+        ...p,
+        isLikedByMe: likedPostIds.has(p.id)
+      };
+    });
 
     res.json(formattedPosts);
   } catch (error) {
@@ -78,6 +89,8 @@ router.post('/', authenticateToken, async (req, res, next) => {
 
       return newPost;
     });
+    
+    result.author = applyAnonymity(result.author);
 
     res.status(201).json(result);
   } catch (error) {
@@ -99,6 +112,8 @@ router.get('/:id/comments', authenticateToken, async (req, res, next) => {
         author: { select: { id: true, pseudonym: true, images: true, isAnonymous: true } }
       }
     });
+
+    comments.forEach(c => c.author = applyAnonymity(c.author));
 
     res.json(comments);
   } catch (error) {
@@ -127,6 +142,8 @@ router.post('/:id/comments', authenticateToken, async (req, res, next) => {
 
       return newComment;
     });
+    
+    result.author = applyAnonymity(result.author);
 
     res.status(201).json(result);
   } catch (error) {

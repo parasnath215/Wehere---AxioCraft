@@ -4,28 +4,26 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const { authenticateToken } = require('../middleware/auth');
 const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
+const { z } = require('zod');
+const { processAndSaveImage, deleteImage } = require('../services/storage');
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const dir = path.join(__dirname, '../../public/uploads');
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    cb(null, dir);
-  },
-  filename: (req, file, cb) => {
-    cb(null, `${Date.now()}-${Math.round(Math.random() * 1e9)}${path.extname(file.originalname)}`);
-  }
+const MAX_PHOTOS = 6;
+const MIN_PHOTOS = 2;
+
+const upload = multer({ 
+  storage: multer.memoryStorage(), 
+  limits: { fileSize: 5 * 1024 * 1024 }
 });
-const fileFilter = (req, file, cb) => {
-  const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/webp'];
-  if (allowedMimeTypes.includes(file.mimetype)) {
-    cb(null, true);
-  } else {
-    cb(new Error('Invalid file type.'));
-  }
-};
-const upload = multer({ storage, limits: { fileSize: 5 * 1024 * 1024 }, fileFilter });
+
+const updateProfileSchema = z.object({
+  pseudonym: z.string().max(50).optional(),
+  bio: z.string().max(500).optional(),
+  location: z.string().max(100).optional(),
+  interests: z.array(z.string().uuid()).max(10).optional(),
+  feelings: z.array(z.string().uuid()).max(10).optional(),
+  supportTypes: z.array(z.string().uuid()).max(5).optional(),
+  isAnonymous: z.boolean().optional(),
+}).strict();
 
 // GET /users/me - Get current user profile
 router.get('/me', authenticateToken, async (req, res, next) => {
@@ -33,72 +31,144 @@ router.get('/me', authenticateToken, async (req, res, next) => {
     const user = await prisma.user.findUnique({
       where: { id: req.user.id },
       select: {
-        id: true,
-        email: true,
-        pseudonym: true,
-        images: true,
-        xp: true,
-        isAnonymous: true,
-        bio: true,
-        location: true,
-        interests: true,
-        feelings: true,
-        supportTypes: true,
-        lookingFor: true,
+        id: true, email: true, pseudonym: true, images: true, xp: true, isAnonymous: true,
+        bio: true, location: true, interests: true, feelings: true, supportTypes: true,
       }
     });
     if (!user) return res.status(404).json({ error: 'User not found' });
-    res.json(user);
+    res.json({
+      ...user,
+      avatarUrl: user.images.length > 0 ? user.images[0] : null
+    });
   } catch (error) {
     next(error);
   }
 });
 
 // PUT /users/me - Update profile
-router.put('/me', authenticateToken, upload.single('avatar'), async (req, res, next) => {
+router.put('/me', authenticateToken, async (req, res, next) => {
   try {
-    const { pseudonym, bio, location, lookingFor } = req.body;
-    const dataToUpdate = {};
-    
-    if (pseudonym !== undefined) dataToUpdate.pseudonym = pseudonym;
-    if (bio !== undefined) dataToUpdate.bio = bio;
-    if (location !== undefined) dataToUpdate.location = location;
-    if (lookingFor !== undefined) dataToUpdate.lookingFor = lookingFor;
-
-    if (req.file) {
-      const newAvatarUrl = `/uploads/${req.file.filename}`;
-      // In a real app we might delete the old image or add to array.
-      // Assuming images[0] is the main avatar for simplicity.
-      const currentUser = await prisma.user.findUnique({ where: { id: req.user.id }});
-      let newImages = currentUser.images || [];
-      if (newImages.length > 0) {
-        newImages[0] = newAvatarUrl;
-      } else {
-        newImages.push(newAvatarUrl);
-      }
-      dataToUpdate.images = newImages;
-    }
+    const data = updateProfileSchema.parse(req.body);
 
     const updatedUser = await prisma.user.update({
       where: { id: req.user.id },
-      data: dataToUpdate,
+      data,
       select: {
-        id: true,
-        pseudonym: true,
-        images: true,
-        bio: true,
-        location: true,
-        lookingFor: true,
+        id: true, pseudonym: true, images: true, bio: true, location: true,
+        interests: true, feelings: true, supportTypes: true, isAnonymous: true
       }
     });
 
-    res.json(updatedUser);
+    res.json({
+      ...updatedUser,
+      avatarUrl: updatedUser.images.length > 0 ? updatedUser.images[0] : null
+    });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: 'Validation failed', details: error.errors });
+    }
     next(error);
   }
 });
 
-// POST /users/:id/block - Block a user
+// POST /users/me/photos - Append photo
+router.post('/me/photos', authenticateToken, upload.single('photo'), async (req, res, next) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No photo provided' });
+
+    const user = await prisma.user.findUnique({ where: { id: req.user.id } });
+    if (user.images.length >= MAX_PHOTOS) {
+      return res.status(400).json({ error: `Maximum of ${MAX_PHOTOS} photos allowed` });
+    }
+
+    const savedUrl = await processAndSaveImage(req.file.buffer);
+
+    const updated = await prisma.user.update({
+      where: { id: user.id, photoVersion: user.photoVersion },
+      data: {
+        images: { push: savedUrl },
+        photoVersion: { increment: 1 }
+      },
+      select: { images: true }
+    });
+
+    res.json({ images: updated.images });
+  } catch (error) {
+    if (error.code === 'P2025') return res.status(409).json({ error: 'Concurrent update detected, please retry' });
+    next(error);
+  }
+});
+
+// PUT /users/me/photos/order
+router.put('/me/photos/order', authenticateToken, async (req, res, next) => {
+  try {
+    const { images } = req.body;
+    if (!Array.isArray(images)) return res.status(400).json({ error: 'images array required' });
+
+    const user = await prisma.user.findUnique({ where: { id: req.user.id } });
+    
+    // Validate exact permutation
+    const currentSet = new Set(user.images);
+    const newSet = new Set(images);
+    if (images.length !== user.images.length || currentSet.size !== newSet.size || [...currentSet].some(url => !newSet.has(url))) {
+      return res.status(400).json({ error: 'Invalid ordered list. Must be an exact permutation of current photos.' });
+    }
+
+    const updated = await prisma.user.update({
+      where: { id: user.id, photoVersion: user.photoVersion },
+      data: {
+        images: images,
+        photoVersion: { increment: 1 }
+      },
+      select: { images: true }
+    });
+
+    res.json({ images: updated.images });
+  } catch (error) {
+    if (error.code === 'P2025') return res.status(409).json({ error: 'Concurrent update detected, please retry' });
+    next(error);
+  }
+});
+
+// DELETE /users/me/photos
+router.delete('/me/photos', authenticateToken, async (req, res, next) => {
+  try {
+    const { url } = req.body;
+    if (!url) return res.status(400).json({ error: 'url required' });
+
+    const user = await prisma.user.findUnique({ where: { id: req.user.id } });
+    
+    if (!user.images.includes(url)) {
+      return res.status(404).json({ error: 'Photo not found' });
+    }
+    
+    if (user.images.length <= MIN_PHOTOS) {
+      return res.status(400).json({ error: `Minimum of ${MIN_PHOTOS} photos required` });
+    }
+
+    const newImages = user.images.filter(img => img !== url);
+
+    const updated = await prisma.user.update({
+      where: { id: user.id, photoVersion: user.photoVersion },
+      data: {
+        images: newImages,
+        photoVersion: { increment: 1 }
+      },
+      select: { images: true }
+    });
+
+    // Only delete file if DB update succeeds
+    deleteImage(url);
+
+    res.json({ images: updated.images });
+  } catch (error) {
+    if (error.code === 'P2025') return res.status(409).json({ error: 'Concurrent update detected, please retry' });
+    next(error);
+  }
+});
+
+
+// POST /users/:id/block
 router.post('/:id/block', authenticateToken, async (req, res, next) => {
   try {
     const targetUserId = req.params.id;
@@ -114,24 +184,58 @@ router.post('/:id/block', authenticateToken, async (req, res, next) => {
   }
 });
 
-// POST /users/:id/report - Report a user
+// POST /users/:id/report
 router.post('/:id/report', authenticateToken, async (req, res, next) => {
   try {
     const targetUserId = req.params.id;
     const reporterId = req.user.id;
-    const { reason, description } = req.body;
+    const { reason, description, photoUrl } = req.body;
     
+    // Ensure photoUrl belongs to target user if provided
+    if (photoUrl) {
+      const targetUser = await prisma.user.findUnique({ where: { id: targetUserId } });
+      if (!targetUser || !targetUser.images.includes(photoUrl)) {
+        return res.status(400).json({ error: 'photoUrl does not belong to the user' });
+      }
+    }
+
     await prisma.report.create({
       data: {
         reporterId,
         reportedId: targetUserId,
         reason,
-        description
+        description,
+        reportedPhotoUrl: photoUrl || null
       }
     });
     
     res.json({ success: true });
   } catch (error) {
+    next(error);
+  }
+});
+
+// DELETE /users/me
+router.delete('/me', authenticateToken, async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+
+    await prisma.user.delete({
+      where: { id: userId }
+    });
+    
+    // Cleanup images
+    if (user && user.images) {
+      user.images.forEach(deleteImage);
+    }
+    
+    res.json({ success: true, message: 'Account deleted successfully' });
+  } catch (error) {
+    if (error.code === 'P2003') {
+      return res.status(400).json({ error: 'Cannot delete account due to existing relations. Please contact support.' });
+    }
     next(error);
   }
 });

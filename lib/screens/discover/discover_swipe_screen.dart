@@ -212,7 +212,6 @@ class _DiscoverSwipeScreenState extends State<DiscoverSwipeScreen> {
             MaterialPageRoute(
               builder: (_) => ChatConversationScreen(
                 peer: matchedCard.profile,
-                autoSendIcebreaker: true,
               ),
             ),
           );

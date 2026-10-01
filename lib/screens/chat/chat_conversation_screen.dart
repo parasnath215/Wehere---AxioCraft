@@ -6,19 +6,14 @@ import '../../models/user_profile.dart';
 import '../../state/app_state.dart';
 import '../../widgets/chat/chat_bubble.dart';
 import '../../widgets/chat/safe_space_banner.dart';
-import '../../widgets/chat/wellness_tip_bar.dart';
-import '../../widgets/chat/icebreaker_sheet.dart';
-import '../../widgets/subscription/subscription_sheet.dart';
-import '../sos/sos_help_screen.dart';
+import '../../widgets/shared/avatar_widget.dart';
 
 class ChatConversationScreen extends StatefulWidget {
   final UserProfile peer;
-  final bool autoSendIcebreaker;
 
   const ChatConversationScreen({
     super.key,
     required this.peer,
-    this.autoSendIcebreaker = false,
   });
 
   @override
@@ -28,8 +23,6 @@ class ChatConversationScreen extends StatefulWidget {
 class _ChatConversationScreenState extends State<ChatConversationScreen> {
   final TextEditingController _textController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  bool _crisisDetected = false;
-
   @override
   void initState() {
     super.initState();
@@ -38,9 +31,6 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
       final conversationId = appState.getConversationId(widget.peer.id);
       if (conversationId != null) {
         appState.joinConversation(conversationId);
-      }
-      if (widget.autoSendIcebreaker) {
-        _sendPrompt("What's one good thing that happened today? ✨");
       }
     });
   }
@@ -57,31 +47,9 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
     });
   }
 
-  void _sendPrompt(String text) {
-    final appState = Provider.of<AppState>(context, listen: false);
-    final conversationId = appState.getConversationId(widget.peer.id);
-    if (conversationId != null) {
-      appState.sendMessage(widget.peer.id, text, conversationId, isIcebreaker: true);
-    }
-    _scrollToBottom();
-  }
-
   void _handleSendMessage() {
     final text = _textController.text.trim();
     if (text.isEmpty) return;
-
-    // Crisis detection (Safety & Moderation layer)
-    final lower = text.toLowerCase();
-    if (lower.contains('suicide') ||
-        lower.contains('kill myself') ||
-        lower.contains('end my life') ||
-        lower.contains('hurt myself') ||
-        lower.contains('cant go on') ||
-        lower.contains("can't go on")) {
-      setState(() {
-        _crisisDetected = true;
-      });
-    }
 
     final appState = Provider.of<AppState>(context, listen: false);
     final conversationId = appState.getConversationId(widget.peer.id);
@@ -111,12 +79,9 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
           children: [
             Stack(
               children: [
-                CircleAvatar(
+                AvatarWidget(
+                  imageUrl: widget.peer.avatarUrl,
                   radius: 20,
-                  backgroundImage: AssetImage(widget.peer.avatarUrl),
-                  onBackgroundImageError: (_, __) {},
-                  backgroundColor: AppColors.primarySoft,
-                  child: const Icon(Icons.person, color: AppColors.primary),
                 ),
                 if (widget.peer.isOnline)
                   Positioned(
@@ -168,16 +133,7 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
           ],
         ),
         actions: [
-          IconButton(
-            icon: Container(
-              padding: const EdgeInsets.all(6),
-              decoration: const BoxDecoration(color: AppColors.primarySoft, shape: BoxShape.circle),
-              child: const Icon(Icons.call_rounded, color: AppColors.primary, size: 20),
-            ),
-            onPressed: () {
-              showWeherePlusSubscriptionSheet(context);
-            },
-          ),
+
           IconButton(
             icon: const Icon(Icons.more_vert_rounded, color: AppColors.textSecondary),
             onPressed: () => _showSafetyOptions(context),
@@ -194,43 +150,7 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
               },
             ),
 
-            // Crisis Helpline Alert (Appears automatically if distress keywords detected)
-            if (_crisisDetected)
-              Container(
-                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFEECEE),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.sosRed),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.emergency_outlined, color: AppColors.sosRed, size: 28),
-                    const SizedBox(width: 10),
-                    const Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('You matter. We’re here for you.', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.sosRed)),
-                          SizedBox(height: 2),
-                          Text('Free, 24/7 confidential listeners are standing by.', style: TextStyle(fontSize: 11, color: AppColors.textPrimary)),
-                        ],
-                      ),
-                    ),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.sosRed,
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      ),
-                      onPressed: () {
-                        Navigator.push(context, MaterialPageRoute(builder: (_) => const SosHelpScreen()));
-                      },
-                      child: const Text('Get Help', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                    ),
-                  ],
-                ),
-              ),
+
 
             // Date separator
             Container(
@@ -265,11 +185,9 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
                 padding: const EdgeInsets.only(left: 16, bottom: 6),
                 child: Row(
                   children: [
-                    CircleAvatar(
+                    AvatarWidget(
+                      imageUrl: widget.peer.avatarUrl,
                       radius: 12,
-                      backgroundImage: AssetImage(widget.peer.avatarUrl),
-                      onBackgroundImageError: (_, __) {},
-                      backgroundColor: AppColors.primarySoft,
                     ),
                     const SizedBox(width: 8),
                     Container(
@@ -303,10 +221,7 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
                 ),
               ),
 
-            // Daily Wellness Tip
-            const WellnessTipBar(),
-
-            // Chat Input Bar (Mockup 1.17.17 AM (1))
+            // Chat Input Bar
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
@@ -321,23 +236,6 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
               ),
               child: Row(
                 children: [
-                  // (+) Add action: opens icebreaker / breathing exercises
-                  GestureDetector(
-                    onTap: () {
-                      _showAttachmentOrActivitySheet(context);
-                    },
-                    child: Container(
-                      width: 40,
-                      height: 40,
-                      decoration: const BoxDecoration(
-                        color: AppColors.primarySoft,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.add_rounded, color: AppColors.primary, size: 24),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-
                   // Text input
                   Expanded(
                     child: Container(
@@ -363,45 +261,18 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
                   ),
                   const SizedBox(width: 8),
 
-                  // Quick Voice Note or Send Button
-                  if (_textController.text.trim().isEmpty) ...[
-                    GestureDetector(
-                      onTap: () {
-                        final appState = Provider.of<AppState>(context, listen: false);
-                        appState.sendVoiceNote(widget.peer.id, 4);
-                        _scrollToBottom();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Recorded and sent 4s voice note 🎙️'),
-                            backgroundColor: AppColors.primary,
-                            duration: Duration(seconds: 2),
-                          ),
-                        );
-                      },
-                      child: Container(
-                        width: 42,
-                        height: 42,
-                        decoration: const BoxDecoration(
-                          color: AppColors.primarySoft,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.mic_rounded, color: AppColors.primary, size: 20),
+                  GestureDetector(
+                    onTap: _handleSendMessage,
+                    child: Container(
+                      width: 42,
+                      height: 42,
+                      decoration: const BoxDecoration(
+                        color: AppColors.primary,
+                        shape: BoxShape.circle,
                       ),
+                      child: const Icon(Icons.send_rounded, color: Colors.white, size: 18),
                     ),
-                  ] else ...[
-                    GestureDetector(
-                      onTap: _handleSendMessage,
-                      child: Container(
-                        width: 42,
-                        height: 42,
-                        decoration: const BoxDecoration(
-                          color: AppColors.primary,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.send_rounded, color: Colors.white, size: 18),
-                      ),
-                    ),
-                  ],
+                  ),
                 ],
               ),
             ),
@@ -411,65 +282,7 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
     );
   }
 
-  void _showAttachmentOrActivitySheet(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        padding: const EdgeInsets.all(20),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(color: AppColors.cardBorder, borderRadius: BorderRadius.circular(2)),
-              ),
-            ),
-            const SizedBox(height: 16),
-            const Text('Shared Wellness Activities ✨', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 14),
-            ListTile(
-              leading: const CircleAvatar(backgroundColor: AppColors.primarySoft, child: Icon(Icons.auto_awesome, color: AppColors.primary)),
-              title: const Text('Send Mental Wellness Icebreaker'),
-              subtitle: const Text('Choose from supportive conversation prompts'),
-              onTap: () {
-                Navigator.pop(ctx);
-                _openIcebreakerPicker();
-              },
-            ),
-            ListTile(
-              leading: const CircleAvatar(backgroundColor: Color(0xFFE8F8F0), child: Icon(Icons.air_rounded, color: AppColors.onlineGreen)),
-              title: const Text('Guided 2-Minute Breathing Together'),
-              subtitle: const Text('Sync calm 4-7-8 breathing in real time'),
-              onTap: () {
-                Navigator.pop(ctx);
-                _sendPrompt('Hey, let’s do a quick 2-minute calming breath together 🌿');
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
-  void _openIcebreakerPicker() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => IcebreakerSheet(
-        onSelectPrompt: (prompt) {
-          _sendPrompt(prompt);
-        },
-      ),
-    );
-  }
 
   void _showSafetyOptions(BuildContext context) {
     showModalBottomSheet(

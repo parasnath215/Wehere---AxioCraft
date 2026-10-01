@@ -89,14 +89,29 @@ class AppState extends ChangeNotifier {
   int get currentTabIndex => _currentTabIndex;
 
   // Current selected mood today
-  String _todayMood = 'Good';
-  String get todayMood => _todayMood;
+  String? _todayMood;
+  String? get todayMood => _todayMood;
 
-  // Day streak & Weekly check-ins (Mon-Sun)
-  int _dayStreak = 16;
+  // Day streak & Weekly progress
+  int _dayStreak = 0;
   int get dayStreak => _dayStreak;
-  final List<bool> _weekDaysCheckIn = [true, true, true, true, true, false, false];
-  List<bool> get weekDaysCheckIn => _weekDaysCheckIn;
+  int _weeklyProgress = 0;
+  int get weeklyProgress => _weeklyProgress;
+
+  List<bool> get weekDaysCheckIn {
+    return List.generate(7, (i) => i < _weeklyProgress);
+  }
+  
+  void toggleWeekCheckIn(int idx) {
+    // Deprecated: UI now reads weeklyProgress from backend
+  }
+
+  // Unread counts
+  int _unreadNotifications = 0;
+  int get unreadNotifications => _unreadNotifications;
+  
+  int _unreadMessages = 0;
+  int get unreadMessages => _unreadMessages;
 
   // Gamification XP & Level
   int _currentXp = 2350;
@@ -249,8 +264,30 @@ class AppState extends ChangeNotifier {
       }
 
       // Fetch User Progress
-      final progressRes = await apiClient.get('/progress');
-      _currentXp = progressRes.data['xp'] ?? _currentXp;
+      try {
+        final progressRes = await apiClient.get('/progress');
+        _currentXp = progressRes.data['xp'] ?? _currentXp;
+        _dayStreak = progressRes.data['currentStreak'] ?? _dayStreak;
+        _weeklyProgress = progressRes.data['weeklyProgress'] ?? _weeklyProgress;
+      } catch(e) {
+        print("Failed to fetch progress: $e");
+      }
+      
+      // Fetch Today's Mood
+      try {
+        final moodRes = await apiClient.get('/progress/mood/today');
+        _todayMood = moodRes.data['mood'];
+      } catch(e) {
+        print("Failed to fetch mood: $e");
+      }
+      
+      // Fetch Unread Notifications
+      try {
+        final notifRes = await apiClient.get('/notifications/unread');
+        _unreadNotifications = notifRes.data['unreadCount'] ?? 0;
+      } catch(e) {
+        print("Failed to fetch unread notifications: $e");
+      }
       // Fetch Journals
       final journalRes = await apiClient.get('/journal');
       _journalEntries.clear();
@@ -293,8 +330,10 @@ class AppState extends ChangeNotifier {
       try {
         final convRes = await apiClient.get('/conversations');
         _messages.clear();
+        _unreadMessages = 0;
         for (var c in convRes.data) {
           _conversationIds[c['peerId']] = c['id'];
+          _unreadMessages += (c['unreadCount'] as int? ?? 0);
           // fetch messages for conversation
           try {
              final msgRes = await apiClient.get('/conversations/${c['id']}/messages');
@@ -453,11 +492,7 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  void checkInMood(String mood) {
-    _todayMood = mood;
-    _currentXp += 25;
-    notifyListeners();
-  }
+
 
   void setDiscoveryFilter(String filter) {
     _activeDiscoveryFilter = filter;
@@ -716,11 +751,15 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  void toggleWeekCheckIn(int dayIndex) {
-    if (dayIndex >= 0 && dayIndex < _weekDaysCheckIn.length) {
-      _weekDaysCheckIn[dayIndex] = !_weekDaysCheckIn[dayIndex];
-      _dayStreak += _weekDaysCheckIn[dayIndex] ? 1 : -1;
-      _currentXp += _weekDaysCheckIn[dayIndex] ? 30 : -30;
+  Future<void> checkInMood(String mood) async {
+    final oldMood = _todayMood;
+    _todayMood = mood;
+    notifyListeners();
+    try {
+      await apiClient.post('/progress/mood', data: {'mood': mood});
+      fetchBackendData(); // refresh streaks
+    } catch(e) {
+      _todayMood = oldMood;
       notifyListeners();
     }
   }
@@ -895,13 +934,43 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  void setAnonymity(bool val) {
+  Future<bool> setAnonymity(bool val) async {
+    final oldVal = isAnonymousMode;
     isAnonymousMode = val;
     _currentUser = _currentUser.copyWith(
       isAnonymous: val,
-      name: val ? 'Kind Peer' : (onboardingName.isNotEmpty ? onboardingName : 'Alex'),
     );
     notifyListeners();
+    try {
+      await apiClient.put('/users/me', data: {'isAnonymous': val});
+      return true;
+    } catch (e) {
+      isAnonymousMode = oldVal;
+      _currentUser = _currentUser.copyWith(isAnonymous: oldVal);
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> changePassword(String currentPassword, String newPassword) async {
+    try {
+      await apiClient.post('/auth/change-password', data: {
+        'currentPassword': currentPassword,
+        'newPassword': newPassword,
+      });
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  Future<bool> deleteAccount() async {
+    try {
+      await apiClient.delete('/users/me');
+      return true;
+    } catch (e) {
+      return false;
+    }
   }
 
   Future<void> updateProfile({required String name, required String bio, required String location, required String lookingFor}) async {

@@ -5,6 +5,7 @@ import '../../core/theme/app_text_styles.dart';
 import '../../core/routing/app_routes.dart';
 import '../../state/app_state.dart';
 import '../../state/auth_notifier.dart';
+import '../../widgets/shared/avatar_widget.dart';
 import '../progress/progress_dashboard_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -21,16 +22,10 @@ class ProfileScreen extends StatelessWidget {
         title: Text('Profile & Growth 🌟', style: AppTextStyles.h2.copyWith(fontSize: 20)),
         actions: [
           IconButton(
-            icon: const Icon(Icons.logout_rounded, color: AppColors.sosRed),
-            onPressed: () {
-              context.read<AuthNotifier>().logout();
-              Navigator.pushNamedAndRemoveUntil(context, AppRoutes.login, (route) => false);
-            },
-          ),
-          IconButton(
             icon: const Icon(Icons.settings_outlined, color: AppColors.textPrimary),
             onPressed: () => _showSettingsSheet(context, appState),
           ),
+          const SizedBox(width: 8),
         ],
       ),
       body: SafeArea(
@@ -42,31 +37,9 @@ class ProfileScreen extends StatelessWidget {
               // User Greeting Header (Mockup 1.17.19 AM (2))
               Row(
                 children: [
-                  GestureDetector(
-                    onTap: () => _showAvatarPicker(context, appState),
-                    child: Stack(
-                      children: [
-                        CircleAvatar(
-                          radius: 36,
-                          backgroundImage: AssetImage(user.avatarUrl),
-                          onBackgroundImageError: (_, __) {},
-                          backgroundColor: AppColors.primarySoft,
-                          child: const Icon(Icons.person, size: 36, color: AppColors.primary),
-                        ),
-                        Positioned(
-                          bottom: 0,
-                          right: 0,
-                          child: Container(
-                            padding: const EdgeInsets.all(5),
-                            decoration: const BoxDecoration(
-                              color: AppColors.primary,
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(Icons.camera_alt_rounded, size: 14, color: Colors.white),
-                          ),
-                        ),
-                      ],
-                    ),
+                  AvatarWidget(
+                    imageUrl: user.avatarUrl,
+                    radius: 36,
                   ),
                   const SizedBox(width: 16),
                   Expanded(
@@ -109,61 +82,7 @@ class ProfileScreen extends StatelessWidget {
                 ],
               ),
 
-              const SizedBox(height: 16),
-
-              // Registered Unique ID Card
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.cardBorder),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.02),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('REGISTERED UNIQUE ID', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.textMuted)),
-                        const SizedBox(height: 2),
-                        Text(user.id, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.primary)),
-                      ],
-                    ),
-                    InkWell(
-                      onTap: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Copied ID ${user.id} to clipboard!'), duration: const Duration(seconds: 2)),
-                        );
-                      },
-                      borderRadius: BorderRadius.circular(12),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: AppColors.primarySoft,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: AppColors.primaryBorder),
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.copy_rounded, size: 13, color: AppColors.primary),
-                            SizedBox(width: 4),
-                            Text('Copy ID', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primary)),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              // ID Card removed per requirements
 
               const SizedBox(height: 14),
 
@@ -204,52 +123,29 @@ class ProfileScreen extends StatelessWidget {
                     Switch(
                       value: user.isAnonymous,
                       activeThumbColor: AppColors.primary,
-                      onChanged: (val) {
-                        appState.setAnonymity(val);
+                      onChanged: (val) async {
+                        final success = await appState.setAnonymity(val);
+                        if (!success && context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Failed to update anonymity. Please try again.')),
+                          );
+                        } else if (success && val && context.mounted) {
+                          showDialog(
+                            context: context,
+                            builder: (dCtx) => AlertDialog(
+                              title: const Text('Anonymity Active'),
+                              content: const Text('Other users will now see you as "Anonymous" with a default avatar. Your real name and photo remain visible to you.'),
+                              actions: [ElevatedButton(onPressed: () => Navigator.pop(dCtx), child: const Text('Got it'))],
+                            ),
+                          );
+                        }
                       },
                     ),
                   ],
                 ),
               ),
 
-              const SizedBox(height: 20),
 
-              // 4 Stat Badges (Streak, Goals, Hours Focused, Score)
-              Row(
-                children: [
-                  _buildStatCard(
-                    iconEmoji: '🔥',
-                    value: '${appState.dayStreak}',
-                    title: 'Day Streak',
-                    subtitle: 'Active now',
-                    tintColor: const Color(0xFF8B5CF6),
-                  ),
-                  const SizedBox(width: 10),
-                  _buildStatCard(
-                    iconEmoji: '🎯',
-                    value: '${appState.goals.where((g) => g.isCompleted).length}',
-                    title: 'Goals Done',
-                    subtitle: 'This Month',
-                    tintColor: AppColors.onlineGreen,
-                  ),
-                  const SizedBox(width: 10),
-                  _buildStatCard(
-                    iconEmoji: '⏱️',
-                    value: '89',
-                    title: 'Hours Mindful',
-                    subtitle: '+18% growth',
-                    tintColor: const Color(0xFF3B82F6),
-                  ),
-                  const SizedBox(width: 10),
-                  _buildStatCard(
-                    iconEmoji: '⭐',
-                    value: '4.8',
-                    title: 'Well-being',
-                    subtitle: 'Great!',
-                    tintColor: const Color(0xFFF59E0B),
-                  ),
-                ],
-              ),
 
               const SizedBox(height: 20),
 
@@ -302,7 +198,10 @@ class ProfileScreen extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(height: 4),
+                          const SizedBox(height: 4),
                           Text('${(appState.targetXp - appState.currentXp).clamp(0, appState.targetXp)} XP to next level', style: AppTextStyles.caption.copyWith(fontSize: 10)),
+                          const SizedBox(height: 4),
+                          const Text('Earn XP by: Community Posts, Matches, Daily Journals', style: TextStyle(fontSize: 9, color: AppColors.textMuted)),
                         ],
                       ),
                     ),
@@ -329,7 +228,7 @@ class ProfileScreen extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 12),
-              ...appState.goals.map((goal) {
+              ...appState.goals.take(3).map((goal) {
                 final pct = (goal.progress * 100).toInt();
                 return Container(
                   margin: const EdgeInsets.only(bottom: 10),
@@ -364,35 +263,7 @@ class ProfileScreen extends StatelessWidget {
                 );
               }),
 
-              const SizedBox(height: 20),
 
-              // Recent Badges
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text('Recent Badges', style: AppTextStyles.h3),
-                  GestureDetector(
-                    onTap: () => _showRewardsBadgesSheet(context, appState),
-                    child: const Text('View All', style: TextStyle(color: AppColors.primary, fontSize: 12, fontWeight: FontWeight.bold)),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              SizedBox(
-                height: 90,
-                child: ListView(
-                  scrollDirection: Axis.horizontal,
-                  children: [
-                    _buildBadgeCard('🔥', '7-Day Streak', onTap: () => _showRewardsBadgesSheet(context, appState)),
-                    _buildBadgeCard('🎯', 'Goal Crusher', onTap: () => _showRewardsBadgesSheet(context, appState)),
-                    _buildBadgeCard('🏹', 'On Track', onTap: () => _showRewardsBadgesSheet(context, appState)),
-                    _buildBadgeCard('⭐', 'First Milestone', onTap: () => _showRewardsBadgesSheet(context, appState)),
-                    _buildBadgeCard('🧘', 'Mindful Master', onTap: () => _showRewardsBadgesSheet(context, appState)),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 24),
             ],
           ),
         ),
@@ -400,134 +271,9 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildStatCard({
-    required String iconEmoji,
-    required String value,
-    required String title,
-    required String subtitle,
-    required Color tintColor,
-  }) {
-    return Expanded(
-      child: Container(
-        height: 110,
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: AppColors.cardBorder),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(iconEmoji, style: const TextStyle(fontSize: 18)),
-            const SizedBox(height: 4),
-            Text(value, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: AppColors.textPrimary)),
-            Text(title, style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: AppColors.textSecondary), textAlign: TextAlign.center),
-            const SizedBox(height: 2),
-            Text(subtitle, style: TextStyle(fontSize: 8, color: tintColor, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
-          ],
-        ),
-      ),
-    );
-  }
 
-  Widget _buildBadgeCard(String emoji, String title, {VoidCallback? onTap}) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 78,
-        margin: const EdgeInsets.only(right: 10),
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.cardBorder),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(emoji, style: const TextStyle(fontSize: 24)),
-            const SizedBox(height: 6),
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
-  void _showAvatarPicker(BuildContext context, AppState appState) {
-    final avatars = [
-      'assets/mockups/user_dashboard_alex.jpeg',
-      'assets/mockups/home_dashboard_priya.jpeg',
-      'assets/mockups/discover_swipe.jpeg',
-      'assets/mockups/profile_detail.jpeg',
-      'assets/mockups/match_celebration.jpeg',
-      'assets/mockups/intake_name.jpeg',
-    ];
 
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        padding: const EdgeInsets.all(24),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Choose Your Avatar 🎨', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 4),
-            const Text('Pick a look that matches your gentle vibe.', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-            const SizedBox(height: 18),
-            Wrap(
-              spacing: 16,
-              runSpacing: 16,
-              children: avatars.map((url) {
-                final isSelected = appState.currentUser.avatarUrl == url;
-                return GestureDetector(
-                  onTap: () async {
-                    // Update user avatar
-                    await appState.updateProfile(
-                      name: appState.currentUser.name,
-                      bio: appState.currentUser.bio,
-                      location: appState.currentUser.location,
-                      lookingFor: appState.currentUser.lookingFor,
-                    );
-                    Navigator.pop(ctx);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Avatar updated! Looking great ✨')),
-                    );
-                  },
-                  child: Container(
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: isSelected ? AppColors.primary : Colors.transparent,
-                        width: 3,
-                      ),
-                    ),
-                    child: CircleAvatar(
-                      radius: 32,
-                      backgroundImage: AssetImage(url),
-                      backgroundColor: AppColors.primarySoft,
-                    ),
-                  ),
-                );
-              }).toList(),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   void _showEditProfileSheet(BuildContext context, AppState appState) {
     final user = appState.currentUser;
@@ -583,6 +329,7 @@ class ProfileScreen extends StatelessWidget {
                     location: locCtrl.text.trim(),
                     lookingFor: lookCtrl.text.trim(),
                   );
+                  if (!context.mounted) return;
                   Navigator.pop(ctx);
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Profile saved successfully! ✨')),
@@ -619,24 +366,25 @@ class ProfileScreen extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
-            SwitchListTile(
+            ListTile(
               contentPadding: EdgeInsets.zero,
-              title: const Text('Push Notifications', style: TextStyle(fontWeight: FontWeight.w600)),
-              subtitle: const Text('Gentle reminders and peer chat pings'),
-              activeThumbColor: AppColors.primary,
-              value: appState.pushNotifications,
-              onChanged: (val) {
-                appState.pushNotifications = val;
-                (ctx as Element).markNeedsBuild();
+              leading: const Icon(Icons.lock_outline, color: AppColors.primary),
+              title: const Text('Change Password', style: TextStyle(fontWeight: FontWeight.w600)),
+              trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14),
+              onTap: () {
+                Navigator.pop(ctx);
+                _showChangePasswordDialog(context, appState);
               },
             ),
-            SwitchListTile(
+            ListTile(
               contentPadding: EdgeInsets.zero,
-              title: const Text('Safe Content Moderation', style: TextStyle(fontWeight: FontWeight.w600)),
-              subtitle: const Text('Auto-filter harmful or distressing content'),
-              activeThumbColor: AppColors.primary,
-              value: true,
-              onChanged: (_) {},
+              leading: const Icon(Icons.delete_outline, color: AppColors.sosRed),
+              title: const Text('Delete Account', style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.sosRed)),
+              trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.sosRed),
+              onTap: () {
+                Navigator.pop(ctx);
+                _showDeleteAccountDialog(context, appState);
+              },
             ),
             ListTile(
               contentPadding: EdgeInsets.zero,
@@ -665,25 +413,29 @@ class ProfileScreen extends StatelessWidget {
             ),
             ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.refresh_rounded, color: Colors.orange),
-              title: const Text('Reset Deck & Matches', style: TextStyle(fontWeight: FontWeight.w600)),
-              onTap: () {
-                appState.refreshDeck();
-                Navigator.pop(ctx);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Cards and peer deck replenished!')),
-                );
-              },
-            ),
-            const Divider(height: 16),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
               leading: const Icon(Icons.logout_rounded, color: Colors.redAccent),
               title: const Text('Sign Out', style: TextStyle(fontWeight: FontWeight.w600, color: Colors.redAccent)),
               onTap: () {
                 Navigator.pop(ctx);
-                context.read<AuthNotifier>().logout();
-                Navigator.pushNamedAndRemoveUntil(context, AppRoutes.login, (route) => false);
+                showDialog(
+                  context: context,
+                  builder: (dCtx) => AlertDialog(
+                    title: const Text('Sign Out'),
+                    content: const Text('Are you sure you want to sign out?'),
+                    actions: [
+                      TextButton(onPressed: () => Navigator.pop(dCtx), child: const Text('Cancel')),
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(backgroundColor: AppColors.sosRed),
+                        onPressed: () {
+                          Navigator.pop(dCtx);
+                          context.read<AuthNotifier>().logout();
+                          Navigator.pushNamedAndRemoveUntil(context, AppRoutes.login, (route) => false);
+                        },
+                        child: const Text('Sign Out', style: TextStyle(color: Colors.white)),
+                      ),
+                    ],
+                  ),
+                );
               },
             ),
           ],
@@ -692,89 +444,83 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  void _showRewardsBadgesSheet(BuildContext context, AppState appState) {
-    final badges = [
-      {'emoji': '🔥', 'title': '16-Day Streak', 'desc': 'Showed up for mental wellness 16 days in a row!', 'earned': true},
-      {'emoji': '🎯', 'title': 'Goal Crusher', 'desc': 'Completed 5 self-care goals this month.', 'earned': true},
-      {'emoji': '🏹', 'title': 'On Track', 'desc': 'Consistent habit tracking for 2 weeks.', 'earned': true},
-      {'emoji': '⭐', 'title': 'First Milestone', 'desc': 'Passed 2,000 XP in the Wehere journey.', 'earned': true},
-      {'emoji': '🧘', 'title': 'Mindful Master', 'desc': 'Completed 10 daily reflection journal entries.', 'earned': true},
-      {'emoji': '👑', 'title': 'Empathy Champion', 'desc': 'Sent 50 encouraging peer messages.', 'earned': false},
-      {'emoji': '🌟', 'title': 'Support Star', 'desc': 'Received a Super Support star from a peer.', 'earned': false},
-    ];
+  void _showChangePasswordDialog(BuildContext context, AppState appState) {
+    final currentCtrl = TextEditingController();
+    final newCtrl = TextEditingController();
 
-    showModalBottomSheet(
+    showDialog(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        height: MediaQuery.of(context).size.height * 0.7,
-        padding: const EdgeInsets.all(24),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      builder: (dCtx) => AlertDialog(
+        title: const Text('Change Password'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text('Milestones & Rewards 🏆', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(ctx)),
-              ],
+            TextField(
+              controller: currentCtrl,
+              obscureText: true,
+              decoration: const InputDecoration(labelText: 'Current Password'),
             ),
-            const SizedBox(height: 4),
-            Text('Level ${appState.userLevel} Growth Explorer • ${appState.currentXp} Total XP', style: const TextStyle(fontSize: 12, color: AppColors.primary, fontWeight: FontWeight.bold)),
-            const Divider(height: 20),
-            Expanded(
-              child: ListView.builder(
-                itemCount: badges.length,
-                itemBuilder: (context, i) {
-                  final b = badges[i];
-                  final earned = b['earned'] as bool;
-
-                  return Container(
-                    margin: const EdgeInsets.only(bottom: 10),
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: earned ? const Color(0xFFF5F3FF) : AppColors.surfaceSubtle,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: earned ? AppColors.primaryBorder : Colors.transparent),
-                    ),
-                    child: Row(
-                      children: [
-                        Text(b['emoji'] as String, style: TextStyle(fontSize: 28, color: earned ? null : Colors.grey)),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(b['title'] as String, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: earned ? AppColors.textPrimary : AppColors.textMuted)),
-                              const SizedBox(height: 2),
-                              Text(b['desc'] as String, style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
-                            ],
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: earned ? AppColors.primary : Colors.grey.shade300,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Text(
-                            earned ? 'Unlocked' : 'Locked',
-                            style: TextStyle(fontSize: 10, color: earned ? Colors.white : Colors.black54, fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: newCtrl,
+              obscureText: true,
+              decoration: const InputDecoration(labelText: 'New Password'),
             ),
           ],
         ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dCtx), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () async {
+              if (newCtrl.text.length < 6) {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('New password must be at least 6 characters')));
+                return;
+              }
+              final success = await appState.changePassword(currentCtrl.text, newCtrl.text);
+              if (context.mounted) {
+                Navigator.pop(dCtx);
+                if (success) {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Password updated successfully!')));
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to change password. Please check your current password.')));
+                }
+              }
+            },
+            child: const Text('Update'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDeleteAccountDialog(BuildContext context, AppState appState) {
+    showDialog(
+      context: context,
+      builder: (dCtx) => AlertDialog(
+        title: const Text('Delete Account', style: TextStyle(color: AppColors.sosRed)),
+        content: const Text(
+          'Are you absolutely sure you want to delete your account? '
+          'This action is irreversible and all your data, chats, and progress will be permanently lost.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dCtx), child: const Text('Cancel')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.sosRed),
+            onPressed: () async {
+              final success = await appState.deleteAccount();
+              if (context.mounted) {
+                Navigator.pop(dCtx);
+                if (success) {
+                  context.read<AuthNotifier>().logout();
+                  Navigator.pushNamedAndRemoveUntil(context, AppRoutes.login, (route) => false);
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to delete account. Please contact support.')));
+                }
+              }
+            },
+            child: const Text('Delete Permanently', style: TextStyle(color: Colors.white)),
+          ),
+        ],
       ),
     );
   }

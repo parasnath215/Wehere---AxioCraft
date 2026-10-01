@@ -5,7 +5,6 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/routing/app_routes.dart';
 import '../../state/app_state.dart';
-import '../../widgets/mock_banner_ad.dart';
 
 class JournalHomeScreen extends StatelessWidget {
   const JournalHomeScreen({super.key});
@@ -36,7 +35,6 @@ class JournalHomeScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const MockBannerAd(),
               // New Entry Action Banner
               Container(
                 padding: const EdgeInsets.all(20),
@@ -192,31 +190,7 @@ class JournalHomeScreen extends StatelessWidget {
                             ),
                             const Spacer(),
                             Text(dateFormatted, style: AppTextStyles.caption.copyWith(fontSize: 10)),
-                            const SizedBox(width: 4),
-                            PopupMenuButton<String>(
-                              icon: const Icon(Icons.more_vert_rounded, size: 16, color: AppColors.textMuted),
-                              padding: EdgeInsets.zero,
-                              onSelected: (val) {
-                                if (val == 'delete') {
-                                  appState.deleteJournalEntry(entry.id);
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('Journal entry deleted.')),
-                                  );
-                                }
-                              },
-                              itemBuilder: (_) => [
-                                const PopupMenuItem(
-                                  value: 'delete',
-                                  child: Row(
-                                    children: [
-                                      Icon(Icons.delete_outline_rounded, size: 16, color: AppColors.sosRed),
-                                      SizedBox(width: 8),
-                                      Text('Delete Entry', style: TextStyle(color: AppColors.sosRed, fontSize: 13)),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
+
                           ],
                         ),
                         const SizedBox(height: 12),

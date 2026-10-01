@@ -9,7 +9,6 @@ import 'journal/journal_home_screen.dart';
 import 'chat/chat_list_screen.dart';
 
 import 'profile/profile_screen.dart';
-import '../widgets/subscription/subscription_sheet.dart';
 
 class MainNavigationShell extends StatefulWidget {
   const MainNavigationShell({super.key});
@@ -35,14 +34,13 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
     JournalHomeScreen(),
     ChatListScreen(),
     ProfileScreen(),
-    PricingScreen(),
   ];
 
   @override
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
     final activeIndex = appState.currentTabIndex.clamp(0, _pages.length - 1);
-    const unreadCount = 2;
+    final unreadCount = appState.unreadMessages;
 
     return PopScope(
       canPop: false,
@@ -127,14 +125,6 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
                   icon: Icons.person_rounded,
                   label: 'Profile',
                 ),
-                if (!appState.isSubscribed)
-                  _buildNavItem(
-                    index: 5,
-                    activeIndex: activeIndex,
-                    appState: appState,
-                    icon: Icons.workspace_premium_rounded,
-                    label: 'Pricing',
-                  ),
               ],
             ),
             ),

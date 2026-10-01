@@ -7,34 +7,15 @@ const { z } = require('zod');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const { authenticate } = require('../middleware/auth');
+const { authenticateToken } = require('../middleware/auth');
 
 const prisma = new PrismaClient();
 
-// Configure Multer for local uploads
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const dir = path.join(__dirname, '../../public/uploads');
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    cb(null, dir);
-  },
-  filename: (req, file, cb) => {
-    cb(null, `${Date.now()}-${Math.round(Math.random() * 1e9)}${path.extname(file.originalname)}`);
-  }
-});
-const fileFilter = (req, file, cb) => {
-  const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/webp'];
-  if (allowedMimeTypes.includes(file.mimetype)) {
-    cb(null, true);
-  } else {
-    cb(new Error('Invalid file type. Only JPEG, PNG, and WebP are allowed.'));
-  }
-};
+const { processAndSaveImage } = require('../services/storage');
 
 const upload = multer({ 
-  storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB max size
-  fileFilter 
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 } // 5MB max size
 });
 
 const signupSchema = z.object({
@@ -65,14 +46,16 @@ router.post('/anonymous', async (req, res) => {
 });
 
 // Email/Password Signup (Multipart with Images)
-router.post('/signup', upload.array('images', 5), async (req, res) => {
+router.post('/signup', upload.array('images', 6), async (req, res) => {
   try {
     if (!req.files || req.files.length < 2) {
       return res.status(400).json({ error: 'At least 2 profile images are required.' });
     }
 
     const { email, password, pseudonym } = signupSchema.parse(req.body);
-    const imagePaths = req.files.map(f => `/uploads/${f.filename}`);
+    
+    // Process and save images
+    const imagePaths = await Promise.all(req.files.map(f => processAndSaveImage(f.buffer)));
 
     const hashedPassword = await bcrypt.hash(password, 10);
     const user = await prisma.user.create({
@@ -147,10 +130,19 @@ router.post('/otp/verify', async (req, res) => {
   }
 });
 
+const onboardingSchema = z.object({
+  name: z.string().max(50).optional(),
+  location: z.string().max(100).optional(),
+  interests: z.array(z.string().uuid()).max(10).optional(),
+  feelings: z.array(z.string().uuid()).max(10).optional(),
+  supportTypes: z.array(z.string().uuid()).max(5).optional(),
+  isAnonymous: z.boolean().optional(),
+});
+
 // Complete Onboarding
-router.put('/onboarding', authenticate, async (req, res) => {
+router.put('/onboarding', authenticateToken, async (req, res) => {
   try {
-    const { name, location, interests, feelings, supportTypes, isAnonymous } = req.body;
+    const { name, location, interests, feelings, supportTypes, isAnonymous } = onboardingSchema.parse(req.body);
     const userId = req.user.id; // from authenticate middleware
 
     const updatedUser = await prisma.user.update({
@@ -168,6 +160,38 @@ router.put('/onboarding', authenticate, async (req, res) => {
     res.json({ message: 'Onboarding completed', user: updatedUser });
   } catch (error) {
     console.error('Onboarding Error:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// Change Password
+router.post('/change-password', authenticateToken, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    const userId = req.user.id;
+
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user || !user.password) {
+      return res.status(400).json({ error: 'Cannot change password for this account type' });
+    }
+
+    const validPassword = await bcrypt.compare(currentPassword, user.password);
+    if (!validPassword) {
+      return res.status(400).json({ error: 'Invalid current password' });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ error: 'New password must be at least 6 characters' });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await prisma.user.update({
+      where: { id: userId },
+      data: { password: hashedPassword }
+    });
+
+    res.json({ message: 'Password updated successfully', success: true });
+  } catch (error) {
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
