@@ -11,23 +11,25 @@ import 'package:socket_io_client/socket_io_client.dart' as io;
 import '../core/constants/app_constants.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../models/notification.dart';
+import '../models/config_options.dart';
 
 class AppState extends ChangeNotifier {
   // Current Logged-in User
   UserProfile _currentUser = UserProfile(
-    id: 'user_alex',
-    name: 'Alex',
-    age: 24,
-    location: 'Mumbai, India',
-    bio: 'Learning to be kind to myself one day at a time. 🌱',
-    avatarUrl: 'assets/mockups/user_dashboard_alex.jpeg',
-    isVerified: true,
+    id: '',
+    name: 'Loading...',
+    age: 18,
+    location: '',
+    bio: '',
+    avatarUrl: '',
+    isVerified: false,
     isOnline: true,
-    moodStatus: 'Healing & Growing 💜',
-    matchPercentage: 92,
-    interests: ['Mental Health', 'Personal Growth', 'Relationships', 'Mindfulness'],
-    lookingFor: 'Someone to Talk To & Accountability Partner',
-    values: ['Honesty', 'Empathy', 'Respect', 'Growth'],
+    moodStatus: '',
+    matchPercentage: 0,
+    interests: [],
+    feelings: [],
+    supportTypes: [],
+    values: [],
     isAnonymous: false,
     trustLevel: 1,
   );
@@ -41,6 +43,71 @@ class AppState extends ChangeNotifier {
 
   void updateUserProfile(UserProfile updatedProfile) {
     _currentUser = updatedProfile;
+    notifyListeners();
+  }
+
+  Future<void> fetchCurrentUser() async {
+    try {
+      final res = await apiClient.get('/users/me');
+      if (res.statusCode == 200) {
+        final data = res.data;
+        _currentUser = UserProfile(
+          id: data['id'],
+          name: data['pseudonym'] ?? 'Anonymous',
+          age: 18, // Backend doesn't store age yet, mock it
+          location: data['location'] ?? '',
+          bio: data['bio'] ?? '',
+          avatarUrl: '',
+          images: List<String>.from(data['images'] ?? []),
+          isVerified: true,
+          isOnline: true,
+          moodStatus: '',
+          matchPercentage: 0,
+          interests: List<String>.from(data['interests'] ?? []),
+          feelings: List<String>.from(data['feelings'] ?? []),
+          supportTypes: List<String>.from(data['supportTypes'] ?? []),
+          values: [],
+          isAnonymous: data['isAnonymous'] ?? false,
+          trustLevel: 1,
+        );
+        notifyListeners();
+      }
+    } catch (e) {
+      print('Failed to fetch user: $e');
+    }
+  }
+
+  // Config Options
+  List<ConfigOption> availableInterests = [];
+  List<ConfigOption> availableFeelings = [];
+  List<ConfigOption> availableSupportTypes = [];
+  ConfigLimits? configLimits;
+  bool isConfigLoaded = false;
+  bool configLoadError = false;
+
+  Future<void> fetchConfigOptions() async {
+    try {
+      configLoadError = false;
+      notifyListeners();
+      
+      final response = await apiClient.get('/config/options');
+      if (response.statusCode == 200) {
+        final data = response.data;
+        
+        final options = data['options'] as Map<String, dynamic>;
+        availableInterests = (options['interests'] as List).map((o) => ConfigOption.fromJson(o)).toList();
+        availableFeelings = (options['feelings'] as List).map((o) => ConfigOption.fromJson(o)).toList();
+        availableSupportTypes = (options['supportTypes'] as List).map((o) => ConfigOption.fromJson(o)).toList();
+        
+        configLimits = ConfigLimits.fromJson(data['limits']);
+        isConfigLoaded = true;
+      } else {
+        configLoadError = true;
+      }
+    } catch (e) {
+      print('Failed to load config: $e');
+      configLoadError = true;
+    }
     notifyListeners();
   }
 
@@ -263,6 +330,9 @@ class AppState extends ChangeNotifier {
         initSocket(token);
       }
 
+      await fetchConfigOptions();
+      await fetchCurrentUser();
+
       // Fetch User Progress
       try {
         final progressRes = await apiClient.get('/progress');
@@ -317,7 +387,6 @@ class AppState extends ChangeNotifier {
           avatarUrl: avatar,
           bio: data['bio'] ?? '',
           location: data['location'] ?? '',
-          lookingFor: data['lookingFor'] ?? '',
         );
         _currentXp = data['xp'] ?? 0;
         _targetXp = _calculateTargetXp(_userLevel);
@@ -363,7 +432,6 @@ class AppState extends ChangeNotifier {
                  moodStatus: '',
                  matchPercentage: 90,
                  interests: [],
-                 lookingFor: '',
                  values: [],
                ));
              }
@@ -392,7 +460,6 @@ class AppState extends ChangeNotifier {
               moodStatus: '',
               matchPercentage: 90,
               interests: [],
-              lookingFor: '',
               values: [],
             ),
             isNewHere: true,
@@ -973,32 +1040,7 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  Future<void> updateProfile({required String name, required String bio, required String location, required String lookingFor}) async {
-    try {
-      final res = await apiClient.put('/users/me', data: {
-        'pseudonym': name,
-        'bio': bio,
-        'location': location,
-        'lookingFor': lookingFor,
-      });
-      final data = res.data;
-      final avatar = (data['images'] != null && data['images'].isNotEmpty) 
-          ? '${AppConstants.apiBaseUrl}${data['images'][0]}'
-          : _currentUser.avatarUrl;
-          
-      _currentUser = _currentUser.copyWith(
-        name: data['pseudonym'] ?? _currentUser.name,
-        bio: data['bio'] ?? _currentUser.bio,
-        location: data['location'] ?? _currentUser.location,
-        lookingFor: data['lookingFor'] ?? _currentUser.lookingFor,
-        avatarUrl: avatar,
-      );
-      onboardingName = name;
-      notifyListeners();
-    } catch (e) {
-      print("Failed to update profile: $e");
-    }
-  }
+
 
   /// Automatically initialize and hydrate user profile from newly created auth registration
   void initializeUserFromAuth({
@@ -1085,7 +1127,8 @@ class AppState extends ChangeNotifier {
       age: age ?? _currentUser.age,
       location: onboardingLocation.isNotEmpty ? onboardingLocation : 'Mumbai, India',
       interests: selectedInterests,
-      lookingFor: selectedSupportTypes.isNotEmpty ? selectedSupportTypes.join(' & ') : _currentUser.lookingFor,
+      feelings: selectedFeelings,
+      supportTypes: selectedSupportTypes,
       isAnonymous: isAnonymousMode,
       bio: derivedBio,
     );

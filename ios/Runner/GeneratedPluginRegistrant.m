@@ -12,6 +12,12 @@
 @import flutter_secure_storage_darwin;
 #endif
 
+#if __has_include(<image_cropper/FLTImageCropperPlugin.h>)
+#import <image_cropper/FLTImageCropperPlugin.h>
+#else
+@import image_cropper;
+#endif
+
 #if __has_include(<image_picker_ios/FLTImagePickerPlugin.h>)
 #import <image_picker_ios/FLTImagePickerPlugin.h>
 #else
@@ -28,6 +34,7 @@
 
 + (void)registerWithRegistry:(NSObject<FlutterPluginRegistry>*)registry {
   [FlutterSecureStorageDarwinPlugin registerWithRegistrar:[registry registrarForPlugin:@"FlutterSecureStorageDarwinPlugin"]];
+  [FLTImageCropperPlugin registerWithRegistrar:[registry registrarForPlugin:@"FLTImageCropperPlugin"]];
   [FLTImagePickerPlugin registerWithRegistrar:[registry registrarForPlugin:@"FLTImagePickerPlugin"]];
   [SharedPreferencesPlugin registerWithRegistrar:[registry registrarForPlugin:@"SharedPreferencesPlugin"]];
 }

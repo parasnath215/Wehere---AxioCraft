@@ -40,6 +40,10 @@ async function runTests() {
     validateStatus: () => true
   });
   const tokenA = resA.data.token;
+  if (!resA.data.user) {
+    console.error('Signup failed for A:', resA.data);
+    return;
+  }
   console.log('User A created, images:', resA.data.user.images.length);
 
   // Signup User B

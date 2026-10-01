@@ -327,7 +327,7 @@ class _SwipeableCardState extends State<SwipeableCard> {
                                     const Text('Looking for', style: TextStyle(color: AppColors.primaryLight, fontSize: 11, fontWeight: FontWeight.w600)),
                                     const SizedBox(height: 2),
                                     Text(
-                                      profile.lookingFor,
+                                      profile.supportTypes.join(', '),
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                       style: const TextStyle(color: Colors.white, fontSize: 11),

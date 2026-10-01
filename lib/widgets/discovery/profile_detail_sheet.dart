@@ -203,7 +203,7 @@ class ProfileDetailSheet extends StatelessWidget {
                           title: "I'm Here For",
                           icon: Icons.favorite_outline_rounded,
                           child: Text(
-                            profile.lookingFor,
+                            profile.supportTypes.join(', '),
                             style: AppTextStyles.bodySmall.copyWith(color: AppColors.textPrimary),
                           ),
                         ),

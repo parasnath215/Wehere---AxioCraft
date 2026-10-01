@@ -5,12 +5,14 @@ class UserProfile {
   final String location;
   final String bio;
   final String avatarUrl;
+  final List<String> images;
   final bool isVerified;
   final bool isOnline;
   final String moodStatus;
   final int matchPercentage;
   final List<String> interests;
-  final String lookingFor;
+  final List<String> feelings;
+  final List<String> supportTypes;
   final List<String> values;
   final bool isAnonymous;
   final bool isSafeSpacePledged;
@@ -24,12 +26,14 @@ class UserProfile {
     required this.location,
     required this.bio,
     required this.avatarUrl,
+    this.images = const [],
     this.isVerified = true,
     this.isOnline = true,
     this.moodStatus = 'Healing & Growing 💜',
     this.matchPercentage = 92,
     this.interests = const [],
-    this.lookingFor = 'Meaningful conversations & emotional support',
+    this.feelings = const [],
+    this.supportTypes = const [],
     this.values = const ['Honesty', 'Empathy', 'Respect', 'Growth'],
     this.isAnonymous = false,
     this.isSafeSpacePledged = true,
@@ -44,12 +48,14 @@ class UserProfile {
     String? location,
     String? bio,
     String? avatarUrl,
+    List<String>? images,
     bool? isVerified,
     bool? isOnline,
     String? moodStatus,
     int? matchPercentage,
     List<String>? interests,
-    String? lookingFor,
+    List<String>? feelings,
+    List<String>? supportTypes,
     List<String>? values,
     bool? isAnonymous,
     bool? isSafeSpacePledged,
@@ -63,12 +69,14 @@ class UserProfile {
       location: location ?? this.location,
       bio: bio ?? this.bio,
       avatarUrl: avatarUrl ?? this.avatarUrl,
+      images: images ?? this.images,
       isVerified: isVerified ?? this.isVerified,
       isOnline: isOnline ?? this.isOnline,
       moodStatus: moodStatus ?? this.moodStatus,
       matchPercentage: matchPercentage ?? this.matchPercentage,
       interests: interests ?? this.interests,
-      lookingFor: lookingFor ?? this.lookingFor,
+      feelings: feelings ?? this.feelings,
+      supportTypes: supportTypes ?? this.supportTypes,
       values: values ?? this.values,
       isAnonymous: isAnonymous ?? this.isAnonymous,
       isSafeSpacePledged: isSafeSpacePledged ?? this.isSafeSpacePledged,
