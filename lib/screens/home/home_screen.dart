@@ -5,7 +5,7 @@ import '../../core/theme/app_text_styles.dart';
 import '../../core/routing/app_routes.dart';
 import '../../state/app_state.dart';
 
-import '../../widgets/common/mood_chip.dart';
+import '../../widgets/shared/avatar_widget.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -30,8 +30,7 @@ class HomeScreen extends StatelessWidget {
               _buildProgressBanner(context, appState),
               const SizedBox(height: 24),
               _buildCoreNavigationGrid(context, appState),
-              const SizedBox(height: 28),
-              _buildRecommendedPeers(context, appState),
+              _buildCoreNavigationGrid(context, appState),
             ],
           ),
         ),
@@ -98,10 +97,9 @@ class HomeScreen extends StatelessWidget {
               const SizedBox(width: 16),
               GestureDetector(
                 onTap: () => _showAppMenu(context, appState),
-                child: CircleAvatar(
+                child: AvatarWidget(
+                  imageUrl: user.avatarUrl,
                   radius: 18,
-                  backgroundImage: AssetImage(user.avatarUrl),
-                  backgroundColor: AppColors.primarySoft,
                 ),
               ),
             ],
@@ -242,11 +240,11 @@ class HomeScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 16),
                     _buildNavCard(
-                      title: 'Group Chats',
-                      subtitle: 'Topics: some fundling topics, Anxiety Support, evermore, e.g...',
-                      icon: Icons.chat_bubble_rounded,
+                      title: 'Community Board',
+                      subtitle: 'Share posts and discuss topics',
+                      icon: Icons.forum_rounded,
                       color: const Color(0xFF8B5CF6),
-                      onTap: () => appState.setTabIndex(2), // Assume Chat is tab 2
+                      onTap: () => appState.setTabIndex(2), // Assume Community is tab 2
                       gradient: const LinearGradient(colors: [Color(0xFFEDE9FE), Color(0xFFF1F5F9)], begin: Alignment.topLeft, end: Alignment.bottomRight),
                     ),
                   ],
@@ -306,140 +304,6 @@ class HomeScreen extends StatelessWidget {
       ),
     );
   }
-
-  Widget _buildRecommendedPeers(BuildContext context, AppState appState) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('Recommended For You', style: AppTextStyles.h3),
-              GestureDetector(
-                onTap: () => appState.setTabIndex(1),
-                child: const Text('View all', style: TextStyle(color: AppColors.primary, fontSize: 12, fontWeight: FontWeight.bold)),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 14),
-        SizedBox(
-          height: 215,
-          child: ListView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            children: [
-              _buildPeerCard(context: context, name: 'Aanya', age: 23, purpose: 'Looking for someone to talk to', badge: 'Good Listener', avatarUrl: 'assets/mockups/discover_swipe.jpeg'),
-              _buildPeerCard(context: context, name: 'Rohan', age: 26, purpose: 'Interested in personal growth', badge: 'Motivational', avatarUrl: 'assets/mockups/home_dashboard_priya.jpeg'),
-              _buildPeerCard(context: context, name: 'Meera', age: 24, purpose: 'Looking for emotional support', badge: 'Empathetic', avatarUrl: 'assets/mockups/profile_detail.jpeg'),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-
-
-  Widget _buildPeerCard({
-    required BuildContext context,
-    required String name,
-    required int age,
-    required String purpose,
-    required String badge,
-    required String avatarUrl,
-  }) {
-    return Container(
-      width: 155,
-      margin: const EdgeInsets.only(right: 12),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.cardBorder),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 8,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Stack(
-            children: [
-              CircleAvatar(
-                radius: 28,
-                backgroundImage: AssetImage(avatarUrl),
-                onBackgroundImageError: (_, __) {},
-                backgroundColor: AppColors.primarySoft,
-              ),
-              Positioned(
-                bottom: 0,
-                right: 0,
-                child: Container(
-                  width: 10,
-                  height: 10,
-                  decoration: BoxDecoration(
-                    color: AppColors.onlineGreen,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 2),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '$name, $age',
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.textPrimary),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            purpose,
-            textAlign: TextAlign.center,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 10, color: AppColors.textSecondary, height: 1.2),
-          ),
-          const Spacer(),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-            decoration: BoxDecoration(
-              color: AppColors.primarySoft,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Text(
-              badge,
-              style: const TextStyle(color: AppColors.primary, fontSize: 9, fontWeight: FontWeight.w700),
-            ),
-          ),
-          const SizedBox(height: 8),
-          SizedBox(
-            width: double.infinity,
-            height: 32,
-            child: OutlinedButton(
-              style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: AppColors.primary, width: 1),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                padding: EdgeInsets.zero,
-              ),
-              onPressed: () {
-                final appState = Provider.of<AppState>(context, listen: false);
-                appState.setTabIndex(1);
-              },
-              child: const Text('Connect', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primary)),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-
 
   void _showAppMenu(BuildContext context, AppState appState) {
     showModalBottomSheet(
