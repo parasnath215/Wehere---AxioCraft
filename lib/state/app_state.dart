@@ -384,6 +384,10 @@ class AppState extends ChangeNotifier {
           avatarUrl: avatar,
           bio: data['bio'] ?? '',
           location: data['location'] ?? '',
+          images: List<String>.from(data['images'] ?? []),
+          interests: List<String>.from(data['interests'] ?? []),
+          feelings: List<String>.from(data['feelings'] ?? []),
+          supportTypes: List<String>.from(data['supportTypes'] ?? []),
         );
         _currentXp = data['xp'] ?? 0;
         _targetXp = _calculateTargetXp(_userLevel);
