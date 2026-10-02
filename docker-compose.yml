@@ -23,6 +23,7 @@ services:
       FRONTEND_URL: http://localhost:8080 # Update this when deploying frontend
       ADMIN_URL: http://localhost:3000
       INTERNAL_API_KEY: wehere_super_secret_admin_key_2026
+      TEST_OTP_ENABLED: "true"
     ports:
       - "4000:4000" 
     depends_on:
