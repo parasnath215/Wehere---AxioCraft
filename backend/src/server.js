@@ -54,7 +54,7 @@ app.use(compression());
 app.use(helmet());
 
 // Serve static images uploaded by users
-app.use('/uploads', express.static(path.join(__dirname, '../../public/uploads'), {
+app.use('/uploads', express.static(path.join(__dirname, '../public/uploads'), {
   setHeaders: (res, path, stat) => {
     res.set('X-Content-Type-Options', 'nosniff');
     if (path.endsWith('.webp') || path.endsWith('.jpg') || path.endsWith('.jpeg') || path.endsWith('.png')) {
