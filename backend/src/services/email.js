@@ -13,7 +13,7 @@ const mailConfig = {
 const transporter = nodemailer.createTransport(mailConfig);
 
 async function verifyMailConfig() {
-  if (process.env.NODE_ENV === 'production') {
+  if (process.env.NODE_ENV === 'production' && process.env.TEST_OTP_ENABLED !== 'true') {
     if (!process.env.MAIL_HOST || !process.env.MAIL_FROM) {
       console.error('FATAL ERROR: MAIL_HOST and MAIL_FROM must be configured in production.');
       process.exit(1);
@@ -24,12 +24,12 @@ async function verifyMailConfig() {
     await transporter.verify();
     console.log('✅ Mail service is ready');
   } catch (error) {
-    if (process.env.NODE_ENV === 'production') {
+    if (process.env.NODE_ENV === 'production' && process.env.TEST_OTP_ENABLED !== 'true') {
       console.error('FATAL ERROR: Failed to connect to the mail server in production.');
       console.error(error);
       process.exit(1);
     } else {
-      console.warn('⚠️ Mail service connection failed (expected if local Mailpit is down):', error.message);
+      console.warn('⚠️ Mail service connection failed (expected if local Mailpit is down or TEST_OTP_ENABLED=true):', error.message);
     }
   }
 }
