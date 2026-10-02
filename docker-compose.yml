@@ -28,6 +28,8 @@ services:
       - "4000:4000" 
     depends_on:
       - db
+    volumes:
+      - uploads:/app/public/uploads
     command: sh -c "npx prisma db push && npm start"
     restart: unless-stopped
 
@@ -47,3 +49,4 @@ services:
 
 volumes:
   pgdata:
+  uploads:
