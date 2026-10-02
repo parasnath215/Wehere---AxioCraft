@@ -1,11 +1,13 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:dio/dio.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/routing/app_routes.dart';
 import '../../state/auth_notifier.dart';
 import '../../state/app_state.dart';
+import '../../core/network/api_client.dart';
 
 class OtpVerificationScreen extends StatefulWidget {
   final String email;
@@ -19,37 +21,88 @@ class OtpVerificationScreen extends StatefulWidget {
   State<OtpVerificationScreen> createState() => _OtpVerificationScreenState();
 }
 
-class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
+class _OtpVerificationScreenState extends State<OtpVerificationScreen> with WidgetsBindingObserver {
   final List<TextEditingController> _controllers = List.generate(6, (_) => TextEditingController());
   final List<FocusNode> _focusNodes = List.generate(6, (_) => FocusNode());
-  int _secondsRemaining = 45;
+  int _secondsRemaining = 60;
+  DateTime? _targetTime;
   Timer? _timer;
+  bool _isResending = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _startTimer(60); // Default 60s cooldown from signup
+  }
 
+  void _startTimer(int seconds) {
+    _targetTime = DateTime.now().add(Duration(seconds: seconds));
+    _secondsRemaining = seconds;
+    _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (_secondsRemaining > 0) {
-        setState(() {
-          _secondsRemaining--;
-        });
+      if (_targetTime == null) return timer.cancel();
+      final diff = _targetTime!.difference(DateTime.now()).inSeconds;
+      if (diff > 0) {
+        setState(() => _secondsRemaining = diff);
       } else {
+        setState(() => _secondsRemaining = 0);
         timer.cancel();
       }
     });
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && _targetTime != null) {
+      final diff = _targetTime!.difference(DateTime.now()).inSeconds;
+      if (diff > 0) {
+        setState(() => _secondsRemaining = diff);
+      } else {
+        setState(() => _secondsRemaining = 0);
+        _timer?.cancel();
+      }
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _timer?.cancel();
-    for (var c in _controllers) {
-      c.dispose();
-    }
-    for (var f in _focusNodes) {
-      f.dispose();
-    }
+    for (var c in _controllers) c.dispose();
+    for (var f in _focusNodes) f.dispose();
     super.dispose();
+  }
+
+  Future<void> _handleResend() async {
+    if (_secondsRemaining > 0 || _isResending) return;
+
+    setState(() => _isResending = true);
+    try {
+      final res = await apiClient.post('/auth/otp/request', data: {
+        'email': widget.email,
+        'purpose': 'verify_email',
+      });
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('A new code has been sent.'), backgroundColor: AppColors.onlineGreen),
+        );
+        _startTimer(res.data['cooldown'] ?? 60);
+      }
+    } on DioException catch (e) {
+      if (context.mounted) {
+        final errorMsg = e.response?.data?['error'] ?? 'Failed to resend code';
+        final cooldown = e.response?.data?['cooldown'];
+        if (cooldown != null && cooldown is int) {
+          _startTimer(cooldown);
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(errorMsg), backgroundColor: Colors.redAccent),
+        );
+      }
+    } finally {
+      if (context.mounted) setState(() => _isResending = false);
+    }
   }
 
   @override
@@ -58,19 +111,13 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Envelope 3D Style Graphic
+              const SizedBox(height: 20),
               Container(
                 width: 90,
                 height: 90,
@@ -112,7 +159,6 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
               ),
               const SizedBox(height: 10),
 
-              // Linked ID Badge
               Consumer<AuthNotifier>(
                 builder: (context, auth, _) => Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
@@ -130,7 +176,6 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
 
               const SizedBox(height: 24),
 
-              // 6 PIN Input Boxes
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: List.generate(6, (index) {
@@ -171,6 +216,11 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                         } else if (val.isEmpty && index > 0) {
                           _focusNodes[index - 1].requestFocus();
                         }
+                        
+                        // Auto submit if all 6 filled
+                        if (index == 5 && val.isNotEmpty) {
+                          _verifySubmit(context, auth);
+                        }
                       },
                     ),
                   );
@@ -182,7 +232,6 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
 
               const SizedBox(height: 28),
 
-              // Helper Card: "Didn't receive the code?"
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
@@ -222,50 +271,26 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
 
               const SizedBox(height: 20),
 
-              // Resend Countdown
-              Text(
-                _secondsRemaining > 0
-                    ? 'Resend code in 00:${_secondsRemaining.toString().padLeft(2, '0')}'
-                    : 'Resend code now',
-                style: AppTextStyles.bodySmall.copyWith(
-                  color: _secondsRemaining > 0 ? AppColors.textSecondary : AppColors.primary,
-                  fontWeight: FontWeight.bold,
+              GestureDetector(
+                onTap: _handleResend,
+                child: Text(
+                  _secondsRemaining > 0
+                      ? 'Resend code in 00:${_secondsRemaining.toString().padLeft(2, '0')}'
+                      : (_isResending ? 'Sending...' : 'Resend code now'),
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: _secondsRemaining > 0 ? AppColors.textSecondary : AppColors.primary,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
 
               const SizedBox(height: 36),
 
-              // Verify & Continue Button
               SizedBox(
                 width: double.infinity,
                 height: 48,
                 child: ElevatedButton(
-                  onPressed: auth.isLoading
-                      ? null
-                      : () async {
-                          final pin = _controllers.map((c) => c.text).join();
-                          if (pin.length < 6) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Please enter all 6 digits.'), backgroundColor: Colors.redAccent),
-                            );
-                            return;
-                          }
-                          final authRead = context.read<AuthNotifier>();
-                          final appState = context.read<AppState>();
-                          final success = await authRead.verifyOtp(pin);
-                          if (success && context.mounted) {
-                            appState.initializeUserFromAuth(
-                              id: authRead.userId ?? 'user_1',
-                              name: authRead.registeredName,
-                              email: authRead.registeredEmail,
-                            );
-                            Navigator.pushReplacementNamed(context, AppRoutes.onboarding);
-                          } else if (context.mounted && authRead.authError != null) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text(authRead.authError!), backgroundColor: Colors.redAccent),
-                            );
-                          }
-                        },
+                  onPressed: auth.isLoading ? null : () => _verifySubmit(context, auth),
                   child: auth.isLoading
                       ? const SizedBox(
                           height: 20,
@@ -286,7 +311,9 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
               const SizedBox(height: 16),
 
               TextButton(
-                onPressed: () => Navigator.pop(context),
+                onPressed: () {
+                  auth.logout();
+                },
                 child: Text(
                   'Change Email',
                   style: AppTextStyles.bodyMedium.copyWith(
@@ -300,5 +327,33 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _verifySubmit(BuildContext context, AuthNotifier auth) async {
+    final pin = _controllers.map((c) => c.text).join();
+    if (pin.length < 6) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter all 6 digits.'), backgroundColor: Colors.redAccent),
+      );
+      return;
+    }
+    
+    // Clear keyboard
+    FocusScope.of(context).unfocus();
+
+    final appState = context.read<AppState>();
+    final success = await auth.verifyOtp(pin);
+    if (success && context.mounted) {
+      appState.initializeUserFromAuth(
+        id: auth.userId ?? 'user_1',
+        name: auth.registeredName,
+        email: auth.registeredEmail,
+      );
+      Navigator.pushReplacementNamed(context, AppRoutes.onboarding);
+    } else if (context.mounted && auth.authError != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(auth.authError!), backgroundColor: Colors.redAccent),
+      );
+    }
   }
 }

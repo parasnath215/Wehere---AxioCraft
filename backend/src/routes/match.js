@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
-const { authenticateToken } = require('../middleware/auth');
+const { authenticateToken, requireVerified } = require('../middleware/auth');
 const { z } = require('zod');
 
 const swipeSchema = z.object({
@@ -10,7 +10,7 @@ const swipeSchema = z.object({
   action: z.enum(['connect', 'pass']),
 });
 
-router.get('/discover', authenticateToken, async (req, res, next) => {
+router.get('/discover', authenticateToken, requireVerified, async (req, res, next) => {
   try {
     const userId = req.user.id;
     const cursor = req.query.cursor;
@@ -111,7 +111,7 @@ router.get('/discover', authenticateToken, async (req, res, next) => {
   }
 });
 
-router.post('/swipe', authenticateToken, async (req, res, next) => {
+router.post('/swipe', authenticateToken, requireVerified, async (req, res, next) => {
   try {
     const { targetUserId, action } = swipeSchema.parse(req.body);
     const userId = req.user.id;

@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
-const { authenticateToken } = require('../middleware/auth');
+const { authenticateToken, requireVerified } = require('../middleware/auth');
 const multer = require('multer');
 const { z } = require('zod');
 const { processAndSaveImage, deleteImage } = require('../services/storage');
@@ -46,7 +46,7 @@ router.get('/me', authenticateToken, async (req, res, next) => {
 });
 
 // PUT /users/me - Update profile
-router.put('/me', authenticateToken, async (req, res, next) => {
+router.put('/me', authenticateToken, requireVerified, async (req, res, next) => {
   try {
     const data = updateProfileSchema.parse(req.body);
 
@@ -72,7 +72,7 @@ router.put('/me', authenticateToken, async (req, res, next) => {
 });
 
 // POST /users/me/photos - Append photo
-router.post('/me/photos', authenticateToken, upload.single('photo'), async (req, res, next) => {
+router.post('/me/photos', authenticateToken, requireVerified, upload.single('photo'), async (req, res, next) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No photo provided' });
 
@@ -100,7 +100,7 @@ router.post('/me/photos', authenticateToken, upload.single('photo'), async (req,
 });
 
 // PUT /users/me/photos/order
-router.put('/me/photos/order', authenticateToken, async (req, res, next) => {
+router.put('/me/photos/order', authenticateToken, requireVerified, async (req, res, next) => {
   try {
     const { images } = req.body;
     if (!Array.isArray(images)) return res.status(400).json({ error: 'images array required' });
@@ -131,7 +131,7 @@ router.put('/me/photos/order', authenticateToken, async (req, res, next) => {
 });
 
 // DELETE /users/me/photos
-router.delete('/me/photos', authenticateToken, async (req, res, next) => {
+router.delete('/me/photos', authenticateToken, requireVerified, async (req, res, next) => {
   try {
     const { url } = req.body;
     if (!url) return res.status(400).json({ error: 'url required' });
@@ -169,7 +169,7 @@ router.delete('/me/photos', authenticateToken, async (req, res, next) => {
 
 
 // POST /users/:id/block
-router.post('/:id/block', authenticateToken, async (req, res, next) => {
+router.post('/:id/block', authenticateToken, requireVerified, async (req, res, next) => {
   try {
     const targetUserId = req.params.id;
     const blockerId = req.user.id;
@@ -185,7 +185,7 @@ router.post('/:id/block', authenticateToken, async (req, res, next) => {
 });
 
 // POST /users/:id/report
-router.post('/:id/report', authenticateToken, async (req, res, next) => {
+router.post('/:id/report', authenticateToken, requireVerified, async (req, res, next) => {
   try {
     const targetUserId = req.params.id;
     const reporterId = req.user.id;
@@ -216,7 +216,7 @@ router.post('/:id/report', authenticateToken, async (req, res, next) => {
 });
 
 // DELETE /users/me
-router.delete('/me', authenticateToken, async (req, res, next) => {
+router.delete('/me', authenticateToken, requireVerified, async (req, res, next) => {
   try {
     const userId = req.user.id;
     

@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:dio/dio.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/routing/app_routes.dart';
 import '../../state/auth_notifier.dart';
+import '../../core/network/api_client.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -17,6 +19,39 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _passwordController = TextEditingController();
   bool _obscurePassword = true;
   bool _rememberMe = true;
+  bool _isResetting = false;
+
+  Future<void> _handleForgotPassword() async {
+    final email = _loginController.text.trim();
+    if (email.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter your email first.')),
+      );
+      return;
+    }
+
+    setState(() => _isResetting = true);
+    try {
+      await apiClient.post('/auth/otp/request', data: {
+        'email': email,
+        'purpose': 'reset_password',
+      });
+      if (mounted) {
+        Navigator.pushNamed(context, AppRoutes.resetPassword, arguments: email);
+      }
+    } on DioException catch (e) {
+      if (mounted) {
+        final err = e.response?.data?['error'] ?? 'Failed to request password reset';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(err), backgroundColor: Colors.redAccent),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isResetting = false);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -167,21 +202,35 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 12),
 
-              // Remember me
+              // Remember me & Forgot Password
               Row(
-                mainAxisAlignment: MainAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Checkbox(
-                    value: _rememberMe,
-                    activeColor: AppColors.primary,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-                    onChanged: (val) {
-                      setState(() {
-                        _rememberMe = val ?? true;
-                      });
-                    },
+                  Row(
+                    children: [
+                      Checkbox(
+                        value: _rememberMe,
+                        activeColor: AppColors.primary,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                        onChanged: (val) {
+                          setState(() {
+                            _rememberMe = val ?? true;
+                          });
+                        },
+                      ),
+                      Text('Remember me', style: AppTextStyles.bodySmall),
+                    ],
                   ),
-                  Text('Remember me', style: AppTextStyles.bodySmall),
+                  TextButton(
+                    onPressed: _handleForgotPassword,
+                    child: Text(
+                      'Forgot Password?',
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
                 ],
               ),
 

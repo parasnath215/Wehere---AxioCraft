@@ -2,10 +2,10 @@ const express = require('express');
 const router = express.Router();
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
-const { authenticateToken } = require('../middleware/auth');
+const { authenticateToken, requireVerified } = require('../middleware/auth');
 
 // List notifications for the user
-router.get('/', authenticateToken, async (req, res, next) => {
+router.get('/', authenticateToken, requireVerified, async (req, res, next) => {
   try {
     const notifications = await prisma.notification.findMany({
       where: { userId: req.user.id },
@@ -19,7 +19,7 @@ router.get('/', authenticateToken, async (req, res, next) => {
 });
 
 // Get unread count
-router.get('/unread', authenticateToken, async (req, res, next) => {
+router.get('/unread', authenticateToken, requireVerified, async (req, res, next) => {
   try {
     const count = await prisma.notification.count({
       where: { userId: req.user.id, isRead: false }
@@ -31,7 +31,7 @@ router.get('/unread', authenticateToken, async (req, res, next) => {
 });
 
 // Mark notification as read
-router.put('/:id/read', authenticateToken, async (req, res, next) => {
+router.put('/:id/read', authenticateToken, requireVerified, async (req, res, next) => {
   try {
     const { id } = req.params;
     const notification = await prisma.notification.updateMany({
@@ -45,7 +45,7 @@ router.put('/:id/read', authenticateToken, async (req, res, next) => {
 });
 
 // Mark all as read
-router.put('/read-all', authenticateToken, async (req, res, next) => {
+router.put('/read-all', authenticateToken, requireVerified, async (req, res, next) => {
   try {
     await prisma.notification.updateMany({
       where: { userId: req.user.id, isRead: false },

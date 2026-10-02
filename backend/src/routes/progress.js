@@ -2,9 +2,9 @@ const express = require('express');
 const router = express.Router();
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
-const { authenticateToken } = require('../middleware/auth');
+const { authenticateToken, requireVerified } = require('../middleware/auth');
 
-router.get('/', authenticateToken, async (req, res) => {
+router.get('/', authenticateToken, requireVerified, async (req, res) => {
   try {
     const userId = req.user.id;
     const user = await prisma.user.findUnique({
@@ -35,7 +35,7 @@ router.get('/', authenticateToken, async (req, res) => {
 });
 
 // GET today's mood
-router.get('/mood/today', authenticateToken, async (req, res) => {
+router.get('/mood/today', authenticateToken, requireVerified, async (req, res) => {
   try {
     const today = new Date();
     today.setHours(0,0,0,0);
@@ -55,7 +55,7 @@ router.get('/mood/today', authenticateToken, async (req, res) => {
 });
 
 // POST today's mood
-router.post('/mood', authenticateToken, async (req, res) => {
+router.post('/mood', authenticateToken, requireVerified, async (req, res) => {
   try {
     const { mood } = req.body;
     if (!mood) return res.status(400).json({ error: 'Mood is required' });

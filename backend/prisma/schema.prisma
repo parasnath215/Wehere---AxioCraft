@@ -48,9 +48,30 @@ model User {
   postLikes      PostLike[]
   moods          DailyMood[]
   isBanned       Boolean @default(false)
+  emailVerified  Boolean @default(false)
+  emailVerifiedAt DateTime?
+  tokenVersion   Int     @default(0)
+
+  otpRecords     OtpRecord[]
 
   @@index([role])
   @@index([createdAt])
+}
+
+model OtpRecord {
+  id        String   @id @default(uuid())
+  purpose   String   // e.g. "verify_email", "reset_password"
+  codeHash  String
+  expiresAt DateTime
+  attempts  Int      @default(0)
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+
+  @@index([userId])
+  @@index([purpose])
 }
 
 model JournalEntry {

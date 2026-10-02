@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:dio/dio.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../core/network/api_client.dart';
 
 class ResetPasswordScreen extends StatefulWidget {
   final String email;
@@ -15,12 +17,52 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   final TextEditingController _otpController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   bool _obscurePassword = true;
+  bool _isLoading = false;
 
   @override
   void dispose() {
     _otpController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  Future<void> _handleReset() async {
+    final otp = _otpController.text.trim();
+    final password = _passwordController.text;
+    if (otp.length != 6 || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a valid 6-digit code and password.')),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+    
+    try {
+      await apiClient.post('/auth/reset-password', data: {
+        'email': widget.email,
+        'otp': otp,
+        'newPassword': password,
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Password updated successfully! ✨'), backgroundColor: AppColors.onlineGreen),
+        );
+        Navigator.pop(context); // Go back to login screen
+      }
+    } on DioException catch (e) {
+      if (mounted) {
+        final err = e.response?.data?['error'] ?? 'Failed to reset password';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(err), backgroundColor: Colors.redAccent),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
   @override
@@ -81,21 +123,10 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                 width: double.infinity,
                 height: 48,
                 child: ElevatedButton(
-                  onPressed: () {
-                    final otp = _otpController.text.trim();
-                    final password = _passwordController.text;
-                    if (otp.length != 6 || password.isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Please enter a valid 6-digit code and password.')),
-                      );
-                      return;
-                    }
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Password updated successfully! ✨'), backgroundColor: AppColors.onlineGreen),
-                    );
-                    Navigator.pop(context);
-                  },
-                  child: const Text('Update Password', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  onPressed: _isLoading ? null : _handleReset,
+                  child: _isLoading 
+                    ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    : const Text('Update Password', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                 ),
               ),
             ],

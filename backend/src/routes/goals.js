@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
-const { authenticateToken } = require('../middleware/auth');
+const { authenticateToken, requireVerified } = require('../middleware/auth');
 const { z } = require('zod');
 
 const goalSchema = z.object({
@@ -12,7 +12,7 @@ const goalSchema = z.object({
 });
 
 // GET /goals - Get all goals for the user
-router.get('/', authenticateToken, async (req, res, next) => {
+router.get('/', authenticateToken, requireVerified, async (req, res, next) => {
   try {
     const goals = await prisma.wellnessGoal.findMany({
       where: { userId: req.user.id },
@@ -25,7 +25,7 @@ router.get('/', authenticateToken, async (req, res, next) => {
 });
 
 // POST /goals - Create a new goal
-router.post('/', authenticateToken, async (req, res, next) => {
+router.post('/', authenticateToken, requireVerified, async (req, res, next) => {
   try {
     const { title, subtitle, categoryColor } = goalSchema.parse(req.body);
     const userId = req.user.id;
@@ -59,7 +59,7 @@ router.post('/', authenticateToken, async (req, res, next) => {
 });
 
 // PUT /goals/:id/toggle - Toggle goal completion status
-router.put('/:id/toggle', authenticateToken, async (req, res, next) => {
+router.put('/:id/toggle', authenticateToken, requireVerified, async (req, res, next) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;

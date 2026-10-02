@@ -2,10 +2,10 @@ const express = require('express');
 const router = express.Router();
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
-const { authenticateToken } = require('../middleware/auth');
+const { authenticateToken, requireVerified } = require('../middleware/auth');
 
 // List conversations for the logged in user
-router.get('/', authenticateToken, async (req, res, next) => {
+router.get('/', authenticateToken, requireVerified, async (req, res, next) => {
   try {
     const userId = req.user.id;
     
@@ -61,7 +61,7 @@ router.get('/', authenticateToken, async (req, res, next) => {
 });
 
 // Get message history for a specific conversation
-router.get('/:id/messages', authenticateToken, async (req, res, next) => {
+router.get('/:id/messages', authenticateToken, requireVerified, async (req, res, next) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;

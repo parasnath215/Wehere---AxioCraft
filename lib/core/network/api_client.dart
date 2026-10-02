@@ -1,9 +1,15 @@
+import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+
+enum AuthEvent { loggedOut, emailNotVerified }
 
 class ApiClient {
   late final Dio dio;
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
+  
+  final StreamController<AuthEvent> _authEventController = StreamController.broadcast();
+  Stream<AuthEvent> get authEventStream => _authEventController.stream;
 
   ApiClient() {
     dio = Dio(BaseOptions(
@@ -24,9 +30,17 @@ class ApiClient {
         return handler.next(options);
       },
       onError: (DioException e, handler) async {
-        if (e.response?.statusCode == 401 || e.response?.statusCode == 403) {
+        if (e.response?.statusCode == 401) {
           await _storage.delete(key: 'jwt_token');
-          // Dispatch a logout event or similar here if needed
+          _authEventController.add(AuthEvent.loggedOut);
+        } else if (e.response?.statusCode == 403) {
+          final errorMsg = e.response?.data?['error'];
+          if (errorMsg == 'EMAIL_NOT_VERIFIED') {
+            _authEventController.add(AuthEvent.emailNotVerified);
+          } else {
+            await _storage.delete(key: 'jwt_token');
+            _authEventController.add(AuthEvent.loggedOut);
+          }
         }
         return handler.next(e);
       },
@@ -34,4 +48,5 @@ class ApiClient {
   }
 }
 
-final apiClient = ApiClient().dio;
+final apiClientInstance = ApiClient();
+final apiClient = apiClientInstance.dio;

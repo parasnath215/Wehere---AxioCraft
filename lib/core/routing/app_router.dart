@@ -147,6 +147,10 @@ class AppRouter {
         if (auth.status == AuthStatus.unauthenticated) {
           return const LoginScreen();
         }
+        
+        if (auth.status == AuthStatus.unverified) {
+          return OtpVerificationScreen(email: auth.registeredEmail);
+        }
 
         if (auth.status == AuthStatus.authenticated && !auth.hasCompletedOnboarding) {
           return const OnboardingFlowScreen();

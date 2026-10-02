@@ -15,6 +15,14 @@ const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: '*' } });
 const prisma = new PrismaClient();
 
+const { verifyMailConfig } = require('./services/email');
+
+// Trust proxy for rate limiting behind Nginx
+const trustProxyHops = process.env.TRUST_PROXY_HOPS ? parseInt(process.env.TRUST_PROXY_HOPS, 10) : 0;
+if (trustProxyHops > 0) {
+  app.set('trust proxy', trustProxyHops);
+}
+
 // Security Middleware
 app.use(helmet());
 
@@ -93,10 +101,23 @@ io.use((socket, next) => {
   const token = socket.handshake.auth.token;
   if (!token) return next(new Error('Authentication error'));
   
-  jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+  jwt.verify(token, process.env.JWT_SECRET, async (err, decoded) => {
     if (err) return next(new Error('Authentication error'));
-    socket.user = decoded;
-    next();
+    
+    try {
+      const user = await prisma.user.findUnique({ where: { id: decoded.id } });
+      if (!user) return next(new Error('Authentication error: User not found'));
+      if (decoded.tokenVersion !== undefined && decoded.tokenVersion !== user.tokenVersion) {
+        return next(new Error('Authentication error: Session expired'));
+      }
+      if (!user.emailVerified && !user.isAnonymous) {
+        return next(new Error('Authentication error: EMAIL_NOT_VERIFIED'));
+      }
+      socket.user = user;
+      next();
+    } catch (e) {
+      next(new Error('Authentication error: Server error'));
+    }
   });
 });
 
@@ -159,7 +180,34 @@ io.on('connection', (socket) => {
   });
 });
 
+// Cleanup Job for unverified accounts
+setInterval(async () => {
+  try {
+    const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000); // 7 days
+    const unverifiedUsers = await prisma.user.findMany({
+      where: {
+        emailVerified: false,
+        isAnonymous: false,
+        createdAt: { lt: cutoff }
+      }
+    });
+
+    if (unverifiedUsers.length > 0) {
+      // In a real app we might want to clean up their uploaded files as well
+      const result = await prisma.user.deleteMany({
+        where: {
+          id: { in: unverifiedUsers.map(u => u.id) }
+        }
+      });
+      console.log(`🗑️ Cleanup Job: Deleted ${result.count} unverified accounts.`);
+    }
+  } catch (error) {
+    console.error('Cleanup Job Error:', error.message);
+  }
+}, 12 * 60 * 60 * 1000); // Run every 12 hours
+
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
+server.listen(PORT, async () => {
+  await verifyMailConfig();
   console.log(`Wehere Backend running on port ${PORT}`);
 });

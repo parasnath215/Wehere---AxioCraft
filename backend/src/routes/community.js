@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
-const { authenticateToken } = require('../middleware/auth');
+const { authenticateToken, requireVerified } = require('../middleware/auth');
 const { z } = require('zod');
 
 function applyAnonymity(author) {
@@ -22,7 +22,7 @@ const commentSchema = z.object({
   text: z.string().min(1).max(1000),
 });
 
-router.get('/', authenticateToken, async (req, res, next) => {
+router.get('/', authenticateToken, requireVerified, async (req, res, next) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
@@ -68,7 +68,7 @@ router.get('/', authenticateToken, async (req, res, next) => {
   }
 });
 
-router.post('/', authenticateToken, async (req, res, next) => {
+router.post('/', authenticateToken, requireVerified, async (req, res, next) => {
   try {
     const { topic, content } = postSchema.parse(req.body);
     const userId = req.user.id;
@@ -101,7 +101,7 @@ router.post('/', authenticateToken, async (req, res, next) => {
   }
 });
 
-router.get('/:id/comments', authenticateToken, async (req, res, next) => {
+router.get('/:id/comments', authenticateToken, requireVerified, async (req, res, next) => {
   try {
     const { id } = req.params;
     
@@ -121,7 +121,7 @@ router.get('/:id/comments', authenticateToken, async (req, res, next) => {
   }
 });
 
-router.post('/:id/comments', authenticateToken, async (req, res, next) => {
+router.post('/:id/comments', authenticateToken, requireVerified, async (req, res, next) => {
   try {
     const { id } = req.params;
     const { text } = commentSchema.parse(req.body);
@@ -155,7 +155,7 @@ router.post('/:id/comments', authenticateToken, async (req, res, next) => {
 });
 
 // Toggle Like
-router.post('/:id/like', authenticateToken, async (req, res, next) => {
+router.post('/:id/like', authenticateToken, requireVerified, async (req, res, next) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;

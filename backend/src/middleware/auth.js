@@ -1,4 +1,6 @@
 const jwt = require('jsonwebtoken');
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
 
 function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'];
@@ -6,11 +8,34 @@ function authenticateToken(req, res, next) {
 
   if (token == null) return res.sendStatus(401);
 
-  jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
+  jwt.verify(token, process.env.JWT_SECRET, async (err, decoded) => {
     if (err) return res.sendStatus(403);
-    req.user = user;
-    next();
+    
+    try {
+      const user = await prisma.user.findUnique({
+        where: { id: decoded.id }
+      });
+      
+      if (!user) return res.status(401).json({ error: 'Session invalid' });
+      
+      // Check token version to invalidate old sessions
+      if (decoded.tokenVersion !== undefined && decoded.tokenVersion !== user.tokenVersion) {
+        return res.status(401).json({ error: 'Session expired. Please log in again.' });
+      }
+      
+      req.user = user;
+      next();
+    } catch (e) {
+      res.status(500).json({ error: 'Internal server error' });
+    }
   });
+}
+
+function requireVerified(req, res, next) {
+  if (!req.user.emailVerified && !req.user.isAnonymous) {
+    return res.status(403).json({ error: 'EMAIL_NOT_VERIFIED' });
+  }
+  next();
 }
 
 function authenticateAdmin(req, res, next) {
@@ -21,7 +46,6 @@ function authenticateAdmin(req, res, next) {
   }
 
   authenticateToken(req, res, () => {
-    // Note: To support JWT admins in the future, we must add role to the JWT payload during login
     if (req.user && req.user.role === 'ADMIN') {
       next();
     } else {
@@ -30,4 +54,4 @@ function authenticateAdmin(req, res, next) {
   });
 }
 
-module.exports = { authenticateToken, authenticateAdmin };
+module.exports = { authenticateToken, requireVerified, authenticateAdmin };

@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
-const { authenticateToken } = require('../middleware/auth');
+const { authenticateToken, requireVerified } = require('../middleware/auth');
 const { z } = require('zod');
 
 const journalSchema = z.object({
@@ -12,7 +12,7 @@ const journalSchema = z.object({
   isPrivate: z.boolean().default(true),
 });
 
-router.post('/create', authenticateToken, async (req, res, next) => {
+router.post('/create', authenticateToken, requireVerified, async (req, res, next) => {
   try {
     const { content, moodScore, category, isPrivate } = journalSchema.parse(req.body);
     const userId = req.user.id;
@@ -41,7 +41,7 @@ router.post('/create', authenticateToken, async (req, res, next) => {
   }
 });
 
-router.get('/', authenticateToken, async (req, res, next) => {
+router.get('/', authenticateToken, requireVerified, async (req, res, next) => {
   try {
     const userId = req.user.id;
     const page = parseInt(req.query.page) || 1;

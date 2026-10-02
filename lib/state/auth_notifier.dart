@@ -4,7 +4,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../core/network/api_client.dart';
 import 'package:dio/dio.dart';
 
-enum AuthStatus { initializing, unauthenticated, authenticated }
+enum AuthStatus { initializing, unauthenticated, unverified, authenticated }
 
 class AuthNotifier extends ChangeNotifier {
   AuthStatus _status = AuthStatus.initializing;
@@ -17,9 +17,27 @@ class AuthNotifier extends ChangeNotifier {
   bool _isLoading = false;
 
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
+  late StreamSubscription _authSubscription;
+
+  AuthNotifier() {
+    _authSubscription = apiClientInstance.authEventStream.listen((event) {
+      if (event == AuthEvent.loggedOut) {
+        logout();
+      } else if (event == AuthEvent.emailNotVerified) {
+        _status = AuthStatus.unverified;
+        notifyListeners();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _authSubscription.cancel();
+    super.dispose();
+  }
 
   AuthStatus get status => _status;
-  bool get isAuthenticated => _status == AuthStatus.authenticated;
+  bool get isAuthenticated => _status == AuthStatus.authenticated || _status == AuthStatus.unverified;
   bool get hasSeenWalkthrough => _hasSeenWalkthrough;
   bool get hasCompletedOnboarding => _hasCompletedOnboarding;
   String? get authError => _authError;
@@ -40,7 +58,16 @@ class AuthNotifier extends ChangeNotifier {
       if (token != null && savedId != null) {
         _userId = savedId;
         _registeredEmail = savedEmail ?? '';
-        _status = AuthStatus.authenticated;
+        
+        // Check if verified by hitting /me
+        try {
+          final res = await apiClient.get('/users/me');
+          final isVerified = res.data['emailVerified'] == true || res.data['isAnonymous'] == true;
+          _status = isVerified ? AuthStatus.authenticated : AuthStatus.unverified;
+        } catch (e) {
+           _status = AuthStatus.authenticated; // optimistic, interceptor will downgrade if 403
+        }
+
         _hasCompletedOnboarding = true;
         _hasSeenWalkthrough = true;
       } else {
@@ -72,7 +99,10 @@ class AuthNotifier extends ChangeNotifier {
 
       _userId = user['id'];
       _registeredEmail = user['email'];
-      _status = AuthStatus.authenticated;
+      
+      final isVerified = user['emailVerified'] == true || user['role'] == 'ADMIN';
+      _status = isVerified ? AuthStatus.authenticated : AuthStatus.unverified;
+      
       _hasCompletedOnboarding = true;
       _isLoading = false;
       notifyListeners();
@@ -132,7 +162,9 @@ class AuthNotifier extends ChangeNotifier {
       _registeredName = name;
       _userHandle = customHandle ?? '@user_${user['id'].substring(0,5)}';
       
-      _status = AuthStatus.authenticated;
+      final isVerified = user['emailVerified'] == true;
+      _status = isVerified ? AuthStatus.authenticated : AuthStatus.unverified;
+      
       _isLoading = false;
       notifyListeners();
       return true;
@@ -158,13 +190,12 @@ class AuthNotifier extends ChangeNotifier {
 
     try {
       final res = await apiClient.post('/auth/otp/verify', data: {
-        'email': _registeredEmail,
         'otp': pin,
       });
 
       if (res.data['success'] == true) {
         _status = AuthStatus.authenticated;
-        _hasCompletedOnboarding = false;
+        _hasCompletedOnboarding = false; // Need to do onboarding after verify
         _isLoading = false;
         notifyListeners();
         return true;
@@ -174,6 +205,11 @@ class AuthNotifier extends ChangeNotifier {
         notifyListeners();
         return false;
       }
+    } on DioException catch (e) {
+      _authError = e.response?.data?['error'] ?? 'Failed to verify OTP.';
+      _isLoading = false;
+      notifyListeners();
+      return false;
     } catch (e) {
       _authError = 'Failed to verify OTP. Check your connection.';
       _isLoading = false;

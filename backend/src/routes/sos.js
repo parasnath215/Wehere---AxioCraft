@@ -14,7 +14,7 @@ router.get('/resources', (req, res) => {
 
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
-const { authenticateToken } = require('../middleware/auth');
+const { authenticateToken, requireVerified } = require('../middleware/auth');
 const { z } = require('zod');
 
 const contactSchema = z.object({
@@ -23,7 +23,7 @@ const contactSchema = z.object({
   relationship: z.string().min(1).max(50),
 });
 
-router.get('/contacts', authenticateToken, async (req, res, next) => {
+router.get('/contacts', authenticateToken, requireVerified, async (req, res, next) => {
   try {
     const contacts = await prisma.emergencyContact.findMany({
       where: { userId: req.user.id },
@@ -35,7 +35,7 @@ router.get('/contacts', authenticateToken, async (req, res, next) => {
   }
 });
 
-router.post('/contacts', authenticateToken, async (req, res, next) => {
+router.post('/contacts', authenticateToken, requireVerified, async (req, res, next) => {
   try {
     const { name, phone, relationship } = contactSchema.parse(req.body);
     const contact = await prisma.emergencyContact.create({
@@ -50,7 +50,7 @@ router.post('/contacts', authenticateToken, async (req, res, next) => {
   }
 });
 
-router.delete('/contacts/:id', authenticateToken, async (req, res, next) => {
+router.delete('/contacts/:id', authenticateToken, requireVerified, async (req, res, next) => {
   try {
     const { id } = req.params;
     await prisma.emergencyContact.delete({
