@@ -38,7 +38,7 @@ const otpRequestLimiter = rateLimit({
 });
 
 function generateOtp() {
-  if (process.env.TEST_OTP_ENABLED === 'true' && process.env.NODE_ENV !== 'production') {
+  if (process.env.TEST_OTP_ENABLED === 'true') {
     return '123456';
   }
   return crypto.randomInt(100000, 999999).toString();
