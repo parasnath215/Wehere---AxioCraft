@@ -164,14 +164,14 @@ class ProfileScreen extends StatelessWidget {
   Widget _buildTagsList(List<String> selectedIds, List options, String title, IconData icon) {
     if (selectedIds.isEmpty) return const SizedBox();
     
-    final labels = selectedIds.map((id) {
+    final List<String> labels = selectedIds.map((id) {
       try {
         final opt = options.firstWhere((o) => o.id == id || o.label == id);
-        return opt.label;
+        return (opt.label as String);
       } catch (_) {
         return id; 
       }
-    }).toList();
+    }).toList().cast<String>();
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 16.0),
@@ -189,7 +189,7 @@ class ProfileScreen extends StatelessWidget {
           Wrap(
             spacing: 8,
             runSpacing: 8,
-            children: labels.map((label) => Container(
+            children: labels.map<Widget>((label) => Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
                 color: AppColors.surface,

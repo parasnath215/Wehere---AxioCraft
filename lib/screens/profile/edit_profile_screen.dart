@@ -195,7 +195,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         Wrap(
           spacing: 8,
           runSpacing: 8,
-          children: options.map((option) {
+          children: options.map<Widget>((option) {
             final isSelected = selected.contains(option.label);
             return FilterChip(
               label: Text(option.label, style: TextStyle(color: isSelected ? Colors.white : AppColors.textPrimary)),
