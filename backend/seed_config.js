@@ -36,30 +36,26 @@ async function main() {
 
   console.log('Seeding config options...');
 
+  await prisma.configOption.deleteMany();
+
   let order = 0;
   for (const label of interests) {
-    await prisma.configOption.upsert({
-      where: { label_type: { label, type: 'INTEREST' } },
-      update: {},
-      create: { type: 'INTEREST', label, order: order++ }
+    await prisma.configOption.create({
+      data: { type: 'INTEREST', label, order: order++ }
     });
   }
 
   order = 0;
   for (const label of feelings) {
-    await prisma.configOption.upsert({
-      where: { label_type: { label, type: 'FEELING' } },
-      update: {},
-      create: { type: 'FEELING', label, order: order++ }
+    await prisma.configOption.create({
+      data: { type: 'FEELING', label, order: order++ }
     });
   }
 
   order = 0;
   for (const label of supportTypes) {
-    await prisma.configOption.upsert({
-      where: { label_type: { label, type: 'SUPPORT_TYPE' } },
-      update: {},
-      create: { type: 'SUPPORT_TYPE', label, order: order++ }
+    await prisma.configOption.create({
+      data: { type: 'SUPPORT_TYPE', label, order: order++ }
     });
   }
 
