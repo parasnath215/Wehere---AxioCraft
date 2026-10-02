@@ -26,6 +26,9 @@ services:
       - PORT=3000
     depends_on:
       - db
+    volumes:
+      - uploads:/app/public/uploads
 
 volumes:
   pgdata:
+  uploads:

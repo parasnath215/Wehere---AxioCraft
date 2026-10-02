@@ -368,7 +368,7 @@ class HomeScreen extends StatelessWidget {
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
-                  onTap: () => appState.setTabIndex(3), // Assuming 3 is Chat/Community in shell
+                  onTap: () => Navigator.pushNamed(context, AppRoutes.community),
                   isSmall: true,
                 ),
               ),

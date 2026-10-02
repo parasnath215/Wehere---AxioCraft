@@ -19,6 +19,7 @@ import '../../screens/progress/progress_dashboard_screen.dart';
 import '../../screens/profile/profile_screen.dart';
 import '../../screens/sos/sos_help_screen.dart';
 import '../../screens/institutional/campus_corporate_screen.dart';
+import '../../screens/community/community_screen.dart';
 import '../../models/user_profile.dart';
 import '../../models/journal_entry.dart';
 
@@ -95,6 +96,13 @@ class AppRouter {
           JournalSuccessScreen(entry: entry),
           settings,
           transitionType: PageTransitionType.fade,
+        );
+
+      case AppRoutes.community:
+        return _buildPageRoute(
+          const CommunityScreen(),
+          settings,
+          transitionType: PageTransitionType.slideRight,
         );
 
       // Modal / Screen: Progress & Streaks

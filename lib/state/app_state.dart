@@ -927,6 +927,31 @@ class AppState extends ChangeNotifier {
     }
   }
 
+  Future<void> toggleCommunityPostLike(String postId) async {
+    final idx = _communityPosts.indexWhere((p) => p.id == postId);
+    if (idx == -1) return;
+    
+    final post = _communityPosts[idx];
+    final originalState = post.isLiked;
+    
+    post.isLiked = !originalState;
+    post.likesCount += post.isLiked ? 1 : -1;
+    notifyListeners();
+
+    try {
+      final res = await apiClient.post('/community/$postId/like');
+      if (res.data['liked'] != post.isLiked) {
+        post.isLiked = res.data['liked'];
+        post.likesCount += post.isLiked ? 1 : -1;
+        notifyListeners();
+      }
+    } catch (e) {
+      post.isLiked = originalState;
+      post.likesCount += originalState ? 1 : -1;
+      notifyListeners();
+    }
+  }
+
   Future<void> addComment(String postId, String commentText) async {
     if (commentText.trim().isEmpty) return;
     

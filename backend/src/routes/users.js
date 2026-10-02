@@ -19,9 +19,9 @@ const updateProfileSchema = z.object({
   pseudonym: z.string().max(50).optional(),
   bio: z.string().max(500).optional(),
   location: z.string().max(100).optional(),
-  interests: z.array(z.string().uuid()).max(10).optional(),
-  feelings: z.array(z.string().uuid()).max(10).optional(),
-  supportTypes: z.array(z.string().uuid()).max(5).optional(),
+  interests: z.array(z.string()).max(10).optional(),
+  feelings: z.array(z.string()).max(10).optional(),
+  supportTypes: z.array(z.string()).max(5).optional(),
   isAnonymous: z.boolean().optional(),
 }).strict();
 

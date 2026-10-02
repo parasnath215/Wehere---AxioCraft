@@ -12,6 +12,7 @@ class AppRoutes {
   static const String home = '/home';
   static const String discover = '/discover';
   static const String reflect = '/reflect';
+  static const String community = '/community';
 
   static const String chats = '/chats';
 
