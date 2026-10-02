@@ -32,7 +32,7 @@ router.get('/me', authenticateToken, async (req, res, next) => {
       where: { id: req.user.id },
       select: {
         id: true, email: true, pseudonym: true, images: true, xp: true, isAnonymous: true,
-        bio: true, location: true, interests: true, feelings: true, supportTypes: true,
+        bio: true, location: true, interests: true, feelings: true, supportTypes: true, emailVerified: true
       }
     });
     if (!user) return res.status(401).json({ error: 'User not found (Session invalid)' });
