@@ -165,8 +165,12 @@ class ProfileScreen extends StatelessWidget {
     if (selectedIds.isEmpty) return const SizedBox();
     
     final labels = selectedIds.map((id) {
-      final opt = options.firstWhere((o) => o.id == id, orElse: () => null);
-      return opt?.label ?? 'Unknown';
+      try {
+        final opt = options.firstWhere((o) => o.id == id || o.label == id);
+        return opt.label;
+      } catch (_) {
+        return id; 
+      }
     }).toList();
 
     return Padding(

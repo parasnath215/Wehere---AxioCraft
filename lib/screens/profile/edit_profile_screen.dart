@@ -196,7 +196,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           spacing: 8,
           runSpacing: 8,
           children: options.map((option) {
-            final isSelected = selected.contains(option.id);
+            final isSelected = selected.contains(option.label);
             return FilterChip(
               label: Text(option.label, style: TextStyle(color: isSelected ? Colors.white : AppColors.textPrimary)),
               selected: isSelected,
@@ -205,9 +205,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               onSelected: (val) {
                 setState(() {
                   if (val) {
-                    if (selected.length < maxCount) selected.add(option.id);
+                    if (selected.length < maxCount) selected.add(option.label);
                   } else {
-                    selected.remove(option.id);
+                    selected.remove(option.label);
                   }
                 });
               },
