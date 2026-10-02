@@ -35,7 +35,7 @@ router.get('/me', authenticateToken, async (req, res, next) => {
         bio: true, location: true, interests: true, feelings: true, supportTypes: true,
       }
     });
-    if (!user) return res.status(404).json({ error: 'User not found' });
+    if (!user) return res.status(401).json({ error: 'User not found (Session invalid)' });
     res.json({
       ...user,
       avatarUrl: user.images.length > 0 ? user.images[0] : null

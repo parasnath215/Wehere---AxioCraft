@@ -73,6 +73,8 @@ class AppState extends ChangeNotifier {
         notifyListeners();
       }
     } catch (e) {
+      _currentUser = _currentUser.copyWith(name: 'Guest (Offline)');
+      notifyListeners();
     }
   }
 
@@ -387,6 +389,10 @@ class AppState extends ChangeNotifier {
         _targetXp = _calculateTargetXp(_userLevel);
         notifyListeners();
       } catch (e) {
+        if (_currentUser.name == 'Loading...') {
+          _currentUser = _currentUser.copyWith(name: 'Guest (Offline)');
+          notifyListeners();
+        }
       }
 
       // Fetch Conversations
