@@ -158,6 +158,15 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
         isAnonymous: _isAnonymous,
       );
 
+      if (!context.read<AuthNotifier>().hasCompletedOnboarding) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(context.read<AuthNotifier>().authError ?? 'Failed to complete onboarding')),
+          );
+        }
+        return;
+      }
+
       // Also update local state so UI is reactive
       appState.completeOnboarding(
         name: _nameController.text.trim(),
@@ -168,11 +177,13 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
         isAnonymous: _isAnonymous,
       );
 
-      Navigator.pushNamedAndRemoveUntil(
-        context,
-        AppRoutes.main,
-        (route) => false,
-      );
+      if (mounted) {
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          AppRoutes.main,
+          (route) => false,
+        );
+      }
     }
   }
 

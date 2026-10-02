@@ -260,9 +260,9 @@ router.post('/reset-password', async (req, res) => {
 const onboardingSchema = z.object({
   name: z.string().max(50).optional(),
   location: z.string().max(100).optional(),
-  interests: z.array(z.string().uuid()).max(10).optional(),
-  feelings: z.array(z.string().uuid()).max(10).optional(),
-  supportTypes: z.array(z.string().uuid()).max(5).optional(),
+  interests: z.array(z.string()).max(10).optional(),
+  feelings: z.array(z.string()).max(10).optional(),
+  supportTypes: z.array(z.string()).max(5).optional(),
   isAnonymous: z.boolean().optional(),
 });
 
@@ -286,6 +286,8 @@ router.put('/onboarding', authenticateToken, requireVerified, async (req, res) =
 
     res.json({ message: 'Onboarding completed', user: updatedUser });
   } catch (error) {
+    if (error instanceof z.ZodError) return res.status(400).json({ error: 'Validation failed', details: error.errors });
+    console.error('Onboarding Error:', error);
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
