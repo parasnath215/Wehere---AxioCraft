@@ -64,7 +64,14 @@ class _PhotoGridState extends State<PhotoGrid> {
       final response = await apiClient.post('/users/me/photos', data: formData);
       if (response.statusCode == 200) {
         final newImages = List<String>.from(response.data['images']);
-        final updatedProfile = state.currentUser.copyWith(images: newImages);
+        String newAvatar = newImages.isNotEmpty ? newImages.first : '';
+        if (newAvatar.isNotEmpty && !newAvatar.startsWith('http')) {
+           newAvatar = AppConstants.apiBaseUrl.replaceAll('/api', '') + newAvatar;
+        }
+        final updatedProfile = state.currentUser.copyWith(
+          images: newImages,
+          avatarUrl: newAvatar,
+        );
         state.updateUserProfile(updatedProfile);
       } else {
         throw Exception(response.data['error'] ?? 'Upload failed');
@@ -91,7 +98,14 @@ class _PhotoGridState extends State<PhotoGrid> {
       final response = await apiClient.delete('/users/me/photos', data: {'url': url});
       if (response.statusCode == 200) {
         final newImages = List<String>.from(response.data['images']);
-        state.updateUserProfile(state.currentUser.copyWith(images: newImages));
+        String newAvatar = newImages.isNotEmpty ? newImages.first : '';
+        if (newAvatar.isNotEmpty && !newAvatar.startsWith('http')) {
+           newAvatar = AppConstants.apiBaseUrl.replaceAll('/api', '') + newAvatar;
+        }
+        state.updateUserProfile(state.currentUser.copyWith(
+          images: newImages,
+          avatarUrl: newAvatar,
+        ));
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -112,14 +126,27 @@ class _PhotoGridState extends State<PhotoGrid> {
 
     // Optimistic update
     final originalImages = state.currentUser.images;
-    state.updateUserProfile(state.currentUser.copyWith(images: images));
+    final originalAvatar = state.currentUser.avatarUrl;
+    
+    String newAvatar = images.isNotEmpty ? images.first : '';
+    if (newAvatar.isNotEmpty && !newAvatar.startsWith('http')) {
+       newAvatar = AppConstants.apiBaseUrl.replaceAll('/api', '') + newAvatar;
+    }
+    
+    state.updateUserProfile(state.currentUser.copyWith(
+      images: images,
+      avatarUrl: newAvatar,
+    ));
 
     try {
       final response = await apiClient.put('/users/me/photos/order', data: {'images': images});
       if (response.statusCode != 200) throw Exception('Reorder failed');
     } catch (e) {
       // Revert
-      state.updateUserProfile(state.currentUser.copyWith(images: originalImages));
+      state.updateUserProfile(state.currentUser.copyWith(
+        images: originalImages,
+        avatarUrl: originalAvatar,
+      ));
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Failed to save photo order')),
       );

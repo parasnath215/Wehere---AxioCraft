@@ -22,11 +22,28 @@ router.post('/create', authenticateToken, requireVerified, async (req, res, next
         data: { content, moodScore, category, isPrivate, userId }
       });
       
+      if (!isPrivate) {
+        await tx.communityPost.create({
+          data: {
+            topic: category || 'Journal',
+            content: content,
+            authorId: userId
+          }
+        });
+      }
+      
       const user = await tx.user.update({
         where: { id: userId },
         data: {
-          xp: { increment: 25 },
-          currentStreak: { increment: 1 }
+          xp: { increment: 25 }
+        }
+      });
+      await tx.notification.create({
+        data: {
+          type: 'progress',
+          title: 'Journal Entry Complete! 📝',
+          body: `You earned 25 XP and are on a ${user.currentStreak}-day streak!`,
+          userId: userId
         }
       });
       return { entry, user: { xp: user.xp, currentStreak: user.currentStreak } };
@@ -55,6 +72,87 @@ router.get('/', authenticateToken, requireVerified, async (req, res, next) => {
       orderBy: { createdAt: 'desc' }
     });
     res.json(entries);
+  } catch (error) {
+    next(error);
+  }
+});
+
+const updateJournalSchema = z.object({
+  content: z.string().min(1).optional(),
+  moodScore: z.number().int().min(1).max(5).optional(),
+  category: z.string().optional(),
+  isPrivate: z.boolean().optional(),
+});
+
+router.put('/:id', authenticateToken, requireVerified, async (req, res, next) => {
+  try {
+    const data = updateJournalSchema.parse(req.body);
+    const userId = req.user.id;
+    const entryId = req.params.id;
+    
+    // Ensure entry belongs to user
+    const entry = await prisma.journalEntry.findUnique({ where: { id: entryId } });
+    if (!entry || entry.userId !== userId) return res.status(404).json({ error: 'Entry not found' });
+    
+    const updated = await prisma.$transaction(async (tx) => {
+      const u = await tx.journalEntry.update({
+        where: { id: entryId },
+        data
+      });
+      
+      // Sync with community post
+      if (data.isPrivate === false && entry.isPrivate === true) {
+        // Just made public
+        await tx.communityPost.create({
+          data: {
+            topic: u.category || 'Journal',
+            content: u.content,
+            authorId: userId
+          }
+        });
+      } else if (data.isPrivate === true && entry.isPrivate === false) {
+        // Just made private
+        await tx.communityPost.deleteMany({
+          where: {
+            authorId: userId,
+            content: entry.content
+          }
+        });
+      }
+      
+      return u;
+    });
+    
+    res.json(updated);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: 'Validation failed', details: error.errors });
+    }
+    next(error);
+  }
+});
+
+router.delete('/:id', authenticateToken, requireVerified, async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const entryId = req.params.id;
+    
+    // Ensure entry belongs to user
+    const entry = await prisma.journalEntry.findUnique({ where: { id: entryId } });
+    if (!entry || entry.userId !== userId) return res.status(404).json({ error: 'Entry not found' });
+    
+    await prisma.$transaction(async (tx) => {
+      await tx.journalEntry.delete({ where: { id: entryId } });
+      if (!entry.isPrivate) {
+        await tx.communityPost.deleteMany({
+          where: {
+            authorId: userId,
+            content: entry.content
+          }
+        });
+      }
+    });
+    res.json({ success: true });
   } catch (error) {
     next(error);
   }

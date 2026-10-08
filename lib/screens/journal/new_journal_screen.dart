@@ -1,14 +1,18 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/routing/app_routes.dart';
 import '../../models/journal_entry.dart';
 import '../../state/app_state.dart';
 import '../../widgets/common/mood_chip.dart';
+import '../../core/network/api_client.dart';
 
 class NewJournalScreen extends StatefulWidget {
-  const NewJournalScreen({super.key});
+  final JournalEntry? editEntry;
+  const NewJournalScreen({super.key, this.editEntry});
 
   @override
   State<NewJournalScreen> createState() => _NewJournalScreenState();
@@ -21,6 +25,45 @@ class _NewJournalScreenState extends State<NewJournalScreen> {
   String _selectedCategory = 'General';
   bool _isPrivateOnly = true;
   bool _setReminder = false;
+  File? _selectedImage;
+  final ImagePicker _picker = ImagePicker();
+
+  Future<void> _pickImage() async {
+    try {
+      final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
+      if (pickedFile != null) {
+        setState(() {
+          _selectedImage = File(pickedFile.path);
+        });
+      }
+    } catch (e) {
+      debugPrint("Failed to pick image: $e");
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.editEntry != null) {
+      _selectedMood = _mapScoreToMood(widget.editEntry!.mood);
+      _thoughtController.text = widget.editEntry!.thought;
+      _gratitudeController.text = widget.editEntry!.gratitude;
+      _selectedCategory = widget.editEntry!.category;
+      _isPrivateOnly = widget.editEntry!.isPrivate;
+    }
+  }
+
+  String _mapScoreToMood(String scoreOrMood) {
+     if (['Amazing', 'Good', 'Okay', 'Tired', 'Stressed'].contains(scoreOrMood)) return scoreOrMood;
+     switch (scoreOrMood) {
+        case '5': return 'Amazing';
+        case '4': return 'Good';
+        case '3': return 'Okay';
+        case '2': return 'Tired';
+        case '1': return 'Stressed';
+        default: return 'Okay';
+     }
+  }
 
   final List<String> _categories = [
     'General',
@@ -233,20 +276,24 @@ class _NewJournalScreenState extends State<NewJournalScreen> {
                           enabledBorder: InputBorder.none,
                           focusedBorder: InputBorder.none,
                           contentPadding: EdgeInsets.zero,
+                          counterText: '', // Hide default counter
                         ),
                       ),
                       const Divider(color: AppColors.cardBorder),
                       Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
                         children: [
-                          _buildFormatIcon(Icons.format_bold_rounded),
-                          _buildFormatIcon(Icons.format_italic_rounded),
-                          _buildFormatIcon(Icons.format_list_bulleted_rounded),
-                          _buildFormatIcon(Icons.link_rounded),
-                          _buildFormatIcon(Icons.sentiment_satisfied_alt_outlined),
-                          const Spacer(),
-                          Text(
-                            '${_thoughtController.text.length} / 1000',
-                            style: AppTextStyles.caption,
+                          AnimatedBuilder(
+                            animation: _thoughtController,
+                            builder: (context, child) {
+                              final words = _thoughtController.text.trim().split(RegExp(r'\s+')).where((s) => s.isNotEmpty).length;
+                              return Text(
+                                '$words / 1000',
+                                style: AppTextStyles.caption.copyWith(
+                                  color: words > 1000 ? Colors.red : AppColors.textSecondary,
+                                ),
+                              );
+                            },
                           ),
                         ],
                       ),
@@ -260,27 +307,43 @@ class _NewJournalScreenState extends State<NewJournalScreen> {
                 Text('What are you grateful for today?', style: AppTextStyles.h3),
                 const SizedBox(height: 10),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(18),
                     border: Border.all(color: AppColors.cardBorder),
                   ),
-                  child: Row(
+                  child: Column(
                     children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _gratitudeController,
-                          decoration: const InputDecoration(
-                            hintText: 'List things you’re grateful for...',
-                            border: InputBorder.none,
-                            enabledBorder: InputBorder.none,
-                            focusedBorder: InputBorder.none,
-                            contentPadding: EdgeInsets.symmetric(vertical: 12),
-                          ),
+                      TextField(
+                        controller: _gratitudeController,
+                        maxLines: 3,
+                        decoration: const InputDecoration(
+                          hintText: 'List things you’re grateful for...',
+                          border: InputBorder.none,
+                          enabledBorder: InputBorder.none,
+                          focusedBorder: InputBorder.none,
+                          contentPadding: EdgeInsets.zero,
                         ),
                       ),
-                      const Icon(Icons.favorite_border_rounded, color: AppColors.primaryLight, size: 20),
+                      const Divider(color: AppColors.cardBorder),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          AnimatedBuilder(
+                            animation: _gratitudeController,
+                            builder: (context, child) {
+                              final words = _gratitudeController.text.trim().split(RegExp(r'\s+')).where((s) => s.isNotEmpty).length;
+                              return Text(
+                                '$words / 100',
+                                style: AppTextStyles.caption.copyWith(
+                                  color: words > 100 ? Colors.red : AppColors.textSecondary,
+                                ),
+                              );
+                            },
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
@@ -344,31 +407,57 @@ class _NewJournalScreenState extends State<NewJournalScreen> {
                         children: [
                           Text('Add a Photo (optional)', style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.bold)),
                           const SizedBox(height: 8),
-                          Container(
-                            height: 160,
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(18),
-                              border: Border.all(color: AppColors.primaryBorder),
-                            ),
-                            child: const Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  CircleAvatar(
-                                    radius: 18,
-                                    backgroundColor: AppColors.primarySoft,
-                                    child: Icon(Icons.add_photo_alternate_outlined, color: AppColors.primary, size: 20),
-                                  ),
-                                  SizedBox(height: 8),
-                                  Text(
-                                    'Tap to add a photo',
-                                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: AppColors.primary),
-                                  ),
-                                  SizedBox(height: 2),
-                                  Text('JPG, PNG up to 10MB', style: TextStyle(fontSize: 9, color: AppColors.textMuted)),
-                                ],
+                          GestureDetector(
+                            onTap: _pickImage,
+                            child: Container(
+                              height: 160,
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(18),
+                                border: Border.all(color: AppColors.primaryBorder),
+                                image: _selectedImage != null 
+                                  ? DecorationImage(
+                                      image: FileImage(_selectedImage!),
+                                      fit: BoxFit.cover,
+                                    )
+                                  : null,
                               ),
+                              child: _selectedImage == null 
+                                ? const Center(
+                                    child: Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        CircleAvatar(
+                                          radius: 18,
+                                          backgroundColor: AppColors.primarySoft,
+                                          child: Icon(Icons.add_photo_alternate_outlined, color: AppColors.primary, size: 20),
+                                        ),
+                                        SizedBox(height: 8),
+                                        Text(
+                                          'Tap to add a photo',
+                                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: AppColors.primary),
+                                        ),
+                                        SizedBox(height: 2),
+                                        Text('JPG, PNG up to 10MB', style: TextStyle(fontSize: 9, color: AppColors.textMuted)),
+                                      ],
+                                    ),
+                                  )
+                                : Stack(
+                                    children: [
+                                      Positioned(
+                                        top: 8,
+                                        right: 8,
+                                        child: GestureDetector(
+                                          onTap: () => setState(() => _selectedImage = null),
+                                          child: const CircleAvatar(
+                                            radius: 12,
+                                            backgroundColor: Colors.white,
+                                            child: Icon(Icons.close, size: 14, color: AppColors.primary),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                             ),
                           ),
                         ],
@@ -465,39 +554,69 @@ class _NewJournalScreenState extends State<NewJournalScreen> {
     );
   }
 
-  Widget _buildFormatIcon(IconData icon) {
-    return Padding(
-      padding: const EdgeInsets.only(right: 12),
-      child: Icon(icon, size: 20, color: AppColors.textSecondary),
-    );
-  }
 
-  void _saveAndNavigate() {
+
+  void _saveAndNavigate() async {
     final appState = Provider.of<AppState>(context, listen: false);
     final thought = _thoughtController.text.trim();
     final gratitude = _gratitudeController.text.trim();
 
+    if (gratitude.isNotEmpty) {
+      final words = gratitude.split(RegExp(r'\s+'));
+      if (words.length > 100) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Gratitude must be 100 words or less.')),
+        );
+        return;
+      }
+    }
+
     final entry = JournalEntry(
-      id: 'j_${DateTime.now().millisecondsSinceEpoch}',
-      date: DateTime.now(),
+      id: widget.editEntry?.id ?? 'j_${DateTime.now().millisecondsSinceEpoch}',
+      date: widget.editEntry?.date ?? DateTime.now(),
       mood: _selectedMood,
       thought: thought.isNotEmpty ? thought : 'Mindful reflection for today.',
       gratitude: gratitude,
       category: _selectedCategory,
+      isPrivate: _isPrivateOnly,
     );
 
-    appState.addJournalEntry(_selectedMood, entry.thought, gratitude, _selectedCategory);
+    if (widget.editEntry != null) {
+      try {
+        await apiClient.put('/journal/${entry.id}', data: {
+          'content': entry.thought,
+          'moodScore': _moodToScore(entry.mood),
+          'category': entry.category,
+          'isPrivate': entry.isPrivate,
+        });
+        appState.fetchBackendData();
+      } catch(e) {}
+      Navigator.pop(context);
+    } else {
+      appState.addJournalEntry(_selectedMood, entry.thought, gratitude, _selectedCategory, isPrivate: _isPrivateOnly);
 
-    // If opted into sharing to community circles anonymously
-    if (!_isPrivateOnly) {
-      appState.addCommunityPost(_selectedCategory, entry.thought);
+      // If opted into sharing to community circles anonymously
+      if (!_isPrivateOnly) {
+        appState.addCommunityPost(_selectedCategory, entry.thought);
+      }
+
+      Navigator.pushReplacementNamed(
+        context,
+        AppRoutes.journalSuccess,
+        arguments: entry,
+      );
     }
+  }
 
-    Navigator.pushReplacementNamed(
-      context,
-      AppRoutes.journalSuccess,
-      arguments: entry,
-    );
+  int _moodToScore(String mood) {
+    switch(mood) {
+      case 'Amazing': return 5;
+      case 'Good': return 4;
+      case 'Okay': return 3;
+      case 'Tired': return 2;
+      case 'Stressed': return 1;
+      default: return 3;
+    }
   }
 
   void _showBeforeYouGoSheet(BuildContext context) {

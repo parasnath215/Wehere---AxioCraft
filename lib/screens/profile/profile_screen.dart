@@ -103,47 +103,6 @@ class ProfileScreen extends StatelessWidget {
               ),
               const SizedBox(height: 24),
 
-              // Anonymity Mode Toggle Card
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: user.isAnonymous ? AppColors.primarySoft : Colors.white,
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: user.isAnonymous ? AppColors.primary : AppColors.cardBorder),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(color: user.isAnonymous ? AppColors.primary.withOpacity(0.1) : AppColors.surface, shape: BoxShape.circle),
-                      child: Icon(Icons.visibility_off_outlined, color: user.isAnonymous ? AppColors.primary : AppColors.textSecondary, size: 24),
-                    ),
-                    const SizedBox(width: 14),
-                    const Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Incognito Mode', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                          SizedBox(height: 2),
-                          Text('Hide exact location and photos', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-                        ],
-                      ),
-                    ),
-                    Switch(
-                      value: user.isAnonymous,
-                      activeColor: AppColors.primary,
-                      onChanged: (val) async {
-                        try {
-                          await apiClient.put('/users/me', data: {'isAnonymous': val});
-                          appState.updateUserProfile(user.copyWith(isAnonymous: val));
-                        } catch(e) {
-                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to update mode')));
-                        }
-                      },
-                    ),
-                  ],
-                ),
-              ),
             ],
           ),
         ),

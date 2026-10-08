@@ -11,6 +11,8 @@ datasource db {
 model User {
   id        String   @id @default(uuid())
   email     String?  @unique
+  username  String?  @unique
+  phone     String?  @unique
   password  String?
   role      String   @default("USER") // USER or ADMIN
   isAnonymous Boolean @default(false)
@@ -27,6 +29,7 @@ model User {
   xp        Int      @default(0)
   level     Int      @default(1)
   currentStreak Int  @default(0)
+  lastLoginDate DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

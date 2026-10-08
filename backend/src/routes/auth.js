@@ -18,14 +18,15 @@ const upload = multer({
   limits: { fileSize: 5 * 1024 * 1024 } 
 });
 
+const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#$%^&*()_+={}\[\]|\\:;"'<>,.?/~`]).{8,}$/;
 const signupSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(6),
+  email: z.string().email('Invalid email address'),
+  password: z.string().regex(passwordRegex, 'Password must be at least 8 characters, contain 1 uppercase, 1 lowercase, and 1 special character.'),
   pseudonym: z.string().optional(),
 });
 
 const loginSchema = z.object({
-  email: z.string().email(),
+  email: z.string().min(1, 'Identifier is required'),
   password: z.string(),
 });
 
@@ -117,7 +118,15 @@ router.post('/login', rateLimit({ windowMs: 15*60*1000, max: 10 }), async (req, 
   try {
     const { email, password } = loginSchema.parse(req.body);
 
-    const user = await prisma.user.findUnique({ where: { email } });
+    const user = await prisma.user.findFirst({ 
+      where: {
+        OR: [
+          { email },
+          { username: email },
+          { pseudonym: email }
+        ]
+      } 
+    });
     if (!user || !user.password) return res.status(400).json({ error: 'Invalid credentials' });
 
     const validPassword = await bcrypt.compare(password, user.password);

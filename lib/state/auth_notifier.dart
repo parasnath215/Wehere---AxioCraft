@@ -64,11 +64,15 @@ class AuthNotifier extends ChangeNotifier {
           final res = await apiClient.get('/users/me');
           final isVerified = res.data['emailVerified'] == true || res.data['isAnonymous'] == true;
           _status = isVerified ? AuthStatus.authenticated : AuthStatus.unverified;
+          
+          final savedOnboarding = await _storage.read(key: 'onboarding_completed');
+          _hasCompletedOnboarding = savedOnboarding == 'true' || res.data['interests']?.isNotEmpty == true;
         } catch (e) {
            _status = AuthStatus.authenticated; // optimistic, interceptor will downgrade if 403
+           final savedOnboarding = await _storage.read(key: 'onboarding_completed');
+           _hasCompletedOnboarding = savedOnboarding == 'true';
         }
 
-        _hasCompletedOnboarding = true;
         _hasSeenWalkthrough = true;
       } else {
         _status = AuthStatus.unauthenticated;
@@ -103,7 +107,9 @@ class AuthNotifier extends ChangeNotifier {
       final isVerified = user['emailVerified'] == true || user['role'] == 'ADMIN';
       _status = isVerified ? AuthStatus.authenticated : AuthStatus.unverified;
       
-      _hasCompletedOnboarding = true;
+      final savedOnboarding = await _storage.read(key: 'onboarding_completed');
+      _hasCompletedOnboarding = savedOnboarding == 'true' || (user['interests'] != null && user['interests'].isNotEmpty);
+      
       _isLoading = false;
       notifyListeners();
       return true;
@@ -243,6 +249,7 @@ class AuthNotifier extends ChangeNotifier {
         'supportTypes': supportTypes,
         'isAnonymous': isAnonymous,
       });
+      await _storage.write(key: 'onboarding_completed', value: 'true');
       _hasCompletedOnboarding = true;
     } catch (e) {
       _authError = 'Failed to save onboarding preferences';

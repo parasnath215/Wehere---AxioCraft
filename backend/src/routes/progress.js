@@ -7,11 +7,38 @@ const { authenticateToken, requireVerified } = require('../middleware/auth');
 router.get('/', authenticateToken, requireVerified, async (req, res) => {
   try {
     const userId = req.user.id;
-    const user = await prisma.user.findUnique({
+    let user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { xp: true, level: true, currentStreak: true }
+      select: { xp: true, level: true, currentStreak: true, lastLoginDate: true }
     });
     
+    // Update streak logic
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    const lastLogin = user.lastLoginDate ? new Date(user.lastLoginDate) : null;
+    if (lastLogin) lastLogin.setHours(0,0,0,0);
+
+    let streakUpdate = user.currentStreak;
+    if (!lastLogin) {
+      streakUpdate = 1;
+    } else {
+      const diffTime = Math.abs(today - lastLogin);
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+      if (diffDays === 1) {
+        streakUpdate += 1;
+      } else if (diffDays > 1) {
+        streakUpdate = 1;
+      }
+    }
+
+    if (!lastLogin || lastLogin.getTime() !== today.getTime()) {
+      await prisma.user.update({
+        where: { id: userId },
+        data: { currentStreak: streakUpdate, lastLoginDate: new Date() }
+      });
+      user.currentStreak = streakUpdate;
+    }
+
     // Calculate weekly progress (days active this week)
     const startOfWeek = new Date();
     startOfWeek.setHours(0,0,0,0);
@@ -85,9 +112,17 @@ router.post('/mood', authenticateToken, requireVerified, async (req, res) => {
         }
       });
       // Increment streak logic here (simplified)
-      await prisma.user.update({
+      const updatedUser = await prisma.user.update({
         where: { id: req.user.id },
         data: { currentStreak: { increment: 1 } }
+      });
+      await prisma.notification.create({
+        data: {
+          type: 'progress',
+          title: 'Daily Streak Maintained! 🔥',
+          body: `Great job! You are on a ${updatedUser.currentStreak}-day streak. Keep it up!`,
+          userId: req.user.id
+        }
       });
     }
 

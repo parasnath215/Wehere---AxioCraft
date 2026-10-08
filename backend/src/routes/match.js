@@ -48,8 +48,7 @@ router.get('/discover', authenticateToken, requireVerified, async (req, res, nex
     const matches = await prisma.user.findMany({
       where: {
         id: { notIn: excludedUserIds },
-        isBanned: false,
-        pseudonym: { not: null }
+        isBanned: false
       },
       select: {
         id: true, isAnonymous: true, pseudonym: true, bio: true, images: true, 
@@ -61,7 +60,6 @@ router.get('/discover', authenticateToken, requireVerified, async (req, res, nex
     let scoredMatches = [];
 
     for (const u of matches) {
-      if (u.images.length < 2) continue; // Minimum photos requirement
 
       const sharedInterests = u.interests.filter(i => currentUser.interests.includes(i));
       const sharedSupport = u.supportTypes.filter(s => currentUser.supportTypes.includes(s));

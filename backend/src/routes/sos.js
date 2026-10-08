@@ -53,7 +53,7 @@ router.post('/contacts', authenticateToken, requireVerified, async (req, res, ne
 router.delete('/contacts/:id', authenticateToken, requireVerified, async (req, res, next) => {
   try {
     const { id } = req.params;
-    await prisma.emergencyContact.delete({
+    await prisma.emergencyContact.deleteMany({
       where: { id, userId: req.user.id }
     });
     res.json({ message: 'Deleted' });

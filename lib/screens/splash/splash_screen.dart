@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/routing/app_routes.dart';
 import '../../state/auth_notifier.dart';
+import '../../state/app_state.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -37,6 +38,7 @@ class _SplashScreenState extends State<SplashScreen> {
         if (!auth.hasCompletedOnboarding) {
           Navigator.pushReplacementNamed(context, AppRoutes.onboarding);
         } else {
+          context.read<AppState>().setTabIndex(0);
           Navigator.pushNamedAndRemoveUntil(context, AppRoutes.main, (route) => false);
         }
       } else if (!auth.hasSeenWalkthrough) {
@@ -91,17 +93,12 @@ class _SplashScreenState extends State<SplashScreen> {
                           ),
                         ],
                       ),
-                      child: const Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          Icon(Icons.favorite_rounded, size: 68, color: AppColors.primary),
-                          Positioned(
-                            top: 24,
-                            right: 24,
-                            child: Icon(Icons.eco_rounded, size: 28, color: Color(0xFF22C55E)),
-                          ),
-                          Icon(Icons.accessibility_new_rounded, size: 36, color: Colors.white),
-                        ],
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Image.asset(
+                          'assets/Wehere_Logo_Assets/2_icon_mark_alone_transparent.png',
+                          fit: BoxFit.contain,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 24),

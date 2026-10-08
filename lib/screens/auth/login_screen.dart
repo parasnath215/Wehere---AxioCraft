@@ -5,6 +5,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/routing/app_routes.dart';
 import '../../state/auth_notifier.dart';
+import '../../state/app_state.dart';
 import '../../core/network/api_client.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -101,7 +102,10 @@ class _LoginScreenState extends State<LoginScreen> {
                       shape: BoxShape.circle,
                       color: AppColors.primarySoft,
                     ),
-                    child: const Icon(Icons.favorite, size: 54, color: AppColors.primary),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Image.asset('assets/Wehere_Logo_Assets/2_icon_mark_alone_transparent.png'),
+                    ),
                   ),
                 ],
               ),
@@ -252,6 +256,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           }
                           final success = await context.read<AuthNotifier>().login(_loginController.text.trim(), _passwordController.text.trim());
                           if (success && context.mounted) {
+                            context.read<AppState>().setTabIndex(0);
                             Navigator.pushNamedAndRemoveUntil(context, AppRoutes.main, (route) => false);
                           } else if (context.mounted && context.read<AuthNotifier>().authError != null) {
                             ScaffoldMessenger.of(context).showSnackBar(

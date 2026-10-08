@@ -643,11 +643,25 @@ class SosHelpScreen extends StatelessWidget {
           TextButton(onPressed: () => Navigator.pop(dCtx), child: const Text('Cancel')),
           ElevatedButton(
             onPressed: () {
-              if (nameCtrl.text.trim().isNotEmpty && phoneCtrl.text.trim().isNotEmpty) {
-                appState.addEmergencyContact(nameCtrl.text.trim(), phoneCtrl.text.trim(), relCtrl.text.trim().isEmpty ? 'Friend' : relCtrl.text.trim());
-                Navigator.pop(dCtx);
-                onAdded();
+              final name = nameCtrl.text.trim();
+              final phone = phoneCtrl.text.trim().replaceAll(RegExp(r'\D'), ''); // Strip non-digits for validation
+              
+              if (name.isEmpty || phone.isEmpty) {
+                ScaffoldMessenger.of(dCtx).showSnackBar(const SnackBar(content: Text('Please fill required fields.')));
+                return;
               }
+
+              final isRepeated = RegExp(r'^(\d)\1{9}$').hasMatch(phone);
+              final isSeries = RegExp(r'^(0123456789|1234567890|9876543210)$').hasMatch(phone);
+
+              if (phone.length != 10 || isRepeated || isSeries) {
+                ScaffoldMessenger.of(dCtx).showSnackBar(const SnackBar(content: Text('Please enter a valid 10-digit phone number.')));
+                return;
+              }
+
+              appState.addEmergencyContact(name, phone, relCtrl.text.trim().isEmpty ? 'Friend' : relCtrl.text.trim());
+              Navigator.pop(dCtx);
+              onAdded();
             },
             child: const Text('Save'),
           ),
@@ -704,14 +718,14 @@ class _BreathingExerciseSheet extends StatefulWidget {
 class _BreathingExerciseSheetState extends State<_BreathingExerciseSheet> {
   int _secondsLeft = 4;
   String _phase = 'Inhale';
-  String _instruction = 'Breathe in slowly through your nose...';
+  String _instruction = 'Tap Play to begin breathing...';
   Timer? _timer;
-  bool _isActive = true;
+  bool _isActive = false;
 
   @override
   void initState() {
     super.initState();
-    _startCycle();
+    // Do not start automatically
   }
 
   void _startCycle() {
@@ -770,61 +784,50 @@ class _BreathingExerciseSheetState extends State<_BreathingExerciseSheet> {
           Text(_instruction, style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
           const Spacer(),
           // Animated breathing circle
-          AnimatedScale(
-            scale: scale,
-            duration: Duration(seconds: _secondsLeft > 0 ? _secondsLeft : 1),
-            curve: Curves.easeInOut,
-            child: Container(
-              width: 160,
-              height: 160,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: const RadialGradient(
-                  colors: [Color(0xFFBAE6FD), Color(0xFF0284C7)],
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFF0284C7).withValues(alpha: 0.35),
-                    blurRadius: 24,
-                    spreadRadius: 8,
+          GestureDetector(
+            onTap: () {
+              setState(() {
+                _isActive = !_isActive;
+                if (_isActive) {
+                  _startCycle();
+                } else {
+                  _timer?.cancel();
+                }
+              });
+            },
+            child: AnimatedScale(
+              scale: scale,
+              duration: Duration(seconds: _secondsLeft > 0 ? _secondsLeft : 1),
+              curve: Curves.easeInOut,
+              child: Container(
+                width: 160,
+                height: 160,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: const RadialGradient(
+                    colors: [Color(0xFFBAE6FD), Color(0xFF0284C7)],
                   ),
-                ],
-              ),
-              alignment: Alignment.center,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(_phase, style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 4),
-                  Text('$_secondsLeft s', style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w600)),
-                ],
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF0284C7).withValues(alpha: 0.35),
+                      blurRadius: 24,
+                      spreadRadius: 8,
+                    ),
+                  ],
+                ),
+                alignment: Alignment.center,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(_isActive ? _phase : 'Play', style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+                    if (_isActive) const SizedBox(height: 4),
+                    if (_isActive) Text('$_secondsLeft s', style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w600)),
+                  ],
+                ),
               ),
             ),
           ),
           const Spacer(),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _isActive ? Colors.orange : AppColors.primary,
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                ),
-                icon: Icon(_isActive ? Icons.pause : Icons.play_arrow),
-                label: Text(_isActive ? 'Pause' : 'Resume', style: const TextStyle(fontWeight: FontWeight.bold)),
-                onPressed: () {
-                  setState(() {
-                    _isActive = !_isActive;
-                    if (_isActive) {
-                      _startCycle();
-                    } else {
-                      _timer?.cancel();
-                    }
-                  });
-                },
-              ),
-            ],
-          ),
           const SizedBox(height: 16),
         ],
       ),

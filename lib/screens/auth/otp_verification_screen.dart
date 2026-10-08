@@ -159,20 +159,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> with Widg
               ),
               const SizedBox(height: 10),
 
-              Consumer<AuthNotifier>(
-                builder: (context, auth, _) => Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: AppColors.primarySoft,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.primaryBorder),
-                  ),
-                  child: Text(
-                    '🏷️ Linked ID: ${auth.userHandle} • ${auth.registeredName}',
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primary),
-                  ),
-                ),
-              ),
+
 
               const SizedBox(height: 24),
 

@@ -144,43 +144,45 @@ class _DiscoverSwipeScreenState extends State<DiscoverSwipeScreen> {
                     ),
             ),
 
-            // Guidance text
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              child: Text.rich(
-                TextSpan(
-                  text: 'Swipe ',
-                  style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
-                  children: const [
-                    TextSpan(text: 'right ', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
-                    TextSpan(text: 'to connect  •  Swipe '),
-                    TextSpan(text: 'left ', style: TextStyle(color: Color(0xFFEF4444), fontWeight: FontWeight.bold)),
-                    TextSpan(text: 'to pass'),
-                  ],
+            if (appState.cards.isNotEmpty) ...[
+              // Guidance text
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Text.rich(
+                  TextSpan(
+                    text: 'Swipe ',
+                    style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
+                    children: const [
+                      TextSpan(text: 'right ', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
+                      TextSpan(text: 'to connect  •  Swipe '),
+                      TextSpan(text: 'left ', style: TextStyle(color: Color(0xFFEF4444), fontWeight: FontWeight.bold)),
+                      TextSpan(text: 'to pass'),
+                    ],
+                  ),
                 ),
               ),
-            ),
 
-            // 4. Action Buttons (Pass, Connect, Superlike, Rewind)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 12, top: 4),
-              child: CardActionButtons(
-                onPass: () => appState.swipeLeft(),
-                onConnect: () async {
-                  final isMatch = await appState.swipeRight();
-                  if (isMatch && appState.lastMatch != null) {
-                    _showMatchCelebration(context, appState);
-                  }
-                },
-                onSuperLike: () {
-                  appState.superSupport();
-                  if (appState.lastMatch != null) {
-                    _showMatchCelebration(context, appState);
-                  }
-                },
-                onRewind: appState.canRewind ? () => appState.rewindLastSwipe() : null,
+              // 4. Action Buttons (Pass, Connect, Superlike, Rewind)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12, top: 4),
+                child: CardActionButtons(
+                  onPass: () => appState.swipeLeft(),
+                  onConnect: () async {
+                    final isMatch = await appState.swipeRight();
+                    if (isMatch && appState.lastMatch != null) {
+                      _showMatchCelebration(context, appState);
+                    }
+                  },
+                  onSuperLike: () {
+                    appState.superSupport();
+                    if (appState.lastMatch != null) {
+                      _showMatchCelebration(context, appState);
+                    }
+                  },
+                  onRewind: appState.canRewind ? () => appState.rewindLastSwipe() : null,
+                ),
               ),
-            ),
+            ],
           ],
         ),
       ),

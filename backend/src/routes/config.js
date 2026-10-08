@@ -24,9 +24,9 @@ router.get('/options', async (req, res, next) => {
         minPhotos: 2,
         maxPhotos: 6,
         bioMaxLength: 500,
-        maxInterests: 10,
-        maxFeelings: 10,
-        maxSupportTypes: 5,
+        maxInterests: 5,
+        maxFeelings: 5,
+        maxSupportTypes: 2,
         locationMaxLength: 100,
         pseudonymMaxLength: 50
       }

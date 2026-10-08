@@ -5,6 +5,7 @@ import '../../core/theme/app_text_styles.dart';
 import '../../core/routing/app_routes.dart';
 import '../../state/app_state.dart';
 import '../../state/auth_notifier.dart';
+import '../../core/constants/indian_locations.dart';
 
 class OnboardingFlowScreen extends StatefulWidget {
   const OnboardingFlowScreen({super.key});
@@ -20,6 +21,20 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _locationController = TextEditingController();
 
+  // Using IndianLocations.stateCityMap
+  String? _selectedState;
+  String? _selectedCity;
+
+  void _updateLocationController() {
+    if (_selectedState != null && _selectedCity != null) {
+      _locationController.text = '$_selectedCity, $_selectedState';
+    } else if (_selectedState != null) {
+      _locationController.text = _selectedState!;
+    } else {
+      _locationController.text = '';
+    }
+  }
+
   // Step 2 Interests
   final Set<String> _selectedInterests = {};
 
@@ -28,9 +43,6 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
 
   // Step 4 Looking For
   final Set<String> _selectedLookingFor = {};
-
-  // Step 5 Anonymity / Photos
-  bool _isAnonymous = false;
 
   @override
   void initState() {
@@ -126,9 +138,15 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
   void _handleNext() async {
     final appState = Provider.of<AppState>(context, listen: false);
 
-    if (_currentStep == 1 && _nameController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter your name.')));
-      return;
+    if (_currentStep == 1) {
+      if (_nameController.text.trim().isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter your name.')));
+        return;
+      }
+      if (_selectedState == null || _selectedCity == null) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select your state and city.')));
+        return;
+      }
     }
     if (_currentStep == 2 && _selectedInterests.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select at least one interest.')));
@@ -155,7 +173,7 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
         interests: _selectedInterests.toList(),
         feelings: _selectedFeelings.toList(),
         supportTypes: _selectedLookingFor.toList(),
-        isAnonymous: _isAnonymous,
+        isAnonymous: false,
       );
 
       if (!context.read<AuthNotifier>().hasCompletedOnboarding) {
@@ -174,7 +192,7 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
         interests: _selectedInterests.toList(),
         feelings: _selectedFeelings.toList(),
         supportTypes: _selectedLookingFor.toList(),
-        isAnonymous: _isAnonymous,
+        isAnonymous: false,
       );
 
       if (mounted) {
@@ -252,12 +270,41 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
           ),
         ),
         const SizedBox(height: 14),
-        TextField(
-          controller: _locationController,
-          decoration: const InputDecoration(
-            prefixIcon: Icon(Icons.location_on_outlined, color: AppColors.primary),
-            labelText: 'Location (Optional)',
-          ),
+        DropdownMenu<String>(
+          initialSelection: _selectedState,
+          enableFilter: true,
+          enableSearch: true,
+          expandedInsets: EdgeInsets.zero,
+          leadingIcon: const Icon(Icons.map_outlined, color: AppColors.primary),
+          label: const Text('State *'),
+          onSelected: (val) {
+            setState(() {
+              _selectedState = val;
+              _selectedCity = null;
+              _updateLocationController();
+            });
+          },
+          dropdownMenuEntries: IndianLocations.stateCityMap.keys.map((String state) {
+            return DropdownMenuEntry<String>(value: state, label: state);
+          }).toList(),
+        ),
+        const SizedBox(height: 14),
+        DropdownMenu<String>(
+          initialSelection: _selectedCity,
+          enableFilter: true,
+          enableSearch: true,
+          expandedInsets: EdgeInsets.zero,
+          leadingIcon: const Icon(Icons.location_city_outlined, color: AppColors.primary),
+          label: const Text('City *'),
+          onSelected: (val) {
+            setState(() {
+              _selectedCity = val;
+              _updateLocationController();
+            });
+          },
+          dropdownMenuEntries: (_selectedState == null ? <String>[] : IndianLocations.stateCityMap[_selectedState]!).map((String city) {
+            return DropdownMenuEntry<String>(value: city, label: city);
+          }).toList(),
         ),
         const SizedBox(height: 24),
         _buildPrivacyBadge('Your information is safe with us. We respect your privacy and never share your data.'),
@@ -314,7 +361,11 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
                   if (isSelected) {
                     _selectedInterests.remove(name);
                   } else {
-                    _selectedInterests.add(name);
+                    if (_selectedInterests.length < 5) {
+                      _selectedInterests.add(name);
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('You can select up to 5 interests.')));
+                    }
                   }
                 });
               },
@@ -410,7 +461,11 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
                   if (isSelected) {
                     _selectedFeelings.remove(name);
                   } else {
-                    _selectedFeelings.add(name);
+                    if (_selectedFeelings.length < 5) {
+                      _selectedFeelings.add(name);
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('You can select up to 5 feelings.')));
+                    }
                   }
                 });
               },
@@ -494,7 +549,11 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
                   if (isSelected) {
                     _selectedLookingFor.remove(title);
                   } else {
-                    _selectedLookingFor.add(title);
+                    if (_selectedLookingFor.length < 2) {
+                      _selectedLookingFor.add(title);
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('You can select up to 2 options.')));
+                    }
                   }
                 });
               },
@@ -595,7 +654,7 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
               _buildSummaryRow(
                 Icons.person_rounded,
                 'About You',
-                _isAnonymous ? 'Anonymous Mode (Safe Pseudonym)' : '${_nameController.text}, ${_locationController.text}',
+                '${_nameController.text}, ${_locationController.text}',
               ),
             ],
           ),

@@ -5,6 +5,9 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/routing/app_routes.dart';
 import '../../state/app_state.dart';
+import '../../core/network/api_client.dart';
+import 'new_journal_screen.dart';
+import 'package:dio/dio.dart';
 
 class JournalHomeScreen extends StatelessWidget {
   const JournalHomeScreen({super.key});
@@ -104,39 +107,41 @@ class JournalHomeScreen extends StatelessWidget {
 
               const SizedBox(height: 24),
 
-              // Filter by Category
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text('Past Entries', style: AppTextStyles.h3),
-                  Wrap(
-                    spacing: 6,
-                    children: ['All', 'Gratitude', 'Reflection', 'Venting'].map((cat) {
-                      final isSel = appState.selectedJournalFilter == cat;
-                      return GestureDetector(
-                        onTap: () => appState.setJournalFilter(cat),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: isSel ? AppColors.primary : Colors.white,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: isSel ? AppColors.primary : AppColors.cardBorder),
-                          ),
-                          child: Text(
-                            cat,
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: isSel ? FontWeight.bold : FontWeight.w500,
-                              color: isSel ? Colors.white : AppColors.textSecondary,
+              if (appState.journalEntries.isNotEmpty) ...[
+                // Filter by Category
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('Past Entries', style: AppTextStyles.h3),
+                    Wrap(
+                      spacing: 6,
+                      children: ['All', ...appState.journalEntries.map((e) => e.category).toSet()].map((cat) {
+                        final isSel = appState.selectedJournalFilter == cat;
+                        return GestureDetector(
+                          onTap: () => appState.setJournalFilter(cat),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: isSel ? AppColors.primary : Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: isSel ? AppColors.primary : AppColors.cardBorder),
+                            ),
+                            child: Text(
+                              cat,
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: isSel ? FontWeight.bold : FontWeight.w500,
+                                color: isSel ? Colors.white : AppColors.textSecondary,
+                              ),
                             ),
                           ),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
+                        );
+                      }).toList(),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+              ],
 
               if (appState.selectedJournalDate != null)
                 Padding(
@@ -190,6 +195,35 @@ class JournalHomeScreen extends StatelessWidget {
                             ),
                             const Spacer(),
                             Text(dateFormatted, style: AppTextStyles.caption.copyWith(fontSize: 10)),
+                            const SizedBox(width: 4),
+                            PopupMenuButton<String>(
+                              padding: EdgeInsets.zero,
+                              icon: const Icon(Icons.more_vert_rounded, size: 16, color: AppColors.textSecondary),
+                              onSelected: (value) async {
+                                try {
+                                  if (value == 'delete') {
+                                    appState.deleteJournalEntry(entry.id);
+                                    await apiClient.delete('/journal/${entry.id}');
+                                  } else if (value == 'edit') {
+                                    Navigator.push(context, MaterialPageRoute(builder: (context) => NewJournalScreen(editEntry: entry)));
+                                  } else if (value == 'toggle_privacy') {
+                                    await apiClient.put('/journal/${entry.id}', data: {'isPrivate': !entry.isPrivate});
+                                    appState.fetchBackendData();
+                                  }
+                                } catch (e) {
+                                  String msg = 'Action failed';
+                                  if (e is DioException && e.response?.data != null && e.response!.data is Map) {
+                                    msg = e.response!.data['error'] ?? msg;
+                                  }
+                                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+                                  appState.fetchBackendData();
+                                }
+                              },
+                              itemBuilder: (context) => [
+                                PopupMenuItem(value: 'toggle_privacy', child: Text(entry.isPrivate ? 'Make Public' : 'Make Private')),
+                                const PopupMenuItem(value: 'delete', child: Text('Delete', style: TextStyle(color: Colors.red))),
+                              ],
+                            ),
 
                           ],
                         ),

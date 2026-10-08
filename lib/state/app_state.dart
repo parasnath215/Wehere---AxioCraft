@@ -51,13 +51,19 @@ class AppState extends ChangeNotifier {
       final res = await apiClient.get('/users/me');
       if (res.statusCode == 200) {
         final data = res.data;
+        final baseUrl = AppConstants.apiBaseUrl.replaceAll('/api', '');
+        String parsedAvatarUrl = data['avatarUrl'] ?? '';
+        if (parsedAvatarUrl.isNotEmpty && !parsedAvatarUrl.startsWith('http')) {
+          parsedAvatarUrl = baseUrl + parsedAvatarUrl;
+        }
+
         _currentUser = UserProfile(
           id: data['id'],
           name: data['pseudonym'] ?? 'Anonymous',
           age: 18, // Backend doesn't store age yet, mock it
           location: data['location'] ?? '',
           bio: data['bio'] ?? '',
-          avatarUrl: '',
+          avatarUrl: parsedAvatarUrl,
           images: List<String>.from(data['images'] ?? []),
           isVerified: true,
           isOnline: true,
@@ -366,6 +372,7 @@ class AppState extends ChangeNotifier {
           thought: entry['content'],
           gratitude: '', // backend does not have gratitude currently
           category: entry['category'] ?? 'General',
+          isPrivate: entry['isPrivate'] ?? true,
         ));
       }
       
@@ -373,8 +380,9 @@ class AppState extends ChangeNotifier {
       try {
         final meRes = await apiClient.get('/users/me');
         final data = meRes.data;
+        final baseUrl = AppConstants.apiBaseUrl.replaceAll('/api', '');
         final avatar = (data['images'] != null && data['images'].isNotEmpty) 
-          ? '${AppConstants.apiBaseUrl}${data['images'][0]}'
+          ? '$baseUrl${data['images'][0]}'
           : '';
           
         _currentUser = _currentUser.copyWith(
@@ -424,13 +432,19 @@ class AppState extends ChangeNotifier {
              
              // Also ensure matchedUsers has the peer
              if (!_matchedUsers.any((u) => u.id == c['peerId'])) {
+               String pAvatar = c['peerAvatar'] ?? '';
+               if (pAvatar.isNotEmpty && !pAvatar.startsWith('http') && !pAvatar.startsWith('assets/')) {
+                 pAvatar = AppConstants.apiBaseUrl.replaceAll('/api', '') + pAvatar;
+               }
+               if (pAvatar.isEmpty) pAvatar = 'assets/mockups/discover_swipe.jpeg';
+
                _matchedUsers.add(UserProfile(
                  id: c['peerId'],
                  name: c['peerName'],
                  age: 24,
                  location: '',
                  bio: '',
-                 avatarUrl: c['peerAvatar'] ?? 'assets/mockups/discover_swipe.jpeg',
+                 avatarUrl: pAvatar,
                  isVerified: true,
                  isOnline: true,
                  moodStatus: '',
@@ -448,24 +462,35 @@ class AppState extends ChangeNotifier {
       // Fetch Matches
       final discoverRes = await apiClient.get('/match/discover');
       _cards.clear();
-      for (var peer in discoverRes.data) {
+      final List matchesData = discoverRes.data['matches'] ?? [];
+      for (var peer in matchesData) {
+         String pAvatar = peer['avatar'] ?? '';
+         if (pAvatar.isEmpty && peer['images'] != null && (peer['images'] as List).isNotEmpty) {
+           pAvatar = peer['images'][0];
+         }
+         if (pAvatar.isNotEmpty && !pAvatar.startsWith('http') && !pAvatar.startsWith('assets/')) {
+           pAvatar = AppConstants.apiBaseUrl.replaceAll('/api', '') + pAvatar;
+         }
+         if (pAvatar.isEmpty) pAvatar = 'assets/mockups/discover_swipe.jpeg';
+
          _cards.add(MatchCard(
             profile: UserProfile(
               id: peer['id'],
               name: peer['pseudonym'] ?? 'Anonymous',
               age: 24, // Not tracked on backend
-              location: 'Remote',
+              location: peer['location'] ?? 'Remote',
               bio: peer['bio'] ?? '',
-              avatarUrl: peer['avatar'] ?? 'assets/mockups/discover_swipe.jpeg',
+              avatarUrl: pAvatar,
+              images: peer['images'] != null ? List<String>.from(peer['images']) : [],
               isVerified: true,
               isOnline: true,
               moodStatus: '',
-              matchPercentage: 90,
-              interests: [],
-              values: [],
+              matchPercentage: peer['score'] != null ? (peer['score'] * 10).clamp(50, 99).toInt() : 90,
+              interests: peer['interests'] != null ? List<String>.from(peer['interests']) : [],
+              values: peer['supportTypes'] != null ? List<String>.from(peer['supportTypes']) : [],
             ),
             isNewHere: true,
-            commonInterests: [],
+            commonInterests: peer['interests'] != null ? List<String>.from(peer['interests']).take(3).toList() : [],
          ));
       }
       
@@ -770,13 +795,13 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  Future<void> addJournalEntry(String mood, String thought, String gratitude, String category) async {
+  Future<void> addJournalEntry(String mood, String thought, String gratitude, String category, {bool isPrivate = true}) async {
     try {
       final res = await apiClient.post('/journal/create', data: {
         'content': thought,
         'moodScore': 5, // mock mood score calculation
         'category': category,
-        'isPrivate': true,
+        'isPrivate': isPrivate,
       });
 
       final entry = JournalEntry(
@@ -786,6 +811,7 @@ class AppState extends ChangeNotifier {
         thought: thought,
         gratitude: gratitude,
         category: category,
+        isPrivate: isPrivate,
       );
       _journalEntries.insert(0, entry);
       
@@ -1161,6 +1187,7 @@ class AppState extends ChangeNotifier {
           createdAt: _notifications[i].createdAt,
         );
       }
+      _unreadNotifications = 0;
       notifyListeners();
     } catch (e) {
     }
