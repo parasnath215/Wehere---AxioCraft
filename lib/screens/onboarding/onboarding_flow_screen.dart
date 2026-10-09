@@ -314,17 +314,24 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
 
   // STEP 2: Interests (Mockup 1.17.22 AM (2))
   Widget _buildStep2Interests() {
-    final interestsList = [
-      {'name': 'Mental Health', 'icon': Icons.favorite_outline},
-      {'name': 'Personal Growth', 'icon': Icons.eco_outlined},
-      {'name': 'Relationships', 'icon': Icons.people_outline},
-      {'name': 'Education', 'icon': Icons.menu_book_outlined},
-      {'name': 'Career', 'icon': Icons.work_outline},
-      {'name': 'Mindfulness', 'icon': Icons.spa_outlined},
-      {'name': 'Health & Fitness', 'icon': Icons.fitness_center_outlined},
-      {'name': 'Hobbies', 'icon': Icons.palette_outlined},
-      {'name': 'Other', 'icon': Icons.more_horiz_rounded},
+    final appState = Provider.of<AppState>(context);
+    final interestsList = appState.availableInterests.isNotEmpty ? appState.availableInterests.map((e) => e.label).toList() : [
+      'Mental Health', 'Personal Growth', 'Relationships', 'Education', 'Career', 'Mindfulness', 'Health & Fitness', 'Hobbies', 'Other'
     ];
+
+    IconData _getInterestIcon(String name) {
+      switch(name) {
+        case 'Mental Health': return Icons.favorite_outline;
+        case 'Personal Growth': return Icons.eco_outlined;
+        case 'Relationships': return Icons.people_outline;
+        case 'Education': return Icons.menu_book_outlined;
+        case 'Career': return Icons.work_outline;
+        case 'Mindfulness': return Icons.spa_outlined;
+        case 'Health & Fitness': return Icons.fitness_center_outlined;
+        case 'Hobbies': return Icons.palette_outlined;
+        default: return Icons.more_horiz_rounded;
+      }
+    }
 
     return Column(
       children: [
@@ -350,9 +357,8 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
           ),
           itemCount: interestsList.length,
           itemBuilder: (context, index) {
-            final item = interestsList[index];
-            final name = item['name'] as String;
-            final icon = item['icon'] as IconData;
+            final name = interestsList[index];
+            final icon = _getInterestIcon(name);
             final isSelected = _selectedInterests.contains(name);
 
             return GestureDetector(
@@ -414,17 +420,25 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
 
   // STEP 3: Feelings Lately (Mockup 1.17.26 AM)
   Widget _buildStep3Feelings() {
-    final feelings = [
-      {'name': 'Lonely', 'emoji': '😔'},
-      {'name': 'Anxious', 'emoji': '😟'},
-      {'name': 'Stressed', 'emoji': '😫'},
-      {'name': 'Heartbroken', 'emoji': '💔'},
-      {'name': 'Career Pressure', 'emoji': '🎓'},
-      {'name': 'Family Issues', 'emoji': '👥'},
-      {'name': 'Overwhelmed', 'emoji': '🌧️'},
-      {'name': 'Burnout', 'emoji': '🪫'},
-      {'name': 'Self Growth', 'emoji': '🌱'},
+    final appState = Provider.of<AppState>(context);
+    final feelings = appState.availableFeelings.isNotEmpty ? appState.availableFeelings.map((e) => e.label).toList() : [
+      'Lonely', 'Anxious', 'Stressed', 'Heartbroken', 'Career Pressure', 'Family Issues', 'Overwhelmed', 'Burnout', 'Self Growth'
     ];
+
+    String _getFeelingEmoji(String name) {
+      switch(name) {
+        case 'Lonely': return '😔';
+        case 'Anxious': return '😟';
+        case 'Stressed': return '😫';
+        case 'Heartbroken': return '💔';
+        case 'Career Pressure': return '🎓';
+        case 'Family Issues': return '👥';
+        case 'Overwhelmed': return '🌧️';
+        case 'Burnout': return '🪫';
+        case 'Self Growth': return '🌱';
+        default: return '🙂';
+      }
+    }
 
     return Column(
       children: [
@@ -450,9 +464,8 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
           ),
           itemCount: feelings.length,
           itemBuilder: (context, index) {
-            final item = feelings[index];
-            final name = item['name'] as String;
-            final emoji = item['emoji'] as String;
+            final name = feelings[index];
+            final emoji = _getFeelingEmoji(name);
             final isSelected = _selectedFeelings.contains(name);
 
             return GestureDetector(
@@ -514,13 +527,21 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
 
   // STEP 4: What are you looking for? (Mockup 1.17.25 AM (2))
   Widget _buildStep4LookingFor() {
-    final supportOptions = [
-      {'title': 'Someone to Talk To', 'desc': 'I want someone to listen and talk to me.', 'icon': Icons.chat_bubble_outline},
-      {'title': 'New Friends', 'desc': 'I want to make new friends and build meaningful bonds.', 'icon': Icons.people_outline},
-      {'title': 'Emotional Support', 'desc': 'I need support and guidance through tough times.', 'icon': Icons.favorite_border},
-      {'title': 'Accountability Partner', 'desc': 'I want someone to stay motivated and achieve goals together.', 'icon': Icons.track_changes_outlined},
-      {'title': 'Motivation & Positivity', 'desc': 'I want positive vibes and daily motivation.', 'icon': Icons.wb_sunny_outlined},
+    final appState = Provider.of<AppState>(context);
+    final supportOptions = appState.availableSupportTypes.isNotEmpty ? appState.availableSupportTypes.map((e) => e.label).toList() : [
+      'Someone to Talk To', 'New Friends', 'Emotional Support', 'Accountability Partner', 'Motivation & Positivity'
     ];
+
+    Map<String, dynamic> _getSupportDetails(String title) {
+      switch(title) {
+        case 'Someone to Talk To': return {'desc': 'I want someone to listen and talk to me.', 'icon': Icons.chat_bubble_outline};
+        case 'New Friends': return {'desc': 'I want to make new friends and build meaningful bonds.', 'icon': Icons.people_outline};
+        case 'Emotional Support': return {'desc': 'I need support and guidance through tough times.', 'icon': Icons.favorite_border};
+        case 'Accountability Partner': return {'desc': 'I want someone to stay motivated and achieve goals together.', 'icon': Icons.track_changes_outlined};
+        case 'Motivation & Positivity': return {'desc': 'I want positive vibes and daily motivation.', 'icon': Icons.wb_sunny_outlined};
+        default: return {'desc': 'Support from the community.', 'icon': Icons.handshake_outlined};
+      }
+    }
 
     return Column(
       children: [
@@ -535,10 +556,10 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
         const SizedBox(height: 8),
         Text('Choose what best describes you. You can select multiple options.', textAlign: TextAlign.center, style: AppTextStyles.bodyMedium),
         const SizedBox(height: 20),
-        ...supportOptions.map((opt) {
-          final title = opt['title'] as String;
-          final desc = opt['desc'] as String;
-          final icon = opt['icon'] as IconData;
+        ...supportOptions.map((title) {
+          final details = _getSupportDetails(title);
+          final desc = details['desc'] as String;
+          final icon = details['icon'] as IconData;
           final isSelected = _selectedLookingFor.contains(title);
 
           return Padding(

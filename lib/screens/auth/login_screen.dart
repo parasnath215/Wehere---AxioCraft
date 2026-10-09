@@ -7,6 +7,7 @@ import '../../core/routing/app_routes.dart';
 import '../../state/auth_notifier.dart';
 import '../../state/app_state.dart';
 import '../../core/network/api_client.dart';
+import '../../core/utils/ui_utils.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -25,9 +26,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _handleForgotPassword() async {
     final email = _loginController.text.trim();
     if (email.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter your email first.')),
-      );
+      UiUtils.showTopSnackBar(context, 'Please enter your email first.');
       return;
     }
 
@@ -43,9 +42,7 @@ class _LoginScreenState extends State<LoginScreen> {
     } on DioException catch (e) {
       if (mounted) {
         final err = e.response?.data?['error'] ?? 'Failed to request password reset';
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(err), backgroundColor: Colors.redAccent),
-        );
+        UiUtils.showTopSnackBar(context, err);
       }
     } finally {
       if (mounted) {
@@ -61,10 +58,7 @@ class _LoginScreenState extends State<LoginScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
-          onPressed: () => Navigator.pop(context),
-        ),
+        automaticallyImplyLeading: false,
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -193,7 +187,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   hintText: 'Password',
                   suffixIcon: IconButton(
                     icon: Icon(
-                      _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                      _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
                       color: AppColors.textMuted,
                     ),
                     onPressed: () {
@@ -249,19 +243,22 @@ class _LoginScreenState extends State<LoginScreen> {
                       ? null
                       : () async {
                           if (_loginController.text.trim().isEmpty || _passwordController.text.trim().isEmpty) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Please enter email and password'), backgroundColor: Colors.redAccent),
-                            );
+                            UiUtils.showTopSnackBar(context, 'Please enter email and password');
                             return;
                           }
+                          // Email Validation
+                          final emailRegExp = RegExp(r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+-/=?^_`{|}~]+@[a-zA-Z0-9]+\.[a-zA-Z]+");
+                          if (!emailRegExp.hasMatch(_loginController.text.trim())) {
+                            UiUtils.showTopSnackBar(context, 'Please enter a valid email address.');
+                            return;
+                          }
+
                           final success = await context.read<AuthNotifier>().login(_loginController.text.trim(), _passwordController.text.trim());
                           if (success && context.mounted) {
                             context.read<AppState>().setTabIndex(0);
                             Navigator.pushNamedAndRemoveUntil(context, AppRoutes.main, (route) => false);
                           } else if (context.mounted && context.read<AuthNotifier>().authError != null) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text(context.read<AuthNotifier>().authError!), backgroundColor: Colors.redAccent),
-                            );
+                            UiUtils.showTopSnackBar(context, context.read<AuthNotifier>().authError!);
                           }
                         },
                   child: auth.isLoading

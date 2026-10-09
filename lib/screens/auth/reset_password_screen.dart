@@ -3,6 +3,7 @@ import 'package:dio/dio.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/network/api_client.dart';
+import '../../core/utils/ui_utils.dart';
 
 class ResetPasswordScreen extends StatefulWidget {
   final String email;
@@ -30,9 +31,12 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     final otp = _otpController.text.trim();
     final password = _passwordController.text;
     if (otp.length != 6 || password.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a valid 6-digit code and password.')),
-      );
+      UiUtils.showTopSnackBar(context, 'Please enter a valid 6-digit code and password.');
+      return;
+    }
+    final passRegExp = RegExp(r'^(?=.*[0-9])(?=.*[!@#\$&*~]).{8,}$');
+    if (!passRegExp.hasMatch(password)) {
+      UiUtils.showTopSnackBar(context, 'Password must be at least 8 chars long, include a number and a special character.');
       return;
     }
 
@@ -46,17 +50,13 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
       });
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Password updated successfully! ✨'), backgroundColor: AppColors.onlineGreen),
-        );
+        UiUtils.showTopSnackBar(context, 'Password updated successfully! ✨', isError: false);
         Navigator.pop(context); // Go back to login screen
       }
     } on DioException catch (e) {
       if (mounted) {
         final err = e.response?.data?['error'] ?? 'Failed to reset password';
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(err), backgroundColor: Colors.redAccent),
-        );
+        UiUtils.showTopSnackBar(context, err);
       }
     } finally {
       if (mounted) {
@@ -107,7 +107,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                   hintText: 'New Password',
                   suffixIcon: IconButton(
                     icon: Icon(
-                      _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                      _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
                       color: AppColors.textMuted,
                     ),
                     onPressed: () {

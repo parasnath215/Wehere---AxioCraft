@@ -594,11 +594,7 @@ class _NewJournalScreenState extends State<NewJournalScreen> {
       Navigator.pop(context);
     } else {
       appState.addJournalEntry(_selectedMood, entry.thought, gratitude, _selectedCategory, isPrivate: _isPrivateOnly);
-
-      // If opted into sharing to community circles anonymously
-      if (!_isPrivateOnly) {
-        appState.addCommunityPost(_selectedCategory, entry.thought);
-      }
+      // Community post is automatically created by backend if !isPrivateOnly
 
       Navigator.pushReplacementNamed(
         context,

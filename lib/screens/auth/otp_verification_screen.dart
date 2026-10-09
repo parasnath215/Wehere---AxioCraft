@@ -7,6 +7,7 @@ import '../../core/theme/app_text_styles.dart';
 import '../../core/routing/app_routes.dart';
 import '../../state/auth_notifier.dart';
 import '../../state/app_state.dart';
+import '../../core/utils/ui_utils.dart';
 import '../../core/network/api_client.dart';
 
 class OtpVerificationScreen extends StatefulWidget {
@@ -300,6 +301,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> with Widg
               TextButton(
                 onPressed: () {
                   auth.logout();
+                  Navigator.pushNamedAndRemoveUntil(context, AppRoutes.login, (route) => false);
                 },
                 child: Text(
                   'Change Email',
@@ -319,9 +321,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> with Widg
   Future<void> _verifySubmit(BuildContext context, AuthNotifier auth) async {
     final pin = _controllers.map((c) => c.text).join();
     if (pin.length < 6) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter all 6 digits.'), backgroundColor: Colors.redAccent),
-      );
+      UiUtils.showTopSnackBar(context, 'Please enter all 6 digits.');
       return;
     }
     
@@ -338,9 +338,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> with Widg
       );
       Navigator.pushReplacementNamed(context, AppRoutes.onboarding);
     } else if (context.mounted && auth.authError != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(auth.authError!), backgroundColor: Colors.redAccent),
-      );
+      UiUtils.showTopSnackBar(context, auth.authError!);
     }
   }
 }

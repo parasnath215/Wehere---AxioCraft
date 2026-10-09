@@ -362,19 +362,21 @@ class AppState extends ChangeNotifier {
       } catch(e) {
       }
       // Fetch Journals
-      final journalRes = await apiClient.get('/journal');
-      _journalEntries.clear();
-      for (var entry in journalRes.data) {
-        _journalEntries.add(JournalEntry(
-          id: entry['id'],
-          date: DateTime.parse(entry['createdAt']),
-          mood: entry['moodScore'].toString(),
-          thought: entry['content'],
-          gratitude: '', // backend does not have gratitude currently
-          category: entry['category'] ?? 'General',
-          isPrivate: entry['isPrivate'] ?? true,
-        ));
-      }
+      try {
+        final journalRes = await apiClient.get('/journal');
+        _journalEntries.clear();
+        for (var entry in journalRes.data) {
+          _journalEntries.add(JournalEntry(
+            id: entry['id'],
+            date: DateTime.parse(entry['createdAt']),
+            mood: entry['moodScore'].toString(),
+            thought: entry['content'],
+            gratitude: '', // backend does not have gratitude currently
+            category: entry['category'] ?? 'General',
+            isPrivate: entry['isPrivate'] ?? true,
+          ));
+        }
+      } catch (e) {}
       
       // Fetch User Profile
       try {
@@ -460,40 +462,41 @@ class AppState extends ChangeNotifier {
       }
 
       // Fetch Matches
-      final discoverRes = await apiClient.get('/match/discover');
-      _cards.clear();
-      final List matchesData = discoverRes.data['matches'] ?? [];
-      for (var peer in matchesData) {
-         String pAvatar = peer['avatar'] ?? '';
-         if (pAvatar.isEmpty && peer['images'] != null && (peer['images'] as List).isNotEmpty) {
-           pAvatar = peer['images'][0];
-         }
-         if (pAvatar.isNotEmpty && !pAvatar.startsWith('http') && !pAvatar.startsWith('assets/')) {
-           pAvatar = AppConstants.apiBaseUrl.replaceAll('/api', '') + pAvatar;
-         }
-         if (pAvatar.isEmpty) pAvatar = 'assets/mockups/discover_swipe.jpeg';
+      try {
+        final discoverRes = await apiClient.get('/match/discover');
+        _cards.clear();
+        final List matchesData = discoverRes.data['matches'] ?? [];
+        for (var peer in matchesData) {
+           String pAvatar = peer['avatar'] ?? '';
+           if (pAvatar.isEmpty && peer['images'] != null && (peer['images'] as List).isNotEmpty) {
+             pAvatar = peer['images'][0];
+           }
+           if (pAvatar.isNotEmpty && !pAvatar.startsWith('http') && !pAvatar.startsWith('assets/')) {
+             pAvatar = AppConstants.apiBaseUrl.replaceAll('/api', '') + pAvatar;
+           }
+           if (pAvatar.isEmpty) pAvatar = 'assets/mockups/discover_swipe.jpeg';
 
-         _cards.add(MatchCard(
-            profile: UserProfile(
-              id: peer['id'],
-              name: peer['pseudonym'] ?? 'Anonymous',
-              age: 24, // Not tracked on backend
-              location: peer['location'] ?? 'Remote',
-              bio: peer['bio'] ?? '',
-              avatarUrl: pAvatar,
-              images: peer['images'] != null ? List<String>.from(peer['images']) : [],
-              isVerified: true,
-              isOnline: true,
-              moodStatus: '',
-              matchPercentage: peer['score'] != null ? (peer['score'] * 10).clamp(50, 99).toInt() : 90,
-              interests: peer['interests'] != null ? List<String>.from(peer['interests']) : [],
-              values: peer['supportTypes'] != null ? List<String>.from(peer['supportTypes']) : [],
-            ),
-            isNewHere: true,
-            commonInterests: peer['interests'] != null ? List<String>.from(peer['interests']).take(3).toList() : [],
-         ));
-      }
-      
+           _cards.add(MatchCard(
+              profile: UserProfile(
+                id: peer['id'],
+                name: peer['pseudonym'] ?? 'Anonymous',
+                age: 24, // Not tracked on backend
+                location: peer['location'] ?? 'Remote',
+                bio: peer['bio'] ?? '',
+                avatarUrl: pAvatar,
+                images: peer['images'] != null ? List<String>.from(peer['images']) : [],
+                isVerified: true,
+                isOnline: true,
+                moodStatus: '',
+                matchPercentage: peer['score'] != null ? (peer['score'] * 10).clamp(50, 99).toInt() : 90,
+                interests: peer['interests'] != null ? List<String>.from(peer['interests']) : [],
+                values: peer['supportTypes'] != null ? List<String>.from(peer['supportTypes']) : [],
+              ),
+              isNewHere: true,
+              commonInterests: peer['interests'] != null ? List<String>.from(peer['interests']).take(3).toList() : [],
+           ));
+        }
+      } catch (e) {}      
       // Fetch Community Posts
       try {
         final communityRes = await apiClient.get('/community');
@@ -814,6 +817,21 @@ class AppState extends ChangeNotifier {
         isPrivate: isPrivate,
       );
       _journalEntries.insert(0, entry);
+
+      if (!isPrivate) {
+        _communityPosts.insert(0, CommunityPost(
+          id: res.data['entry']['id'], // Just using the same ID for now since we don't return the community post ID
+          authorName: _currentUser.isAnonymous ? 'Anonymous' : _currentUser.name,
+          authorBadge: _currentUser.isAnonymous ? 'Anonymous Peer' : 'Member',
+          authorAvatar: _currentUser.isAnonymous ? '' : _currentUser.avatarUrl,
+          timeAgo: 'Just now',
+          topic: category,
+          content: thought,
+          likesCount: 0,
+          commentsCount: 0,
+          isLiked: false,
+        ));
+      }
       
       // Update XP from backend
       if (res.data['user'] != null) {

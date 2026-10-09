@@ -54,7 +54,10 @@ class AuthNotifier extends ChangeNotifier {
       final token = await _storage.read(key: 'jwt_token');
       final savedId = await _storage.read(key: 'user_id');
       final savedEmail = await _storage.read(key: 'user_email');
+      final seenWalkthroughStr = await _storage.read(key: 'has_seen_walkthrough');
       
+      _hasSeenWalkthrough = seenWalkthroughStr == 'true';
+
       if (token != null && savedId != null) {
         _userId = savedId;
         _registeredEmail = savedEmail ?? '';
@@ -73,7 +76,6 @@ class AuthNotifier extends ChangeNotifier {
            _hasCompletedOnboarding = savedOnboarding == 'true';
         }
 
-        _hasSeenWalkthrough = true;
       } else {
         _status = AuthStatus.unauthenticated;
       }
@@ -224,8 +226,9 @@ class AuthNotifier extends ChangeNotifier {
     }
   }
 
-  void markWalkthroughSeen() {
+  Future<void> markWalkthroughSeen() async {
     _hasSeenWalkthrough = true;
+    await _storage.write(key: 'has_seen_walkthrough', value: 'true');
     notifyListeners();
   }
 
