@@ -1,12 +1,11 @@
 import 'dart:async';
 import 'package:dio/dio.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../utils/storage_helper.dart';
 
 enum AuthEvent { loggedOut, emailNotVerified }
 
 class ApiClient {
   late final Dio dio;
-  final FlutterSecureStorage _storage = const FlutterSecureStorage();
   
   final StreamController<AuthEvent> _authEventController = StreamController.broadcast();
   Stream<AuthEvent> get authEventStream => _authEventController.stream;
@@ -23,7 +22,7 @@ class ApiClient {
 
     dio.interceptors.add(InterceptorsWrapper(
       onRequest: (options, handler) async {
-        final token = await _storage.read(key: 'jwt_token');
+        final token = await StorageHelper.read(key: 'jwt_token');
         if (token != null) {
           options.headers['Authorization'] = 'Bearer $token';
         }
@@ -31,14 +30,14 @@ class ApiClient {
       },
       onError: (DioException e, handler) async {
         if (e.response?.statusCode == 401) {
-          await _storage.delete(key: 'jwt_token');
+          await StorageHelper.delete(key: 'jwt_token');
           _authEventController.add(AuthEvent.loggedOut);
         } else if (e.response?.statusCode == 403) {
           final errorMsg = e.response?.data?['error'];
           if (errorMsg == 'EMAIL_NOT_VERIFIED') {
             _authEventController.add(AuthEvent.emailNotVerified);
           } else {
-            await _storage.delete(key: 'jwt_token');
+            await StorageHelper.delete(key: 'jwt_token');
             _authEventController.add(AuthEvent.loggedOut);
           }
         }

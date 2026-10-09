@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../core/utils/storage_helper.dart';
 import '../core/network/api_client.dart';
 import 'package:dio/dio.dart';
 
@@ -16,7 +16,7 @@ class AuthNotifier extends ChangeNotifier {
   String? _authError;
   bool _isLoading = false;
 
-  final FlutterSecureStorage _storage = const FlutterSecureStorage();
+  final 
   late StreamSubscription _authSubscription;
 
   AuthNotifier() {
@@ -51,10 +51,10 @@ class AuthNotifier extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final token = await _storage.read(key: 'jwt_token');
-      final savedId = await _storage.read(key: 'user_id');
-      final savedEmail = await _storage.read(key: 'user_email');
-      final seenWalkthroughStr = await _storage.read(key: 'has_seen_walkthrough');
+      final token = await StorageHelper.read(key: 'jwt_token');
+      final savedId = await StorageHelper.read(key: 'user_id');
+      final savedEmail = await StorageHelper.read(key: 'user_email');
+      final seenWalkthroughStr = await StorageHelper.read(key: 'has_seen_walkthrough');
       
       _hasSeenWalkthrough = seenWalkthroughStr == 'true';
 
@@ -68,11 +68,11 @@ class AuthNotifier extends ChangeNotifier {
           final isVerified = res.data['emailVerified'] == true || res.data['isAnonymous'] == true;
           _status = isVerified ? AuthStatus.authenticated : AuthStatus.unverified;
           
-          final savedOnboarding = await _storage.read(key: 'onboarding_completed');
+          final savedOnboarding = await StorageHelper.read(key: 'onboarding_completed');
           _hasCompletedOnboarding = savedOnboarding == 'true' || res.data['interests']?.isNotEmpty == true;
         } catch (e) {
            _status = AuthStatus.authenticated; // optimistic, interceptor will downgrade if 403
-           final savedOnboarding = await _storage.read(key: 'onboarding_completed');
+           final savedOnboarding = await StorageHelper.read(key: 'onboarding_completed');
            _hasCompletedOnboarding = savedOnboarding == 'true';
         }
 
@@ -99,9 +99,9 @@ class AuthNotifier extends ChangeNotifier {
       final token = response.data['token'];
       final user = response.data['user'];
 
-      await _storage.write(key: 'jwt_token', value: token);
-      await _storage.write(key: 'user_id', value: user['id']);
-      await _storage.write(key: 'user_email', value: user['email']);
+      await StorageHelper.write(key: 'jwt_token', value: token);
+      await StorageHelper.write(key: 'user_id', value: user['id']);
+      await StorageHelper.write(key: 'user_email', value: user['email']);
 
       _userId = user['id'];
       _registeredEmail = user['email'];
@@ -109,7 +109,7 @@ class AuthNotifier extends ChangeNotifier {
       final isVerified = user['emailVerified'] == true || user['role'] == 'ADMIN';
       _status = isVerified ? AuthStatus.authenticated : AuthStatus.unverified;
       
-      final savedOnboarding = await _storage.read(key: 'onboarding_completed');
+      final savedOnboarding = await StorageHelper.read(key: 'onboarding_completed');
       _hasCompletedOnboarding = savedOnboarding == 'true' || (user['interests'] != null && user['interests'].isNotEmpty);
       
       _isLoading = false;
@@ -161,9 +161,9 @@ class AuthNotifier extends ChangeNotifier {
       final token = response.data['token'];
       final user = response.data['user'];
 
-      await _storage.write(key: 'jwt_token', value: token);
-      await _storage.write(key: 'user_id', value: user['id']);
-      await _storage.write(key: 'user_email', value: user['email']);
+      await StorageHelper.write(key: 'jwt_token', value: token);
+      await StorageHelper.write(key: 'user_id', value: user['id']);
+      await StorageHelper.write(key: 'user_email', value: user['email']);
 
       _userId = user['id'];
       _registeredEmail = user['email'];
@@ -177,12 +177,12 @@ class AuthNotifier extends ChangeNotifier {
       notifyListeners();
       return true;
     } on DioException catch (e) {
-      _authError = e.response?.data?['error'] ?? 'Registration failed';
+      _authError = e.response?.data?['error'] ?? 'Registration failed: ${e.message}';
       _isLoading = false;
       notifyListeners();
       return false;
     } catch (e) {
-      _authError = 'An unexpected error occurred';
+      _authError = 'An unexpected error occurred: ${e.toString()}';
       _isLoading = false;
       notifyListeners();
       return false;
@@ -228,7 +228,7 @@ class AuthNotifier extends ChangeNotifier {
 
   Future<void> markWalkthroughSeen() async {
     _hasSeenWalkthrough = true;
-    await _storage.write(key: 'has_seen_walkthrough', value: 'true');
+    await StorageHelper.write(key: 'has_seen_walkthrough', value: 'true');
     notifyListeners();
   }
 
@@ -252,7 +252,7 @@ class AuthNotifier extends ChangeNotifier {
         'supportTypes': supportTypes,
         'isAnonymous': isAnonymous,
       });
-      await _storage.write(key: 'onboarding_completed', value: 'true');
+      await StorageHelper.write(key: 'onboarding_completed', value: 'true');
       _hasCompletedOnboarding = true;
     } catch (e) {
       _authError = 'Failed to save onboarding preferences';
@@ -263,9 +263,9 @@ class AuthNotifier extends ChangeNotifier {
   }
 
   Future<void> logout() async {
-    await _storage.delete(key: 'jwt_token');
-    await _storage.delete(key: 'user_id');
-    await _storage.delete(key: 'user_email');
+    await StorageHelper.delete(key: 'jwt_token');
+    await StorageHelper.delete(key: 'user_id');
+    await StorageHelper.delete(key: 'user_email');
     _userId = null;
     _status = AuthStatus.unauthenticated;
     _hasCompletedOnboarding = false;

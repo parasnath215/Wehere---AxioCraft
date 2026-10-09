@@ -9,7 +9,7 @@ import '../models/emergency_contact.dart';
 import '../core/network/api_client.dart';
 import 'package:socket_io_client/socket_io_client.dart' as io;
 import '../core/constants/app_constants.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../core/utils/storage_helper.dart';
 import '../models/notification.dart';
 import '../models/config_options.dart';
 
@@ -330,8 +330,7 @@ class AppState extends ChangeNotifier {
     isLoadingData = true;
     notifyListeners();
     try {
-      const storage = FlutterSecureStorage();
-      final token = await storage.read(key: 'jwt_token');
+      final token = await StorageHelper.read(key: 'jwt_token');
       if (token != null) {
         initSocket(token);
       }
