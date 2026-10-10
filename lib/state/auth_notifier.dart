@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import '../core/utils/storage_helper.dart';
 import '../core/network/api_client.dart';
@@ -145,9 +146,12 @@ class AuthNotifier extends ChangeNotifier {
 
       if (imagePaths != null && imagePaths.isNotEmpty) {
         for (var path in imagePaths) {
+          final file = File(path);
+          final bytes = await file.readAsBytes();
+          final fileName = path.split(Platform.pathSeparator).last;
           formData.files.add(MapEntry(
             'images',
-            await MultipartFile.fromFile(path),
+            MultipartFile.fromBytes(bytes, filename: fileName),
           ));
         }
       }
