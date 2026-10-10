@@ -115,7 +115,7 @@ router.get('/users/:id/analytics', async (req, res, next) => {
         pseudonym: true,
         role: true,
         createdAt: true,
-        lastLoginAt: true,
+        lastLoginDate: true,
         isBanned: true,
       }
     });

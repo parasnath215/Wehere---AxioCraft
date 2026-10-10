@@ -86,7 +86,7 @@ model JournalEntry {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user   User   @relation(fields: [userId], references: [id])
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId String
 
   @@index([userId])
@@ -100,10 +100,10 @@ model Match {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  userA   User   @relation("MatchesInitiated", fields: [userAId], references: [id])
+  userA   User   @relation("MatchesInitiated", fields: [userAId], references: [id], onDelete: Cascade)
   userAId String
 
-  userB   User   @relation("MatchesReceived", fields: [userBId], references: [id])
+  userB   User   @relation("MatchesReceived", fields: [userBId], references: [id], onDelete: Cascade)
   userBId String
 
   conversation Conversation?
@@ -118,7 +118,7 @@ model Conversation {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  match   Match  @relation(fields: [matchId], references: [id])
+  match   Match  @relation(fields: [matchId], references: [id], onDelete: Cascade)
   matchId String @unique
 
   messages Message[]
@@ -130,10 +130,10 @@ model Message {
   createdAt      DateTime @default(now())
   isRead         Boolean  @default(false)
   
-  conversation   Conversation @relation(fields: [conversationId], references: [id])
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   conversationId String
 
-  sender   User   @relation(fields: [senderId], references: [id])
+  sender   User   @relation(fields: [senderId], references: [id], onDelete: Cascade)
   senderId String
 }
 
@@ -142,7 +142,7 @@ model DailyMood {
   mood      String
   createdAt DateTime @default(now())
   
-  user      User     @relation(fields: [userId], references: [id])
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId    String
 
   @@index([userId])
@@ -157,7 +157,7 @@ model CommunityPost {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  author      User     @relation(fields: [authorId], references: [id])
+  author      User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
   authorId    String
   comments    Comment[]
   likes       PostLike[]
@@ -168,10 +168,10 @@ model Comment {
   content     String
   createdAt   DateTime @default(now())
 
-  post        CommunityPost @relation(fields: [postId], references: [id])
+  post        CommunityPost @relation(fields: [postId], references: [id], onDelete: Cascade)
   postId      String
 
-  author      User   @relation(fields: [authorId], references: [id])
+  author      User   @relation(fields: [authorId], references: [id], onDelete: Cascade)
   authorId    String
 }
 
@@ -184,7 +184,7 @@ model WellnessGoal {
   isCompleted   Boolean  @default(false)
   createdAt     DateTime @default(now())
 
-  user          User     @relation(fields: [userId], references: [id])
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId        String
 }
 
@@ -195,7 +195,7 @@ model EmergencyContact {
   relationship  String?
   createdAt     DateTime @default(now())
 
-  user          User     @relation(fields: [userId], references: [id])
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId        String
 }
 
@@ -204,10 +204,10 @@ model Swipe {
   isRight   Boolean
   createdAt DateTime @default(now())
 
-  swiper    User   @relation("SwipesInitiated", fields: [swiperId], references: [id])
+  swiper    User   @relation("SwipesInitiated", fields: [swiperId], references: [id], onDelete: Cascade)
   swiperId  String
 
-  swiped    User   @relation("SwipesReceived", fields: [swipedId], references: [id])
+  swiped    User   @relation("SwipesReceived", fields: [swipedId], references: [id], onDelete: Cascade)
   swipedId  String
 
   @@unique([swiperId, swipedId])
@@ -223,7 +223,7 @@ model Notification {
   isRead    Boolean  @default(false)
   createdAt DateTime @default(now())
 
-  user      User     @relation(fields: [userId], references: [id])
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId    String
 
   @@index([userId])
@@ -233,10 +233,10 @@ model Block {
   id        String   @id @default(uuid())
   createdAt DateTime @default(now())
 
-  blocker   User   @relation("BlocksInitiated", fields: [blockerId], references: [id])
+  blocker   User   @relation("BlocksInitiated", fields: [blockerId], references: [id], onDelete: Cascade)
   blockerId String
 
-  blocked   User   @relation("BlocksReceived", fields: [blockedId], references: [id])
+  blocked   User   @relation("BlocksReceived", fields: [blockedId], references: [id], onDelete: Cascade)
   blockedId String
 
   @@unique([blockerId, blockedId])
@@ -250,10 +250,10 @@ model Report {
   status           String   @default("pending") // pending, reviewed, resolved
   createdAt        DateTime @default(now())
 
-  reporter   User   @relation("ReportsSubmitted", fields: [reporterId], references: [id])
+  reporter   User   @relation("ReportsSubmitted", fields: [reporterId], references: [id], onDelete: Cascade)
   reporterId String
 
-  reported   User   @relation("ReportsReceived", fields: [reportedId], references: [id])
+  reported   User   @relation("ReportsReceived", fields: [reportedId], references: [id], onDelete: Cascade)
   reportedId String
 }
 
