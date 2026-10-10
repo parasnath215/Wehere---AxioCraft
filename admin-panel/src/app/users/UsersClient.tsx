@@ -6,6 +6,8 @@ import Link from 'next/link';
 export default function UsersClient({ initialUsers }: { initialUsers: any[] }) {
   const [users, setUsers] = useState(initialUsers);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<any>(null);
   const [newUser, setNewUser] = useState({ email: '', password: '', pseudonym: '', role: 'USER' });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -45,6 +47,37 @@ export default function UsersClient({ initialUsers }: { initialUsers: any[] }) {
     } catch (err) {
       console.error(err);
       alert('Error adding user');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleEditUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingUser) return;
+    setIsSubmitting(true);
+    try {
+      const res = await fetch(`/api/admin/users/${editingUser.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: editingUser.email,
+          pseudonym: editingUser.pseudonym,
+          role: editingUser.role
+        })
+      });
+      if (res.ok) {
+        const updatedUser = await res.json();
+        setUsers(users.map(u => u.id === updatedUser.id ? { ...u, ...updatedUser } : u));
+        setIsEditModalOpen(false);
+        setEditingUser(null);
+      } else {
+        const err = await res.json();
+        alert(err.error || 'Failed to update user');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Error updating user');
     } finally {
       setIsSubmitting(false);
     }
@@ -104,7 +137,7 @@ export default function UsersClient({ initialUsers }: { initialUsers: any[] }) {
                       <td className="px-8 py-5 text-gray-400">{new Date(user.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</td>
                       <td className="px-8 py-5 text-right space-x-2">
                         <Link href={`/users/${user.id}`} className="text-blue-400 hover:text-blue-300 font-medium px-3 py-1.5 rounded-lg hover:bg-blue-500/10 transition-colors inline-block">Analytics</Link>
-                        <button className="text-indigo-400 hover:text-indigo-300 font-medium px-3 py-1.5 rounded-lg hover:bg-indigo-500/10 transition-colors">Edit</button>
+                        <button onClick={() => { setEditingUser(user); setIsEditModalOpen(true); }} className="text-indigo-400 hover:text-indigo-300 font-medium px-3 py-1.5 rounded-lg hover:bg-indigo-500/10 transition-colors">Edit</button>
                         <button onClick={() => handleDelete(user.id)} className="text-red-400 hover:text-red-300 font-medium px-3 py-1.5 rounded-lg hover:bg-red-500/10 transition-colors">Delete</button>
                       </td>
                     </tr>
@@ -144,6 +177,37 @@ export default function UsersClient({ initialUsers }: { initialUsers: any[] }) {
                 <button type="button" onClick={() => setIsAddModalOpen(false)} className="flex-1 px-4 py-2.5 text-gray-400 hover:text-white bg-white/5 hover:bg-white/10 rounded-xl transition-colors font-medium">Cancel</button>
                 <button type="submit" disabled={isSubmitting} className="flex-1 bg-indigo-600 text-white px-4 py-2.5 rounded-xl font-medium shadow-lg shadow-indigo-600/20 hover:bg-indigo-500 disabled:opacity-50 transition-colors">
                   {isSubmitting ? 'Adding...' : 'Add User'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {isEditModalOpen && editingUser && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-[#1a1d27] border border-white/10 rounded-2xl p-8 max-w-md w-full shadow-2xl">
+            <h3 className="text-xl font-bold text-white mb-6">Edit User</h3>
+            <form onSubmit={handleEditUser} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-1">Email</label>
+                <input required type="email" value={editingUser.email || ''} onChange={e => setEditingUser({...editingUser, email: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-1">Pseudonym</label>
+                <input required type="text" value={editingUser.pseudonym || ''} onChange={e => setEditingUser({...editingUser, pseudonym: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-1">Role</label>
+                <select value={editingUser.role} onChange={e => setEditingUser({...editingUser, role: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                  <option value="USER">USER</option>
+                  <option value="ADMIN">ADMIN</option>
+                </select>
+              </div>
+              <div className="flex gap-4 pt-4">
+                <button type="button" onClick={() => { setIsEditModalOpen(false); setEditingUser(null); }} className="flex-1 px-4 py-2.5 text-gray-400 hover:text-white bg-white/5 hover:bg-white/10 rounded-xl transition-colors font-medium">Cancel</button>
+                <button type="submit" disabled={isSubmitting} className="flex-1 bg-indigo-600 text-white px-4 py-2.5 rounded-xl font-medium shadow-lg shadow-indigo-600/20 hover:bg-indigo-500 disabled:opacity-50 transition-colors">
+                  {isSubmitting ? 'Saving...' : 'Save Changes'}
                 </button>
               </div>
             </form>
