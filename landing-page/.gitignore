@@ -3,3 +3,5 @@ node_modules
 preview_docx.py
 replace_icons.js
 generate_policy_pages.js
+fix_icons.js
+update_socials.js

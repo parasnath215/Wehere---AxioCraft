@@ -2,14 +2,14 @@
 <html class="scroll-smooth" lang="en">
 <head>
 <meta charset="utf-8">
-<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport">
 <title>Privacy Policy | Wehere</title>
 <!-- Google Fonts & Material Symbols -->
 <link href="https://fonts.googleapis.com" rel="preconnect">
 <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,700;1,9..40,400&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet">
 <!-- Tailwind CSS -->
-<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script src="https://cdn.tailwindcss.com?plugins=forms"></script>
 <script id="tailwind-config">
   tailwind.config = {
     darkMode: "class",
@@ -73,23 +73,53 @@
     vertical-align: middle;
     line-height: 1;
     user-select: none;
+    -webkit-user-select: none;
   }
   .material-symbols-rounded.fill {
     font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
   }
-  .reveal { opacity: 0; transform: translateY(28px); transition: opacity 0.65s ease, transform 0.65s ease; }
-  .reveal.visible { opacity: 1; transform: translateY(0); }
+
+  /* Safari/WebKit backdrop-filter support */
+  header, .backdrop-blur-xl {
+    -webkit-backdrop-filter: blur(24px);
+    backdrop-filter: blur(24px);
+  }
+
+  /* Safari touch scrolling */
+  html, body {
+    max-width: 100%;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Progressive Enhancement for Reveal Animations:
+     Default visible so Safari never renders a blank screen */
+  .reveal {
+    opacity: 1;
+    transform: none;
+    transition: opacity 0.65s cubic-bezier(0.16, 1, 0.3, 1), transform 0.65s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    html.js-ready .reveal:not(.visible) {
+      opacity: 0;
+      transform: translateY(24px);
+    }
+    html.js-ready .reveal.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
   .reveal-delay-1 { transition-delay: 0.1s; }
   .reveal-delay-2 { transition-delay: 0.2s; }
 </style>
-  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://unpkg.com/lucide@latest" defer></script>
 </head>
 <body class="bg-background text-on-surface font-sans antialiased overflow-x-hidden flex flex-col min-h-screen">
 
 <!-- Ambient Background Blobs -->
-<div class="fixed inset-0 pointer-events-none -z-10 overflow-hidden">
-  <div class="absolute -top-40 -left-40 w-[500px] h-[500px] rounded-full bg-secondary-fixed/50 blur-[140px]"></div>
-  <div class="absolute top-1/2 -right-40 w-[600px] h-[600px] rounded-full bg-surface-container-high/60 blur-[160px]"></div>
+<div class="fixed inset-0 pointer-events-none -z-10 overflow-hidden" style="-webkit-transform: translate3d(0,0,0); transform: translate3d(0,0,0);">
+  <div class="absolute -top-40 -left-40 w-[500px] h-[500px] rounded-full bg-secondary-fixed/50 blur-[80px] pointer-events-none"></div>
+  <div class="absolute top-1/2 -right-40 w-[600px] h-[600px] rounded-full bg-surface-container-high/60 blur-[90px] pointer-events-none"></div>
 </div>
 
 <!-- ═══════════════════════════ NAVBAR ═══════════════════════════ -->
@@ -508,11 +538,53 @@
 </footer>
 
 <script>
+  // Mark JS ready for smooth animations
+  document.documentElement.classList.add('js-ready');
+
   document.getElementById('mobile-menu-btn')?.addEventListener('click', () => {
     document.getElementById('mobile-menu')?.classList.toggle('hidden');
   });
-</script>
 
-  <script>lucide.createIcons();</script>
+  const revealElements = document.querySelectorAll('.reveal');
+  if ('IntersectionObserver' in window) {
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          e.target.classList.add('visible');
+          observer.unobserve(e.target);
+        }
+      });
+    }, { threshold: 0.05, rootMargin: '0px 0px 50px 0px' });
+
+    revealElements.forEach(el => {
+      const rect = el.getBoundingClientRect();
+      if (rect.top < window.innerHeight) {
+        el.classList.add('visible');
+      } else {
+        observer.observe(el);
+      }
+    });
+  } else {
+    revealElements.forEach(el => el.classList.add('visible'));
+  }
+
+  // Fallback safety timeout
+  setTimeout(() => {
+    revealElements.forEach(el => el.classList.add('visible'));
+  }, 1000);
+
+  // Safe Lucide initialization
+  function initLucide() {
+    if (typeof lucide !== 'undefined' && lucide.createIcons) {
+      lucide.createIcons();
+    }
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initLucide);
+  } else {
+    initLucide();
+  }
+  window.addEventListener('load', initLucide);
+</script>
 </body>
 </html>
