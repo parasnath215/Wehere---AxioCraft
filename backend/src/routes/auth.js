@@ -72,23 +72,84 @@ router.post('/signup', upload.array('images', 6), async (req, res) => {
       return res.status(400).json({ error: 'At least 2 profile images are required.' });
     }
     const { email, password, pseudonym } = signupSchema.parse(req.body);
+    const normalizedEmail = email.toLowerCase().trim();
+
+    // Check if user already exists
+    const existingUser = await prisma.user.findFirst({
+      where: { email: normalizedEmail }
+    });
+
+    if (existingUser && existingUser.emailVerified) {
+      return res.status(400).json({ error: 'This email is already registered and verified. Please log in.' });
+    }
     
     const imagePaths = await Promise.all(req.files.map(f => processAndSaveImage(f.buffer)));
     const hashedPassword = await bcrypt.hash(password, 10);
     
-    const user = await prisma.user.create({
-      data: {
-        email,
-        password: hashedPassword,
-        pseudonym: pseudonym || 'Anonymous',
-        images: imagePaths,
-        isAnonymous: false,
-      },
+    // Ensure handle/pseudonym is strictly unique for every user
+    let desiredPseudonym = (pseudonym && pseudonym.trim().isNotEmpty) ? pseudonym.trim() : 'user';
+    let uniqueHandle = desiredPseudonym;
+    let handleExists = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { pseudonym: uniqueHandle },
+          { username: uniqueHandle }
+        ],
+        NOT: existingUser ? { id: existingUser.id } : undefined
+      }
     });
+
+    while (handleExists) {
+      uniqueHandle = `${desiredPseudonym}_${crypto.randomInt(1000, 9999)}`;
+      handleExists = await prisma.user.findFirst({
+        where: {
+          OR: [
+            { pseudonym: uniqueHandle },
+            { username: uniqueHandle }
+          ],
+          NOT: existingUser ? { id: existingUser.id } : undefined
+        }
+      });
+    }
+
+    let user;
+    if (existingUser && !existingUser.emailVerified) {
+      // If user started registration before but never completed email verification:
+      // Update their pending record so they can verify with the fresh OTP!
+      user = await prisma.user.update({
+        where: { id: existingUser.id },
+        data: {
+          email: normalizedEmail,
+          password: hashedPassword,
+          pseudonym: uniqueHandle,
+          username: uniqueHandle,
+          images: imagePaths,
+          isAnonymous: false,
+          emailVerified: false,
+        }
+      });
+      // Invalidate any older OTPs for this user
+      await prisma.otpRecord.updateMany({
+        where: { userId: user.id, purpose: 'verify_email', usedAt: null },
+        data: { usedAt: new Date() }
+      });
+    } else {
+      user = await prisma.user.create({
+        data: {
+          email: normalizedEmail,
+          password: hashedPassword,
+          pseudonym: uniqueHandle,
+          username: uniqueHandle,
+          images: imagePaths,
+          isAnonymous: false,
+          emailVerified: false,
+        },
+      });
+    }
 
     const token = jwt.sign({ id: user.id, role: user.role, tokenVersion: user.tokenVersion }, process.env.JWT_SECRET, { expiresIn: '7d' });
     
-    // Automatically generate and send the first OTP silently
+    // Generate and send email verification OTP
     try {
       const code = generateOtp();
       const codeHash = crypto.createHmac('sha256', process.env.JWT_SECRET).update(code).digest('hex');
@@ -100,12 +161,12 @@ router.post('/signup', upload.array('images', 6), async (req, res) => {
           userId: user.id,
         }
       });
-      await sendOtpEmail(email, code, 'verify_email');
+      await sendOtpEmail(normalizedEmail, code, 'verify_email');
     } catch (e) {
       console.error('Failed to send initial OTP on signup:', e.message);
     }
 
-    res.json({ token, user: { id: user.id, email: user.email, images: user.images, emailVerified: user.emailVerified } });
+    res.json({ token, user: { id: user.id, email: user.email, pseudonym: user.pseudonym, images: user.images, emailVerified: user.emailVerified } });
   } catch (error) {
     if (error instanceof z.ZodError) return res.status(400).json({ error: 'Validation failed', details: error.errors });
     if (error.code === 'P2002') return res.status(400).json({ error: 'Email already exists' });
@@ -117,13 +178,14 @@ router.post('/signup', upload.array('images', 6), async (req, res) => {
 router.post('/login', rateLimit({ windowMs: 15*60*1000, max: 10 }), async (req, res) => {
   try {
     const { email, password } = loginSchema.parse(req.body);
+    const normalizedIdentifier = email.toLowerCase().trim();
 
     const user = await prisma.user.findFirst({ 
       where: {
         OR: [
-          { email },
-          { username: email },
-          { pseudonym: email }
+          { email: normalizedIdentifier },
+          { username: normalizedIdentifier },
+          { pseudonym: normalizedIdentifier }
         ]
       } 
     });
@@ -131,6 +193,37 @@ router.post('/login', rateLimit({ windowMs: 15*60*1000, max: 10 }), async (req, 
 
     const validPassword = await bcrypt.compare(password, user.password);
     if (!validPassword) return res.status(400).json({ error: 'Invalid credentials' });
+
+    // Enforce email verification before logging in
+    if (!user.emailVerified && !user.isAnonymous) {
+      await prisma.otpRecord.updateMany({
+        where: { userId: user.id, purpose: 'verify_email', usedAt: null },
+        data: { usedAt: new Date() }
+      });
+
+      const code = generateOtp();
+      const codeHash = crypto.createHmac('sha256', process.env.JWT_SECRET).update(code).digest('hex');
+      await prisma.otpRecord.create({
+        data: {
+          purpose: 'verify_email',
+          codeHash,
+          expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+          userId: user.id,
+        }
+      });
+      if (user.email) {
+        await sendOtpEmail(user.email, code, 'verify_email');
+      }
+
+      const token = jwt.sign({ id: user.id, role: user.role, tokenVersion: user.tokenVersion }, process.env.JWT_SECRET, { expiresIn: '7d' });
+      return res.status(403).json({
+        error: 'EMAIL_NOT_VERIFIED',
+        message: 'Please verify your email before logging in. A new verification code has been sent to your email.',
+        token,
+        email: user.email,
+        user: { id: user.id, email: user.email, emailVerified: false }
+      });
+    }
 
     const token = jwt.sign({ id: user.id, role: user.role, tokenVersion: user.tokenVersion }, process.env.JWT_SECRET, { expiresIn: '7d' });
     res.json({ token, user: { id: user.id, email: user.email, role: user.role, emailVerified: user.emailVerified } });

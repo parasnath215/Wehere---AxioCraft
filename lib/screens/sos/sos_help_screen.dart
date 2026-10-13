@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_colors.dart';
@@ -632,11 +633,36 @@ class SosHelpScreen extends StatelessWidget {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: 'Full Name', hintText: 'e.g. Sarah')),
-            const SizedBox(height: 8),
-            TextField(controller: phoneCtrl, decoration: const InputDecoration(labelText: 'Phone Number', hintText: '+91 98000 00000')),
-            const SizedBox(height: 8),
-            TextField(controller: relCtrl, decoration: const InputDecoration(labelText: 'Relationship', hintText: 'e.g. Best Friend, Sibling')),
+            TextField(
+              controller: nameCtrl,
+              decoration: const InputDecoration(labelText: 'Full Name', hintText: 'e.g. Sarah'),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: phoneCtrl,
+              keyboardType: TextInputType.phone,
+              maxLength: 10,
+              inputFormatters: [
+                FilteringTextInputFormatter.digitsOnly,
+                LengthLimitingTextInputFormatter(10),
+              ],
+              decoration: const InputDecoration(
+                labelText: 'Phone Number (10 digits)',
+                prefixText: '+91 ',
+                prefixStyle: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.primary,
+                  fontSize: 16,
+                ),
+                hintText: '9876543210',
+                counterText: '',
+              ),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: relCtrl,
+              decoration: const InputDecoration(labelText: 'Relationship', hintText: 'e.g. Best Friend, Sibling'),
+            ),
           ],
         ),
         actions: [
@@ -644,22 +670,23 @@ class SosHelpScreen extends StatelessWidget {
           ElevatedButton(
             onPressed: () {
               final name = nameCtrl.text.trim();
-              final phone = phoneCtrl.text.trim().replaceAll(RegExp(r'\D'), ''); // Strip non-digits for validation
+              final rawPhone = phoneCtrl.text.trim().replaceAll(RegExp(r'\D'), ''); // Strip non-digits for validation
               
-              if (name.isEmpty || phone.isEmpty) {
+              if (name.isEmpty || rawPhone.isEmpty) {
                 ScaffoldMessenger.of(dCtx).showSnackBar(const SnackBar(content: Text('Please fill required fields.')));
                 return;
               }
 
-              final isRepeated = RegExp(r'^(\d)\1{9}$').hasMatch(phone);
-              final isSeries = RegExp(r'^(0123456789|1234567890|9876543210)$').hasMatch(phone);
+              final isRepeated = RegExp(r'^(\d)\1{9}$').hasMatch(rawPhone);
+              final isSeries = RegExp(r'^(0123456789|1234567890|9876543210)$').hasMatch(rawPhone);
 
-              if (phone.length != 10 || isRepeated || isSeries) {
-                ScaffoldMessenger.of(dCtx).showSnackBar(const SnackBar(content: Text('Please enter a valid 10-digit phone number.')));
+              if (rawPhone.length != 10 || isRepeated || isSeries) {
+                ScaffoldMessenger.of(dCtx).showSnackBar(const SnackBar(content: Text('Please enter a valid 10-digit mobile number.')));
                 return;
               }
 
-              appState.addEmergencyContact(name, phone, relCtrl.text.trim().isEmpty ? 'Friend' : relCtrl.text.trim());
+              final formattedPhone = '+91 $rawPhone';
+              appState.addEmergencyContact(name, formattedPhone, relCtrl.text.trim().isEmpty ? 'Friend' : relCtrl.text.trim());
               Navigator.pop(dCtx);
               onAdded();
             },

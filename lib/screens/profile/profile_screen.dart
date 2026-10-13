@@ -6,7 +6,6 @@ import '../../core/routing/app_routes.dart';
 import '../../state/app_state.dart';
 import '../../state/auth_notifier.dart';
 import '../../widgets/shared/avatar_widget.dart';
-import '../../core/network/api_client.dart';
 import '../../core/constants/app_constants.dart';
 import 'edit_profile_screen.dart';
 
@@ -167,77 +166,80 @@ class ProfileScreen extends StatelessWidget {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        padding: const EdgeInsets.all(24),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text('Settings & Safety', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(ctx)),
-              ],
-            ),
-            const SizedBox(height: 12),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.shield_outlined, color: AppColors.primary),
-              title: const Text('Privacy & Protection', style: TextStyle(fontWeight: FontWeight.w600)),
-              trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14),
-              onTap: () {
-                Navigator.pop(ctx);
-                showDialog(
-                  context: context,
-                  builder: (dCtx) => AlertDialog(
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
-                    title: const Text('Privacy & Protection'),
-                    content: const Text(
-                      'Wehere is built with privacy-first architecture.\n\n'
-                      '• Your messages are encrypted and private.\n'
-                      '• Anonymity mode ensures you can connect pseudoymously.\n'
-                      '• We never sell user data or run targeted behavioral ads.',
-                    ),
-                    actions: [
-                      ElevatedButton(onPressed: () => Navigator.pop(dCtx), child: const Text('Understood')),
-                    ],
-                  ),
-                );
-              },
-            ),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.logout_rounded, color: Colors.redAccent),
-              title: const Text('Sign Out', style: TextStyle(fontWeight: FontWeight.w600, color: Colors.redAccent)),
-              onTap: () {
-                Navigator.pop(ctx);
-                showDialog(
-                  context: context,
-                  builder: (dCtx) => AlertDialog(
-                    title: const Text('Sign Out'),
-                    content: const Text('Are you sure you want to sign out?'),
-                    actions: [
-                      TextButton(onPressed: () => Navigator.pop(dCtx), child: const Text('Cancel')),
-                      ElevatedButton(
-                        style: ElevatedButton.styleFrom(backgroundColor: AppColors.sosRed),
-                        onPressed: () {
-                          Navigator.pop(dCtx);
-                          context.read<AuthNotifier>().logout();
-                          Navigator.pushNamedAndRemoveUntil(context, AppRoutes.login, (route) => false);
-                        },
-                        child: const Text('Sign Out', style: TextStyle(color: Colors.white)),
+      builder: (ctx) => SafeArea(
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Settings & Safety', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(ctx)),
+                ],
+              ),
+              const SizedBox(height: 12),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.shield_outlined, color: AppColors.primary),
+                title: const Text('Privacy & Protection', style: TextStyle(fontWeight: FontWeight.w600)),
+                trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  showDialog(
+                    context: context,
+                    builder: (dCtx) => AlertDialog(
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+                      title: const Text('Privacy & Protection'),
+                      content: const Text(
+                        'Wehere is built with privacy-first architecture.\n\n'
+                        '• Your messages are encrypted and private.\n'
+                        '• Anonymity mode ensures you can connect pseudoymously.\n'
+                        '• We never sell user data or run targeted behavioral ads.',
                       ),
-                    ],
-                  ),
-                );
-              },
-            ),
-          ],
+                      actions: [
+                        ElevatedButton(onPressed: () => Navigator.pop(dCtx), child: const Text('Understood')),
+                      ],
+                    ),
+                  );
+                },
+              ),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.logout_rounded, color: Colors.redAccent),
+                title: const Text('Sign Out', style: TextStyle(fontWeight: FontWeight.w600, color: Colors.redAccent)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  showDialog(
+                    context: context,
+                    builder: (dCtx) => AlertDialog(
+                      title: const Text('Sign Out'),
+                      content: const Text('Are you sure you want to sign out?'),
+                      actions: [
+                        TextButton(onPressed: () => Navigator.pop(dCtx), child: const Text('Cancel')),
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(backgroundColor: AppColors.sosRed),
+                          onPressed: () {
+                            Navigator.pop(dCtx);
+                            context.read<AuthNotifier>().logout();
+                            Navigator.pushNamedAndRemoveUntil(context, AppRoutes.login, (route) => false);
+                          },
+                          child: const Text('Sign Out', style: TextStyle(color: Colors.white)),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 12),
+            ],
+          ),
         ),
       ),
     );

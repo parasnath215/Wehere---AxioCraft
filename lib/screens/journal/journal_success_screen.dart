@@ -93,6 +93,35 @@ class JournalSuccessScreen extends StatelessWidget {
                         const SizedBox(width: 8),
                         Text('Your Entry', style: AppTextStyles.h3.copyWith(fontSize: 14)),
                         const Spacer(),
+                        InkWell(
+                          onTap: () {
+                            Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => NewJournalScreen(editEntry: entry),
+                              ),
+                            );
+                          },
+                          borderRadius: BorderRadius.circular(8),
+                          child: const Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            child: Row(
+                              children: [
+                                Icon(Icons.edit_outlined, size: 14, color: AppColors.primary),
+                                SizedBox(width: 4),
+                                Text(
+                                  'Edit',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
                         Text(dateStr, style: AppTextStyles.caption.copyWith(fontSize: 11)),
                       ],
                     ),
@@ -224,13 +253,43 @@ class JournalSuccessScreen extends StatelessWidget {
 
               const SizedBox(height: 24),
 
-              // Done Button
-              ElevatedButton(
-                onPressed: () {
-                  // Unwind modal stack to root navigation shell cleanly
-                  Navigator.popUntil(context, (route) => route.isFirst);
-                },
-                child: const Text('Done', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              // Action Buttons
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => NewJournalScreen(editEntry: entry),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.edit_outlined, size: 18),
+                      label: const Text('Edit Entry'),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        side: const BorderSide(color: AppColors.primary, width: 1.5),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        // Unwind modal stack to root navigation shell cleanly
+                        Navigator.popUntil(context, (route) => route.isFirst);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      ),
+                      child: const Text('Done', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

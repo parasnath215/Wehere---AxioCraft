@@ -215,13 +215,43 @@ class JournalHomeScreen extends StatelessWidget {
                                   if (e is DioException && e.response?.data != null && e.response!.data is Map) {
                                     msg = e.response!.data['error'] ?? msg;
                                   }
-                                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+                                  }
                                   appState.fetchBackendData();
                                 }
                               },
                               itemBuilder: (context) => [
-                                PopupMenuItem(value: 'toggle_privacy', child: Text(entry.isPrivate ? 'Make Public' : 'Make Private')),
-                                const PopupMenuItem(value: 'delete', child: Text('Delete', style: TextStyle(color: Colors.red))),
+                                const PopupMenuItem(
+                                  value: 'edit',
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.edit_outlined, size: 16, color: AppColors.textPrimary),
+                                      SizedBox(width: 8),
+                                      Text('Edit Entry'),
+                                    ],
+                                  ),
+                                ),
+                                PopupMenuItem(
+                                  value: 'toggle_privacy',
+                                  child: Row(
+                                    children: [
+                                      Icon(entry.isPrivate ? Icons.lock_open_rounded : Icons.lock_outline_rounded, size: 16, color: AppColors.textPrimary),
+                                      const SizedBox(width: 8),
+                                      Text(entry.isPrivate ? 'Make Public' : 'Make Private'),
+                                    ],
+                                  ),
+                                ),
+                                const PopupMenuItem(
+                                  value: 'delete',
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.delete_outline_rounded, size: 16, color: Colors.red),
+                                      SizedBox(width: 8),
+                                      Text('Delete', style: TextStyle(color: Colors.red)),
+                                    ],
+                                  ),
+                                ),
                               ],
                             ),
 

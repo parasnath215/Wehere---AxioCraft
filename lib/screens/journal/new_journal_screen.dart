@@ -8,7 +8,6 @@ import '../../core/routing/app_routes.dart';
 import '../../models/journal_entry.dart';
 import '../../state/app_state.dart';
 import '../../widgets/common/mood_chip.dart';
-import '../../core/network/api_client.dart';
 
 class NewJournalScreen extends StatefulWidget {
   final JournalEntry? editEntry;
@@ -32,8 +31,21 @@ class _NewJournalScreenState extends State<NewJournalScreen> {
     try {
       final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
       if (pickedFile != null) {
+        final file = File(pickedFile.path);
+        final bytes = await file.length();
+        if (bytes > 5 * 1024 * 1024) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Image size must be under 5 MB. Please select a smaller photo.'),
+                backgroundColor: AppColors.sosRed,
+              ),
+            );
+          }
+          return;
+        }
         setState(() {
-          _selectedImage = File(pickedFile.path);
+          _selectedImage = file;
         });
       }
     } catch (e) {
@@ -209,8 +221,19 @@ class _NewJournalScreenState extends State<NewJournalScreen> {
 
                 const SizedBox(height: 20),
 
-                // 1. "How are you feeling today?" (Mockup 1.17.19 AM (1))
-                Text('How are you feeling today?', style: AppTextStyles.h3),
+                // 1. "How are you feeling today?" (Connected to Daily Tracker & Insights)
+                Row(
+                  children: [
+                    Text('How are you feeling today?', style: AppTextStyles.h3),
+                    const SizedBox(width: 6),
+                    const Text('•', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Your mood selection syncs with your daily check-in and wellness streak.',
+                  style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
+                ),
                 const SizedBox(height: 12),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -255,8 +278,16 @@ class _NewJournalScreenState extends State<NewJournalScreen> {
 
                 const SizedBox(height: 24),
 
-                // 2. "What's on your mind?"
-                Text('What’s on your mind?', style: AppTextStyles.h3),
+                // 2. "What's on your mind?" (Mandatory Field)
+                Row(
+                  children: [
+                    Text('What’s on your mind?', style: AppTextStyles.h3),
+                    const SizedBox(width: 4),
+                    const Text('*', style: TextStyle(color: AppColors.sosRed, fontWeight: FontWeight.bold, fontSize: 16)),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text('Share your thoughts, experiences or emotions. (Required)', style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary)),
                 const SizedBox(height: 10),
                 Container(
                   padding: const EdgeInsets.all(14),
@@ -270,6 +301,8 @@ class _NewJournalScreenState extends State<NewJournalScreen> {
                       TextField(
                         controller: _thoughtController,
                         maxLines: 5,
+                        maxLength: 2000,
+                        buildCounter: (context, {required currentLength, required isFocused, maxLength}) => null,
                         decoration: const InputDecoration(
                           hintText: 'Start writing your thoughts...',
                           border: InputBorder.none,
@@ -286,11 +319,12 @@ class _NewJournalScreenState extends State<NewJournalScreen> {
                           AnimatedBuilder(
                             animation: _thoughtController,
                             builder: (context, child) {
-                              final words = _thoughtController.text.trim().split(RegExp(r'\s+')).where((s) => s.isNotEmpty).length;
+                              final chars = _thoughtController.text.length;
                               return Text(
-                                '$words / 1000',
+                                '$chars / 2000 characters',
                                 style: AppTextStyles.caption.copyWith(
-                                  color: words > 1000 ? Colors.red : AppColors.textSecondary,
+                                  color: chars > 2000 ? Colors.red : AppColors.textSecondary,
+                                  fontWeight: chars > 0 ? FontWeight.w600 : FontWeight.normal,
                                 ),
                               );
                             },
@@ -303,8 +337,8 @@ class _NewJournalScreenState extends State<NewJournalScreen> {
 
                 const SizedBox(height: 20),
 
-                // 3. "What are you grateful for today?"
-                Text('What are you grateful for today?', style: AppTextStyles.h3),
+                // 3. "What are you grateful for today?" (Optional)
+                Text('What are you grateful for today? (optional)', style: AppTextStyles.h3),
                 const SizedBox(height: 10),
                 Container(
                   padding: const EdgeInsets.all(16),
@@ -318,6 +352,8 @@ class _NewJournalScreenState extends State<NewJournalScreen> {
                       TextField(
                         controller: _gratitudeController,
                         maxLines: 3,
+                        maxLength: 300,
+                        buildCounter: (context, {required currentLength, required isFocused, maxLength}) => null,
                         decoration: const InputDecoration(
                           hintText: 'List things you’re grateful for...',
                           border: InputBorder.none,
@@ -333,11 +369,12 @@ class _NewJournalScreenState extends State<NewJournalScreen> {
                           AnimatedBuilder(
                             animation: _gratitudeController,
                             builder: (context, child) {
-                              final words = _gratitudeController.text.trim().split(RegExp(r'\s+')).where((s) => s.isNotEmpty).length;
+                              final chars = _gratitudeController.text.length;
                               return Text(
-                                '$words / 100',
+                                '$chars / 300 characters',
                                 style: AppTextStyles.caption.copyWith(
-                                  color: words > 100 ? Colors.red : AppColors.textSecondary,
+                                  color: chars > 300 ? Colors.red : AppColors.textSecondary,
+                                  fontWeight: chars > 0 ? FontWeight.w600 : FontWeight.normal,
                                 ),
                               );
                             },
@@ -438,7 +475,7 @@ class _NewJournalScreenState extends State<NewJournalScreen> {
                                           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: AppColors.primary),
                                         ),
                                         SizedBox(height: 2),
-                                        Text('JPG, PNG up to 10MB', style: TextStyle(fontSize: 9, color: AppColors.textMuted)),
+                                        Text('JPG, PNG up to 5MB', style: TextStyle(fontSize: 9, color: AppColors.textMuted)),
                                       ],
                                     ),
                                   )
@@ -561,57 +598,82 @@ class _NewJournalScreenState extends State<NewJournalScreen> {
     final thought = _thoughtController.text.trim();
     final gratitude = _gratitudeController.text.trim();
 
-    if (gratitude.isNotEmpty) {
-      final words = gratitude.split(RegExp(r'\s+'));
-      if (words.length > 100) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Gratitude must be 100 words or less.')),
-        );
-        return;
-      }
+    if (thought.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please write what’s on your mind. This field is required.'),
+          backgroundColor: AppColors.sosRed,
+        ),
+      );
+      return;
     }
 
-    final entry = JournalEntry(
-      id: widget.editEntry?.id ?? 'j_${DateTime.now().millisecondsSinceEpoch}',
-      date: widget.editEntry?.date ?? DateTime.now(),
-      mood: _selectedMood,
-      thought: thought.isNotEmpty ? thought : 'Mindful reflection for today.',
-      gratitude: gratitude,
-      category: _selectedCategory,
-      isPrivate: _isPrivateOnly,
-    );
+    if (thought.length > 2000) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Thoughts must be 2000 characters or less.'),
+          backgroundColor: AppColors.sosRed,
+        ),
+      );
+      return;
+    }
+
+    if (gratitude.length > 300) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Gratitude must be 300 characters or less.'),
+          backgroundColor: AppColors.sosRed,
+        ),
+      );
+      return;
+    }
 
     if (widget.editEntry != null) {
-      try {
-        await apiClient.put('/journal/${entry.id}', data: {
-          'content': entry.thought,
-          'moodScore': _moodToScore(entry.mood),
-          'category': entry.category,
-          'isPrivate': entry.isPrivate,
-        });
-        appState.fetchBackendData();
-      } catch(e) {}
-      Navigator.pop(context);
-    } else {
-      appState.addJournalEntry(_selectedMood, entry.thought, gratitude, _selectedCategory, isPrivate: _isPrivateOnly);
-      // Community post is automatically created by backend if !isPrivateOnly
-
-      Navigator.pushReplacementNamed(
-        context,
-        AppRoutes.journalSuccess,
-        arguments: entry,
+      final success = await appState.updateJournalEntry(
+        widget.editEntry!.id,
+        _selectedMood,
+        thought,
+        gratitude,
+        _selectedCategory,
+        isPrivate: _isPrivateOnly,
       );
-    }
-  }
+      if (mounted) {
+        if (success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Journal entry updated successfully! 💜')),
+          );
+          Navigator.pop(context, true);
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Failed to update journal entry.')),
+          );
+        }
+      }
+    } else {
+      final savedEntry = await appState.addJournalEntry(
+        _selectedMood,
+        thought,
+        gratitude,
+        _selectedCategory,
+        isPrivate: _isPrivateOnly,
+      );
+      if (mounted) {
+        final entry = savedEntry ?? JournalEntry(
+          id: 'j_${DateTime.now().millisecondsSinceEpoch}',
+          date: DateTime.now(),
+          mood: _selectedMood,
+          thought: thought,
+          gratitude: gratitude,
+          category: _selectedCategory,
+          isPrivate: _isPrivateOnly,
+        );
 
-  int _moodToScore(String mood) {
-    switch(mood) {
-      case 'Amazing': return 5;
-      case 'Good': return 4;
-      case 'Okay': return 3;
-      case 'Tired': return 2;
-      case 'Stressed': return 1;
-      default: return 3;
+        Navigator.pushReplacementNamed(
+          context,
+          AppRoutes.journalSuccess,
+          arguments: entry,
+        );
+      }
     }
   }
 

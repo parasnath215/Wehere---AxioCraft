@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/routing/app_routes.dart';
@@ -20,6 +21,10 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
   // Form Controllers
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _locationController = TextEditingController();
+  final TextEditingController _stateMenuController = TextEditingController();
+  final TextEditingController _cityMenuController = TextEditingController();
+  String? _locationError;
+  String? _nameError;
 
   // Using IndianLocations.stateCityMap
   String? _selectedState;
@@ -47,89 +52,196 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    _nameController.addListener(_saveDraft);
+    _loadDraft();
+  }
+
+  Future<void> _loadDraft() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final savedName = prefs.getString('onboarding_draft_name');
+      final savedState = prefs.getString('onboarding_draft_state');
+      final savedCity = prefs.getString('onboarding_draft_city');
+      final savedInterests = prefs.getStringList('onboarding_draft_interests');
+      final savedFeelings = prefs.getStringList('onboarding_draft_feelings');
+      final savedLookingFor = prefs.getStringList('onboarding_draft_looking_for');
+      final savedStep = prefs.getInt('onboarding_draft_step');
+
       final appState = Provider.of<AppState>(context, listen: false);
-      if (appState.onboardingName.isNotEmpty) {
+
+      if (mounted) {
         setState(() {
-          _nameController.text = appState.onboardingName;
+          if (savedName != null && savedName.isNotEmpty) {
+            _nameController.text = savedName;
+          } else if (appState.onboardingName.isNotEmpty) {
+            _nameController.text = appState.onboardingName;
+          }
+
+          if (savedState != null && savedState.isNotEmpty) {
+            _selectedState = savedState;
+            _stateMenuController.text = savedState;
+          }
+          if (savedCity != null && savedCity.isNotEmpty) {
+            _selectedCity = savedCity;
+            _cityMenuController.text = savedCity;
+          }
+          _updateLocationController();
+
+          if (savedInterests != null && savedInterests.isNotEmpty) {
+            _selectedInterests.clear();
+            _selectedInterests.addAll(savedInterests);
+          }
+          if (savedFeelings != null && savedFeelings.isNotEmpty) {
+            _selectedFeelings.clear();
+            _selectedFeelings.addAll(savedFeelings);
+          }
+          if (savedLookingFor != null && savedLookingFor.isNotEmpty) {
+            _selectedLookingFor.clear();
+            _selectedLookingFor.addAll(savedLookingFor);
+          }
+
+          if (savedStep != null && savedStep >= 1 && savedStep <= 5) {
+            _currentStep = savedStep;
+          }
         });
       }
-    });
+    } catch (_) {}
+  }
+
+  Future<void> _saveDraft() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('onboarding_draft_name', _nameController.text.trim());
+      if (_selectedState != null) {
+        await prefs.setString('onboarding_draft_state', _selectedState!);
+      } else {
+        await prefs.remove('onboarding_draft_state');
+      }
+      if (_selectedCity != null) {
+        await prefs.setString('onboarding_draft_city', _selectedCity!);
+      } else {
+        await prefs.remove('onboarding_draft_city');
+      }
+      await prefs.setStringList('onboarding_draft_interests', _selectedInterests.toList());
+      await prefs.setStringList('onboarding_draft_feelings', _selectedFeelings.toList());
+      await prefs.setStringList('onboarding_draft_looking_for', _selectedLookingFor.toList());
+      await prefs.setInt('onboarding_draft_step', _currentStep);
+    } catch (_) {}
+  }
+
+  Future<void> _clearDraft() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('onboarding_draft_name');
+      await prefs.remove('onboarding_draft_state');
+      await prefs.remove('onboarding_draft_city');
+      await prefs.remove('onboarding_draft_interests');
+      await prefs.remove('onboarding_draft_feelings');
+      await prefs.remove('onboarding_draft_looking_for');
+      await prefs.remove('onboarding_draft_step');
+    } catch (_) {}
+  }
+
+  @override
+  void dispose() {
+    _nameController.removeListener(_saveDraft);
+    _nameController.dispose();
+    _locationController.dispose();
+    _stateMenuController.dispose();
+    _cityMenuController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
-          onPressed: () {
-            if (_currentStep > 1) {
-              setState(() {
-                _currentStep--;
-              });
-            } else {
-              Navigator.pop(context);
-            }
-          },
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        if (_currentStep > 1) {
+          setState(() {
+            _currentStep--;
+          });
+          _saveDraft();
+        }
+      },
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: AppBar(
+          automaticallyImplyLeading: false,
+          leading: _currentStep > 1
+              ? IconButton(
+                  icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
+                  onPressed: () {
+                    setState(() {
+                      _currentStep--;
+                    });
+                    _saveDraft();
+                  },
+                )
+              : null,
+          title: Text(
+            'Step $_currentStep of 5',
+            style: AppTextStyles.bodyMedium.copyWith(
+              color: AppColors.primary,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
         ),
-        title: Text('Step $_currentStep of 5',
-            style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primary, fontWeight: FontWeight.bold)),
-      ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Top Step Progress Indicator Bar (5 Steps)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 6),
-              child: Row(
-                children: List.generate(5, (index) {
-                  final stepNum = index + 1;
-                  final isDone = stepNum < _currentStep;
-                  final isCurrent = stepNum == _currentStep;
-
-                  return Expanded(
-                    child: Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 2.5),
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: (isDone || isCurrent) ? AppColors.primary : AppColors.cardBorder,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                  );
-                }),
-              ),
-            ),
-
-            // Step Content
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                child: _buildCurrentStepContent(),
-              ),
-            ),
-
-            // Bottom Continue CTA
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              child: ElevatedButton(
-                onPressed: _handleNext,
+        body: SafeArea(
+          child: Column(
+            children: [
+              // Top Step Progress Indicator Bar (5 Steps)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 6),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      _currentStep == 6 ? 'Start Your Journey' : 'Continue',
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(width: 8),
-                    const Icon(Icons.arrow_forward_rounded, size: 18),
-                  ],
+                  children: List.generate(5, (index) {
+                    final stepNum = index + 1;
+                    final isDone = stepNum < _currentStep;
+                    final isCurrent = stepNum == _currentStep;
+
+                    return Expanded(
+                      child: Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 2.5),
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: (isDone || isCurrent) ? AppColors.primary : AppColors.cardBorder,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    );
+                  }),
                 ),
               ),
-            ),
-          ],
+
+              // Step Content
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  child: _buildCurrentStepContent(),
+                ),
+              ),
+
+              // Bottom Continue CTA
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                child: ElevatedButton(
+                  onPressed: _handleNext,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        _currentStep == 6 ? 'Start Your Journey' : 'Continue',
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(width: 8),
+                      const Icon(Icons.arrow_forward_rounded, size: 18),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -140,11 +252,21 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
 
     if (_currentStep == 1) {
       if (_nameController.text.trim().isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter your name.')));
+        setState(() {
+          _nameError = 'Please enter your name.';
+        });
         return;
       }
       if (_selectedState == null || _selectedCity == null) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select your state and city.')));
+        setState(() {
+          if (_selectedState == null && _selectedCity == null) {
+            _locationError = 'Please select state and city';
+          } else if (_selectedState == null) {
+            _locationError = 'Please select state first';
+          } else {
+            _locationError = 'Please select city';
+          }
+        });
         return;
       }
     }
@@ -165,6 +287,7 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
       setState(() {
         _currentStep++;
       });
+      _saveDraft();
     } else {
       // Complete Onboarding with real user details on backend
       await context.read<AuthNotifier>().completeOnboarding(
@@ -194,6 +317,8 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
         supportTypes: _selectedLookingFor.toList(),
         isAnonymous: false,
       );
+
+      await _clearDraft();
 
       if (mounted) {
         Navigator.pushNamedAndRemoveUntil(
@@ -264,13 +389,22 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
         const SizedBox(height: 16),
         TextField(
           controller: _nameController,
-          decoration: const InputDecoration(
-            prefixIcon: Icon(Icons.person_outline_rounded, color: AppColors.primary),
+          onChanged: (_) {
+            if (_nameError != null) setState(() => _nameError = null);
+          },
+          decoration: InputDecoration(
+            prefixIcon: const Icon(Icons.person_outline_rounded, color: AppColors.primary),
             labelText: 'Full Name (Or Pseudonym)',
+            errorText: _nameError,
           ),
         ),
         const SizedBox(height: 14),
         DropdownMenu<String>(
+          controller: _stateMenuController,
+          menuHeight: 220,
+          menuStyle: const MenuStyle(
+            maximumSize: WidgetStatePropertyAll<Size>(Size(280, 220)),
+          ),
           initialSelection: _selectedState,
           enableFilter: true,
           enableSearch: true,
@@ -281,31 +415,81 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
             setState(() {
               _selectedState = val;
               _selectedCity = null;
+              _cityMenuController.clear();
+              _locationError = null;
               _updateLocationController();
             });
+            _saveDraft();
           },
           dropdownMenuEntries: IndianLocations.stateCityMap.keys.map((String state) {
             return DropdownMenuEntry<String>(value: state, label: state);
           }).toList(),
         ),
         const SizedBox(height: 14),
-        DropdownMenu<String>(
-          initialSelection: _selectedCity,
-          enableFilter: true,
-          enableSearch: true,
-          expandedInsets: EdgeInsets.zero,
-          leadingIcon: const Icon(Icons.location_city_outlined, color: AppColors.primary),
-          label: const Text('City *'),
-          onSelected: (val) {
-            setState(() {
-              _selectedCity = val;
-              _updateLocationController();
-            });
-          },
-          dropdownMenuEntries: (_selectedState == null ? <String>[] : IndianLocations.stateCityMap[_selectedState]!).map((String city) {
-            return DropdownMenuEntry<String>(value: city, label: city);
-          }).toList(),
+        GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: _selectedState == null
+              ? () {
+                  setState(() {
+                    _locationError = 'Please select state first';
+                  });
+                }
+              : null,
+          child: IgnorePointer(
+            ignoring: _selectedState == null,
+            child: DropdownMenu<String>(
+              controller: _cityMenuController,
+              menuHeight: 220,
+              menuStyle: const MenuStyle(
+                maximumSize: WidgetStatePropertyAll<Size>(Size(280, 220)),
+              ),
+              initialSelection: _selectedCity,
+              enableFilter: true,
+              enableSearch: true,
+              expandedInsets: EdgeInsets.zero,
+              leadingIcon: const Icon(Icons.location_city_outlined, color: AppColors.primary),
+              label: const Text('City *'),
+              onSelected: (val) {
+                setState(() {
+                  _selectedCity = val;
+                  _locationError = null;
+                  _updateLocationController();
+                });
+                _saveDraft();
+              },
+              dropdownMenuEntries: (_selectedState == null ? <String>[] : IndianLocations.stateCityMap[_selectedState] ?? <String>[]).map((String city) {
+                return DropdownMenuEntry<String>(value: city, label: city);
+              }).toList(),
+            ),
+          ),
         ),
+        if (_locationError != null) ...[
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: AppColors.sosRed.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.sosRed.withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.error_outline_rounded, size: 18, color: AppColors.sosRed),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    _locationError!,
+                    style: const TextStyle(
+                      color: AppColors.sosRed,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
         const SizedBox(height: 24),
         _buildPrivacyBadge('Your information is safe with us. We respect your privacy and never share your data.'),
       ],
@@ -374,6 +558,7 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
                     }
                   }
                 });
+                _saveDraft();
               },
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 180),
@@ -481,6 +666,7 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
                     }
                   }
                 });
+                _saveDraft();
               },
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 180),
@@ -577,6 +763,7 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
                     }
                   }
                 });
+                _saveDraft();
               },
               borderRadius: BorderRadius.circular(18),
               child: AnimatedContainer(

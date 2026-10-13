@@ -7,6 +7,7 @@ import '../../widgets/discovery/swipeable_card.dart';
 import '../../widgets/discovery/card_action_buttons.dart';
 import '../../widgets/discovery/match_dialog.dart';
 import '../../widgets/discovery/profile_detail_sheet.dart';
+import '../../widgets/common/animated_pulse.dart';
 import '../chat/chat_conversation_screen.dart';
 
 class DiscoverSwipeScreen extends StatefulWidget {
@@ -32,7 +33,6 @@ class _DiscoverSwipeScreenState extends State<DiscoverSwipeScreen> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Container(
                     width: 42,
@@ -43,25 +43,31 @@ class _DiscoverSwipeScreenState extends State<DiscoverSwipeScreen> {
                     ),
                     child: const Icon(Icons.diversity_1_rounded, color: AppColors.primary, size: 22),
                   ),
-                  Column(
-                    children: [
-                      Row(
-                        children: [
-                          Text('Find Your People', style: AppTextStyles.h2.copyWith(fontSize: 18)),
-                          const SizedBox(width: 4),
-                          const Text('✨', style: TextStyle(fontSize: 16)),
-                        ],
-                      ),
-                      const SizedBox(height: 2),
-                      const Row(
-                        children: [
-                          Text('Swipe to connect with people who get you.', style: TextStyle(color: AppColors.textSecondary, fontSize: 11)),
-                          SizedBox(width: 4),
-                          Text('💜', style: TextStyle(fontSize: 11)),
-                        ],
-                      ),
-                    ],
+                  Expanded(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text('Find Your People', style: AppTextStyles.h2.copyWith(fontSize: 18)),
+                            const SizedBox(width: 4),
+                            const Text('✨', style: TextStyle(fontSize: 16)),
+                          ],
+                        ),
+                        const SizedBox(height: 2),
+                        const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text('Swipe to connect with people who get you.', style: TextStyle(color: AppColors.textSecondary, fontSize: 11)),
+                            SizedBox(width: 4),
+                            Text('💜', style: TextStyle(fontSize: 11)),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
+                  const SizedBox(width: 42),
                 ],
               ),
             ),
@@ -112,11 +118,18 @@ class _DiscoverSwipeScreenState extends State<DiscoverSwipeScreen> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Container(
-                              width: 80,
-                              height: 80,
-                              decoration: const BoxDecoration(color: AppColors.primarySoft, shape: BoxShape.circle),
-                              child: const Icon(Icons.favorite_outline_rounded, size: 40, color: AppColors.primary),
+                            const AnimatedPulse(
+                              duration: Duration(milliseconds: 1800),
+                              minScale: 0.92,
+                              maxScale: 1.08,
+                              child: DecoratedBox(
+                                decoration: BoxDecoration(color: AppColors.primarySoft, shape: BoxShape.circle),
+                                child: SizedBox(
+                                  width: 80,
+                                  height: 80,
+                                  child: Icon(Icons.favorite_rounded, size: 40, color: AppColors.primary),
+                                ),
+                              ),
                             ),
                             const SizedBox(height: 20),
                             Text('You’ve seen everyone for now! 💜', textAlign: TextAlign.center, style: AppTextStyles.h2),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/routing/app_routes.dart';
@@ -7,6 +8,7 @@ import '../../state/auth_notifier.dart';
 import '../../state/app_state.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+import 'dart:math' as math;
 import 'package:flutter/gestures.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/utils/ui_utils.dart';
@@ -25,12 +27,90 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController = TextEditingController();
 
+  String _password = '';
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   bool _agreedToTerms = false;
   
   final List<String> _imagePaths = [];
   final ImagePicker _picker = ImagePicker();
+
+  // Password criteria getters
+  bool get _hasMinLength => _password.length >= 8;
+  bool get _hasCaps => RegExp(r'[A-Z]').hasMatch(_password);
+  bool get _hasSpecial => RegExp(r'[^a-zA-Z0-9]').hasMatch(_password);
+
+  @override
+  void initState() {
+    super.initState();
+    _passwordController.addListener(_onPasswordChanged);
+    _handleController.addListener(_saveDraft);
+    _nameController.addListener(_saveDraft);
+    _emailController.addListener(_saveDraft);
+    _loadDraft();
+  }
+
+  void _onPasswordChanged() {
+    if (mounted) {
+      setState(() {
+        _password = _passwordController.text;
+      });
+    }
+  }
+
+  Future<void> _loadDraft() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final draftHandle = prefs.getString('signup_draft_handle');
+      final draftName = prefs.getString('signup_draft_name');
+      final draftEmail = prefs.getString('signup_draft_email');
+      if (mounted) {
+        setState(() {
+          if (draftHandle != null && draftHandle.isNotEmpty && _handleController.text.isEmpty) {
+            _handleController.text = draftHandle;
+          }
+          if (draftName != null && draftName.isNotEmpty && _nameController.text.isEmpty) {
+            _nameController.text = draftName;
+          }
+          if (draftEmail != null && draftEmail.isNotEmpty && _emailController.text.isEmpty) {
+            _emailController.text = draftEmail;
+          }
+        });
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _saveDraft() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('signup_draft_handle', _handleController.text.trim());
+      await prefs.setString('signup_draft_name', _nameController.text.trim());
+      await prefs.setString('signup_draft_email', _emailController.text.trim());
+    } catch (_) {}
+  }
+
+  Future<void> _clearDraft() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('signup_draft_handle');
+      await prefs.remove('signup_draft_name');
+      await prefs.remove('signup_draft_email');
+    } catch (_) {}
+  }
+
+  @override
+  void dispose() {
+    _passwordController.removeListener(_onPasswordChanged);
+    _handleController.removeListener(_saveDraft);
+    _nameController.removeListener(_saveDraft);
+    _emailController.removeListener(_saveDraft);
+    _handleController.dispose();
+    _nameController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
+  }
 
   Future<void> _pickImage() async {
     if (_imagePaths.length >= 5) {
@@ -56,18 +136,24 @@ class _SignUpScreenState extends State<SignUpScreen> {
   }
 
   void _randomizeHandle() {
-    final handles = [
-      'gentle_river_42',
-      'calm_nebula_88',
-      'quiet_compass_19',
-      'mindful_lotus_77',
-      'serene_ember_33',
-      'johndoe94',
-      'brave_spirit_11'
+    final adjectives = [
+      'gentle', 'calm', 'serene', 'mindful', 'hopeful', 'radiant', 'peaceful',
+      'bright', 'golden', 'kind', 'warm', 'brave', 'cozy', 'zen', 'vibrant',
+      'stellar', 'luminous', 'tender', 'tranquil', 'graceful', 'blissful', 'sunny'
     ];
-    final rand = handles[DateTime.now().millisecondsSinceEpoch % handles.length];
+    final nouns = [
+      'river', 'nebula', 'lotus', 'ember', 'compass', 'spirit', 'meadow',
+      'breeze', 'aurora', 'haven', 'echo', 'solace', 'horizon', 'spark',
+      'willow', 'ocean', 'cedar', 'starlight', 'voyager', 'oasis', 'bloom'
+    ];
+    final rng = math.Random();
+    final adj = adjectives[rng.nextInt(adjectives.length)];
+    final noun = nouns[rng.nextInt(nouns.length)];
+    // Random 4-digit number ensuring guaranteed unique handles across users
+    final numSuffix = 1000 + rng.nextInt(9000);
+    final uniqueId = '${adj}_${noun}_$numSuffix';
     setState(() {
-      _handleController.text = rand;
+      _handleController.text = uniqueId;
     });
   }
 
@@ -214,6 +300,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   ),
                 ),
               ),
+              const SizedBox(height: 8),
+              _buildPasswordRequirementsCard(),
               const SizedBox(height: 14),
 
               // Confirm Password
@@ -262,7 +350,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold),
                             recognizer: TapGestureRecognizer()
                               ..onTap = () async {
-                                final url = Uri.parse('https://wehere.com/terms');
+                                final url = Uri.parse('https://weherenetworks.com/terms-of-service.html');
                                 if (await canLaunchUrl(url)) {
                                   await launchUrl(url, mode: LaunchMode.inAppWebView);
                                 }
@@ -274,7 +362,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold),
                             recognizer: TapGestureRecognizer()
                               ..onTap = () async {
-                                final url = Uri.parse('https://wehere.com/privacy');
+                                final url = Uri.parse('https://weherenetworks.com/privacy-policy.html');
                                 if (await canLaunchUrl(url)) {
                                   await launchUrl(url, mode: LaunchMode.inAppWebView);
                                 }
@@ -322,10 +410,12 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             return;
                           }
 
-                          // Password Validation
-                          final passRegExp = RegExp(r'^(?=.*[0-9])(?=.*[!@#\$&*~]).{8,}$');
-                          if (!passRegExp.hasMatch(pass)) {
-                            UiUtils.showTopSnackBar(context, 'Password must be at least 8 chars long, include a number and a special character.');
+                          // Password Criteria Validation: 8 chars, 1 caps, 1 special (minimum)
+                          if (!_hasMinLength || !_hasCaps || !_hasSpecial) {
+                            UiUtils.showTopSnackBar(
+                              context,
+                              'Password must be at least 8 characters long, contain at least 1 uppercase letter and 1 special character.',
+                            );
                             return;
                           }
 
@@ -344,6 +434,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           );
 
                           if (success) {
+                            await _clearDraft();
                             appState.onboardingName = name;
                             if (context.mounted) {
                               Navigator.pushNamed(
@@ -400,6 +491,59 @@ class _SignUpScreenState extends State<SignUpScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildPasswordRequirementsCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceSubtle,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.cardBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Password Requirements:',
+            style: AppTextStyles.caption.copyWith(
+              fontWeight: FontWeight.w600,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          _buildRequirementRow('8 characters minimum', _hasMinLength),
+          const SizedBox(height: 6),
+          _buildRequirementRow('1 uppercase letter (minimum)', _hasCaps),
+          const SizedBox(height: 6),
+          _buildRequirementRow('1 special character (minimum)', _hasSpecial),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRequirementRow(String text, bool isMet) {
+    return Row(
+      children: [
+        Icon(
+          isMet ? Icons.check_circle_rounded : Icons.cancel_rounded,
+          size: 16,
+          color: isMet ? AppColors.onlineGreen : AppColors.sosRed,
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            text,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: isMet ? FontWeight.w600 : FontWeight.normal,
+              color: isMet ? AppColors.onlineGreen : AppColors.textSecondary,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

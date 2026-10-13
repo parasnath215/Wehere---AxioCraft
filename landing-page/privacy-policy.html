@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html class="scroll-smooth" lang="en">
+<head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Privacy Policy | Wehere</title>
+<!-- Google Fonts & Material Symbols -->
+<link href="https://fonts.googleapis.com" rel="preconnect">
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,700;1,9..40,400&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet">
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        colors: {
+          "surface": "#fcf8ff",
+          "on-surface": "#191540",
+          "primary": "#280a80",
+          "primary-container": "#3f2b96",
+          "on-primary": "#ffffff",
+          "on-primary-container": "#c9bfff",
+          "secondary": "#5f5c73",
+          "secondary-container": "#e5dffb",
+          "on-secondary-container": "#656279",
+          "secondary-fixed": "#e5dffb",
+          "secondary-fixed-dim": "#c8c3de",
+          "surface-variant": "#e3dfff",
+          "on-surface-variant": "#484552",
+          "surface-container-lowest": "#ffffff",
+          "surface-container-low": "#f6f2ff",
+          "surface-container": "#f0ebff",
+          "surface-container-high": "#e9e5ff",
+          "surface-container-highest": "#e3dfff",
+          "inverse-surface": "#2e2b56",
+          "inverse-on-surface": "#f3eeff",
+          "inverse-primary": "#c9bfff",
+          "tertiary": "#4e1700",
+          "tertiary-container": "#732500",
+          "on-tertiary-container": "#ff8b5c",
+          "tertiary-fixed": "#ffdbce",
+          "tertiary-fixed-dim": "#ffb599",
+          "on-tertiary-fixed": "#370e00",
+          "outline": "#797584",
+          "outline-variant": "#c9c4d4",
+          "error": "#ba1a1a",
+          "error-container": "#ffdad6",
+          "background": "#fcf8ff",
+        },
+        fontFamily: {
+          sans: ["DM Sans", "sans-serif"],
+          display: ["Plus Jakarta Sans", "sans-serif"],
+        },
+        keyframes: {
+          "fade-up": {
+            "0%": { opacity: "0", transform: "translateY(24px)" },
+            "100%": { opacity: "1", transform: "translateY(0)" },
+          },
+        },
+        animation: {
+          "fade-up": "fade-up 0.6s ease-out forwards",
+        },
+      }
+    }
+  }
+</script>
+<style>
+  .material-symbols-rounded {
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    display: inline-block;
+    vertical-align: middle;
+    line-height: 1;
+    user-select: none;
+  }
+  .material-symbols-rounded.fill {
+    font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  }
+  .reveal { opacity: 0; transform: translateY(28px); transition: opacity 0.65s ease, transform 0.65s ease; }
+  .reveal.visible { opacity: 1; transform: translateY(0); }
+  .reveal-delay-1 { transition-delay: 0.1s; }
+  .reveal-delay-2 { transition-delay: 0.2s; }
+</style>
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body class="bg-background text-on-surface font-sans antialiased overflow-x-hidden flex flex-col min-h-screen">
+
+<!-- Ambient Background Blobs -->
+<div class="fixed inset-0 pointer-events-none -z-10 overflow-hidden">
+  <div class="absolute -top-40 -left-40 w-[500px] h-[500px] rounded-full bg-secondary-fixed/50 blur-[140px]"></div>
+  <div class="absolute top-1/2 -right-40 w-[600px] h-[600px] rounded-full bg-surface-container-high/60 blur-[160px]"></div>
+</div>
+
+<!-- ═══════════════════════════ NAVBAR ═══════════════════════════ -->
+<header class="bg-surface/80 backdrop-blur-xl sticky top-0 z-50 border-b border-outline-variant/20 shadow-[0_4px_24px_-4px_rgba(40,10,128,0.06)]">
+  <div class="flex justify-between items-center w-full px-6 md:px-12 max-w-7xl mx-auto h-16">
+    <a class="flex items-center gap-2.5 active:scale-[0.98] transition-transform" href="index.html">
+      <img src="./assets/logo/icon_logo.png" class="w-9 h-9 object-contain" alt="Wehere Logo">
+      <span class="text-[18px] font-display font-extrabold text-primary tracking-tight">Wehere</span>
+    </a>
+
+    <nav class="hidden md:flex items-center gap-7">
+      <a class="text-on-surface-variant font-medium text-sm hover:text-primary transition-colors" href="index.html#how-it-works">How It Works</a>
+      <a class="text-on-surface-variant font-medium text-sm hover:text-primary transition-colors" href="index.html#features">Features</a>
+      <a class="text-on-surface-variant font-medium text-sm hover:text-primary transition-colors" href="about.html">About Us</a>
+      <a class="text-on-surface-variant font-medium text-sm hover:text-primary transition-colors" href="policies.html">Policies</a>
+    </nav>
+
+    <div class="hidden md:flex items-center gap-3">
+      <a class="text-sm font-display font-semibold px-5 py-2.5 rounded-full bg-primary-container text-white hover:shadow-lg hover:shadow-primary/25 active:scale-[0.98] transition-all" href="index.html#download">
+        Get the App
+      </a>
+    </div>
+
+    <button aria-label="Toggle navigation" class="md:hidden text-primary p-2 rounded-full" id="mobile-menu-btn">
+      <i data-lucide="menu" class="lucide-icon text-2xl"></i>
+    </button>
+  </div>
+
+  <div class="hidden md:hidden px-6 pb-5 pt-2 border-t border-surface-container flex flex-col gap-2" id="mobile-menu">
+    <a class="text-on-surface-variant py-2 text-sm" href="index.html#how-it-works">How It Works</a>
+    <a class="text-on-surface-variant py-2 text-sm" href="index.html#features">Features</a>
+    <a class="text-on-surface-variant py-2 text-sm" href="about.html">About Us</a>
+    <a class="text-primary font-bold py-2 text-sm" href="policies.html">Policies</a>
+  </div>
+</header>
+
+
+<main class="flex-grow py-16 md:py-24 px-6 md:px-12 max-w-4xl mx-auto w-full">
+  <div class="mb-12 animate-fade-up">
+    <a href="policies.html" class="inline-flex items-center gap-2 text-primary font-display text-sm font-bold bg-surface-container py-2 px-4 rounded-full w-max hover:bg-surface-container-high transition-colors mb-8">
+      <i data-lucide="arrow-left" class="lucide-icon text-lg"></i>
+      Back to Policies
+    </a>
+    <h1 class="font-display text-[clamp(2rem,4vw,3rem)] font-extrabold text-on-surface leading-tight tracking-tight">
+      Privacy Policy
+    </h1>
+  </div>
+  
+  <div class="bg-surface-container-lowest rounded-3xl p-8 md:p-12 border border-outline-variant/30 shadow-sm animate-fade-up prose prose-indigo max-w-none text-on-surface-variant leading-relaxed" style="animation-delay: 0.1s">
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">WEHERE PRIVACY POLICY</h3>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">Effective Date: 10th October 2026</h3>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">Last Updated: 7th October 2026</h3>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">1. Introduction</h3>
+    <p class="mb-4">This Privacy Policy explains how WeHere Networks Private Limited (&quot;WeHere&quot;, &quot;Company&quot;, &quot;we&quot;, &quot;us&quot; or &quot;our&quot;) collects, uses, processes, stores, protects and discloses information in connection with the WeHere mobile application, website and related services (collectively, the &quot;Platform&quot;).</p>
+    <p class="mb-4">WeHere is a peer-support and social connection platform intended to help adults connect with other adults who may have similar experiences, interests, life challenges or circumstances.</p>
+    <p class="mb-4">WeHere is not a hospital, clinic, psychiatric service, medical service or emergency response service. The Platform does not diagnose users or provide medical treatment through its peer-support functionality.</p>
+    <p class="mb-4">By creating an account or using the Platform, you acknowledge that you have read and understood this Privacy Policy.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">2. Eligibility</h3>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">WeHere is intended only for individuals who are 18 years of age or older.</h3>
+    <p class="mb-4">By creating or using an account, you represent that you are at least 18 years old.</p>
+    <p class="mb-4">WeHere may take reasonable measures to restrict or terminate accounts where it has reason to believe that a person does not satisfy the minimum-age requirement.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">3. Information We Collect</h3>
+    <p class="mb-4">Depending on your use of the Platform, WeHere may collect:</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">3.1 Registration Information</h3>
+    <p class="mb-4">name;</p>
+    <p class="mb-4">display name;</p>
+    <p class="mb-4">email address;</p>
+    <p class="mb-4">mobile number;</p>
+    <p class="mb-4">date of birth;</p>
+    <p class="mb-4">gender;</p>
+    <p class="mb-4">profile photograph;</p>
+    <p class="mb-4">occupation;</p>
+    <p class="mb-4">interests;</p>
+    <p class="mb-4">hobbies;</p>
+    <p class="mb-4">selected categories;</p>
+    <p class="mb-4">account credentials or authentication information; and</p>
+    <p class="mb-4">information voluntarily supplied during registration.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">3.2 Social Login Information</h3>
+    <p class="mb-4">We may permit registration or login through third-party authentication services such as Google, Apple or Facebook.</p>
+    <p class="mb-4">When you use such a service, we may receive information that the relevant provider makes available to us according to your settings and its applicable policies.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">3.3 Profile Information</h3>
+    <p class="mb-4">You may provide:</p>
+    <p class="mb-4">profile name;</p>
+    <p class="mb-4">photograph;</p>
+    <p class="mb-4">biography;</p>
+    <p class="mb-4">gender;</p>
+    <p class="mb-4">Interests;</p>
+    <p class="mb-4">hobbies;</p>
+    <p class="mb-4">Occupation;</p>
+    <p class="mb-4">location;</p>
+    <p class="mb-4">categories;</p>
+    <p class="mb-4">preferences; and</p>
+    <p class="mb-4">other information.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">3.4 Anonymous Profiles</h3>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">WeHere may allow you to create an anonymous or pseudonymous profile.</h3>
+    <p class="mb-4">An anonymous profile may allow you to interact on the Platform without publicly displaying your ordinary identifying name or identity.</p>
+    <p class="mb-4">However, an anonymous profile does not mean that WeHere has no information associated with the account.</p>
+    <p class="mb-4">We may retain account, technical, security, transaction and other information necessary to operate the Platform, prevent abuse, comply with law and protect users.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">3.5 Precise Location</h3>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">Where you grant the required device permission, WeHere may collect precise location information.</h3>
+    <p class="mb-4">Precise location may be used for:</p>
+    <p class="mb-4">location-based peer discovery;</p>
+    <p class="mb-4">displaying relevant nearby functionality;</p>
+    <p class="mb-4">personalisation;</p>
+    <p class="mb-4">safety and security;</p>
+    <p class="mb-4">fraud prevention;</p>
+    <p class="mb-4">improving Platform functionality; and</p>
+    <p class="mb-4">other purposes disclosed at the relevant time.</p>
+    <p class="mb-4">You can manage location permissions through your device settings.</p>
+    <p class="mb-4">Disabling location access may affect features that depend upon location.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">3.6 User-Generated Content</h3>
+    <p class="mb-4">WeHere may process:</p>
+    <p class="mb-4">posts;</p>
+    <p class="mb-4">comments;</p>
+    <p class="mb-4">photographs;</p>
+    <p class="mb-4">videos;</p>
+    <p class="mb-4">feelings/status updates;</p>
+    <p class="mb-4">profile content;</p>
+    <p class="mb-4">categories;</p>
+    <p class="mb-4">reactions;</p>
+    <p class="mb-4">reports;</p>
+    <p class="mb-4">uploaded material; and</p>
+    <p class="mb-4">other content you submit.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">3.7 Communications</h3>
+    <p class="mb-4">Where chat functionality is available, WeHere processes information necessary to provide the communication service.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">Applicable communications may use end-to-end encryption.</h3>
+    <p class="mb-4">Where end-to-end encryption applies, WeHere</p>
+    <p class="mb-4">may not have access to the readable content of those communications in ordinary circumstances.</p>
+    <p class="mb-4">However, metadata, account information, reports, device information and other information necessary to operate, secure and comply with legal obligations may still be processed.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">3.8 Technical Information</h3>
+    <p class="mb-4">We may collect:</p>
+    <p class="mb-4">IP address;</p>
+    <p class="mb-4">device type;</p>
+    <p class="mb-4">operating system;</p>
+    <p class="mb-4">application version;</p>
+    <p class="mb-4">device identifiers;</p>
+    <p class="mb-4">crash information;</p>
+    <p class="mb-4">diagnostic information;</p>
+    <p class="mb-4">network information;</p>
+    <p class="mb-4">timestamps;</p>
+    <p class="mb-4">usage information;</p>
+    <p class="mb-4">security information; and</p>
+    <p class="mb-4">other technical information.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">4. Information Relating to Personal Struggles</h3>
+    <p class="mb-4">Users may select categories or discuss experiences involving matters such as:</p>
+    <p class="mb-4">anxiety;</p>
+    <p class="mb-4">trauma;</p>
+    <p class="mb-4">grief;</p>
+    <p class="mb-4">relationships;</p>
+    <p class="mb-4">family;</p>
+    <p class="mb-4">education;</p>
+    <p class="mb-4">work;</p>
+    <p class="mb-4">career;</p>
+    <p class="mb-4">loneliness;</p>
+    <p class="mb-4">personal difficulties;</p>
+    <p class="mb-4">emotional experiences; and</p>
+    <p class="mb-4">other life circumstances.</p>
+    <p class="mb-4">The selection of a category does not mean WeHere has diagnosed the user with any medical or psychological condition.</p>
+    <p class="mb-4">User-generated statements are not independently verified by WeHere.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">5. Self-Harm and Crisis Information</h3>
+    <p class="mb-4">Users may voluntarily provide information concerning emotional distress, self-harm, suicidal thoughts or crisis situations.</p>
+    <p class="mb-4">Such information may be processed for:</p>
+    <p class="mb-4">Platform safety;</p>
+    <p class="mb-4">moderation;</p>
+    <p class="mb-4">responding to reports;</p>
+    <p class="mb-4">preventing abuse;</p>
+    <p class="mb-4">protecting users;</p>
+    <p class="mb-4">providing requested functionality; and</p>
+    <p class="mb-4">complying with applicable law.</p>
+    <p class="mb-4">WeHere does not guarantee that every crisis disclosure will be detected or responded to immediately.</p>
+    <p class="mb-4">WeHere is not an emergency service.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">6. Purposes of Processing</h3>
+    <p class="mb-4">We may process information to:</p>
+    <p class="mb-4">create and manage accounts;</p>
+    <p class="mb-4">authenticate users;</p>
+    <p class="mb-4">provide peer discovery;</p>
+    <p class="mb-4">provide search and matching functionality;</p>
+    <p class="mb-4">facilitate communication;</p>
+    <p class="mb-4">provide anonymous profiles;</p>
+    <p class="mb-4">display user-generated content;</p>
+    <p class="mb-4">provide subscriptions;</p>
+    <p class="mb-4">process payments through relevant providers;</p>
+    <p class="mb-4">display advertisements;</p>
+    <p class="mb-4">conduct analytics;</p>
+    <p class="mb-4">improve Platform functionality;</p>
+    <p class="mb-4">prevent fraud;</p>
+    <p class="mb-4">prevent abuse;</p>
+    <p class="mb-4">investigate reports;</p>
+    <p class="mb-4">moderate content;</p>
+    <p class="mb-4">protect users;</p>
+    <p class="mb-4">secure the Platform;</p>
+    <p class="mb-4">respond to grievances;</p>
+    <p class="mb-4">comply with applicable law;</p>
+    <p class="mb-4">respond to lawful requests;</p>
+    <p class="mb-4">establish or defend legal claims; and</p>
+    <p class="mb-4">perform other lawful purposes disclosed to users.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">7. Advertising</h3>
+    <p class="mb-4">The free version of WeHere may display</p>
+    <p class="mb-4">advertisements.</p>
+    <p class="mb-4">Advertising providers may process certain technical and advertising-related information in accordance with their own policies and applicable law.</p>
+    <p class="mb-4">WeHere will not represent advertising as professional medical, psychological or emergency advice.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">8. Analytics</h3>
+    <p class="mb-4">We may use analytics services to understand:</p>
+    <p class="mb-4">feature usage;</p>
+    <p class="mb-4">application performance;</p>
+    <p class="mb-4">crashes;</p>
+    <p class="mb-4">engagement;</p>
+    <p class="mb-4">technical problems;</p>
+    <p class="mb-4">user journeys; and</p>
+    <p class="mb-4">general Platform trends.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">9. Cookies and Similar Technologies</h3>
+    <p class="mb-4">Our website and application may use:</p>
+    <p class="mb-4">cookies;</p>
+    <p class="mb-4">SDKs;</p>
+    <p class="mb-4">pixels;</p>
+    <p class="mb-4">local storage;</p>
+    <p class="mb-4">device identifiers; and</p>
+    <p class="mb-4">similar technologies.</p>
+    <p class="mb-4">These may be used for authentication, security, analytics, advertising and functionality.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">10. Payments and Subscriptions</h3>
+    <p class="mb-4">WeHere may offer paid subscriptions.</p>
+    <p class="mb-4">Payments may be processed by Google Play, Apple App Store or other authorised payment providers.</p>
+    <p class="mb-4">WeHere may receive information necessary to</p>
+    <p class="mb-4">confirm:</p>
+    <p class="mb-4">purchase;</p>
+    <p class="mb-4">subscription status;</p>
+    <p class="mb-4">renewal;</p>
+    <p class="mb-4">cancellation;</p>
+    <p class="mb-4">refund;</p>
+    <p class="mb-4">transaction status; and</p>
+    <p class="mb-4">fraud/security information.</p>
+    <p class="mb-4">We do not intend to store complete payment-card details where the relevant payment provider processes those details directly.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">11. Information Sharing</h3>
+    <p class="mb-4">We may disclose information to:</p>
+    <p class="mb-4">hosting providers;</p>
+    <p class="mb-4">cloud infrastructure providers;</p>
+    <p class="mb-4">authentication providers;</p>
+    <p class="mb-4">analytics providers;</p>
+    <p class="mb-4">advertising providers;</p>
+    <p class="mb-4">payment processors;</p>
+    <p class="mb-4">customer-support providers;</p>
+    <p class="mb-4">professional advisers;</p>
+    <p class="mb-4">auditors;</p>
+    <p class="mb-4">regulators;</p>
+    <p class="mb-4">courts;</p>
+    <p class="mb-4">law-enforcement authorities where legally required or otherwise permitted;</p>
+    <p class="mb-4">service providers acting on our behalf; and</p>
+    <p class="mb-4">a successor entity in connection with a merger, acquisition, restructuring or transfer of assets.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">12. Legal and Safety Disclosures</h3>
+    <p class="mb-4">We may disclose information where reasonably necessary or legally required to:</p>
+    <p class="mb-4">comply with law;</p>
+    <p class="mb-4">respond to valid legal process;</p>
+    <p class="mb-4">protect life or safety;</p>
+    <p class="mb-4">investigate fraud;</p>
+    <p class="mb-4">investigate serious abuse;</p>
+    <p class="mb-4">protect the rights or property of WeHere or others; or</p>
+    <p class="mb-4">prevent serious misuse of the Platform.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">13. Data Security</h3>
+    <p class="mb-4">WeHere implements reasonable technical and organisational measures intended to protect information.</p>
+    <p class="mb-4">No online service can guarantee absolute security.</p>
+    <p class="mb-4">Users are responsible for maintaining the confidentiality of their account credentials.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">14. Data Retention</h3>
+    <p class="mb-4">We retain information only for as long as reasonably necessary for:</p>
+    <p class="mb-4">providing services;</p>
+    <p class="mb-4">legal compliance;</p>
+    <p class="mb-4">security;</p>
+    <p class="mb-4">fraud prevention;</p>
+    <p class="mb-4">dispute resolution;</p>
+    <p class="mb-4">enforcing agreements;</p>
+    <p class="mb-4">legitimate business records; and</p>
+    <p class="mb-4">other lawful purposes.</p>
+    <p class="mb-4">Different categories of information may have different retention periods.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">15. Account Deletion</h3>
+    <p class="mb-4">Subject to applicable law and legitimate retention requirements, users may request deletion of their account.</p>
+    <p class="mb-4">Certain information may be retained where necessary for:</p>
+    <p class="mb-4">legal compliance;</p>
+    <p class="mb-4">fraud prevention;</p>
+    <p class="mb-4">security;</p>
+    <p class="mb-4">dispute resolution;</p>
+    <p class="mb-4">legal claims;</p>
+    <p class="mb-4">financial records; or</p>
+    <p class="mb-4">other lawful purposes.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">16. User Rights</h3>
+    <p class="mb-4">Subject to applicable law, users may have rights relating to their personal data, including applicable rights concerning:</p>
+    <p class="mb-4">access;</p>
+    <p class="mb-4">correction;</p>
+    <p class="mb-4">updating;</p>
+    <p class="mb-4">deletion;</p>
+    <p class="mb-4">withdrawal of consent;</p>
+    <p class="mb-4">grievance redressal; and</p>
+    <p class="mb-4">other rights available under applicable law.</p>
+    <p class="mb-4">Requests may be submitted throughprivacy@weherenetwork.com</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">17. Withdrawal of Consent</h3>
+    <p class="mb-4">Where processing is based on consent, users may withdraw consent through available mechanisms.</p>
+    <p class="mb-4">Withdrawal may affect access to features requiring that information.</p>
+    <p class="mb-4">Withdrawal does not affect processing lawfully undertaken before withdrawal.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">18. International Processing</h3>
+    <p class="mb-4">WeHere may use service providers located inside or outside India, subject to applicable legal requirements.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">19. No Current Counselling Service</h3>
+    <p class="mb-4">At the time of this Privacy Policy, the WeHere</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">application does not include a counselling section or professional counselling service.</h3>
+    <p class="mb-4">If WeHere introduces such functionality in the future, appropriate additional disclosures, policies, consent mechanisms and contractual arrangements may be introduced.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">20. Changes to This Privacy Policy</h3>
+    <p class="mb-4">We may update this Policy from time to time.</p>
+    <p class="mb-4">Material changes will be communicated through appropriate means where required.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">21. Contact</h3>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">WeHere Networks Private Limited</h3>
+    <p class="mb-4">Registered Office: B-2484 Indira Nagar, Lucknow 226016</p>
+    <p class="mb-4">Privacy Email: privacy@weherenetwork.com</p>
+    <p class="mb-4">Grievance Officer: Srishti Gautam</p>
+    <p class="mb-4">Grievance Email: grievance@wehere.co.in</p>
+
+  </div>
+</main>
+
+
+<!-- ═══════════════════════════ FOOTER ═══════════════════════════ -->
+<footer class="bg-surface-container border-t border-outline-variant/20">
+  <div class="w-full px-6 md:px-12 max-w-7xl mx-auto py-14">
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-8 mb-10 text-sm">
+      <div class="col-span-2">
+        <div class="flex items-center gap-2 mb-4">
+          <img src="./assets/logo/icon_logo.png" class="w-8 h-8 object-contain" alt="Wehere Logo">
+          <span class="font-display text-lg font-extrabold text-primary">Wehere</span>
+        </div>
+        <p class="text-on-surface-variant leading-relaxed max-w-xs mb-4 text-sm">
+          An empathetic, secure peer-support sanctuary. Real people. Real empathy. Zero judgment.
+        </p>
+        <div class="flex items-center gap-2">
+          <a aria-label="Facebook" class="w-8 h-8 rounded-full bg-surface-container-lowest flex items-center justify-center hover:bg-surface-variant transition-colors border border-outline-variant/30 text-primary" href="https://m.facebook.com/profile.php?id=61595426812276" target="_blank" rel="noopener noreferrer">
+            <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 320 512"><path d="M279.14 288l14.22-92.66h-88.91v-60.13c0-25.35 12.42-50.06 52.24-50.06h40.42V6.26S260.43 0 225.36 0c-73.22 0-121.08 44.38-121.08 124.72v70.62H22.89V288h81.39v224h100.17V288z"/></svg>
+          </a>
+          <a aria-label="Instagram" class="w-8 h-8 rounded-full bg-surface-container-lowest flex items-center justify-center hover:bg-surface-variant transition-colors border border-outline-variant/30 text-primary" href="https://www.instagram.com/weherenetwork?exln=MThmcjlqMnc0dWFjZg%3D%3D&utm_source=qr" target="_blank" rel="noopener noreferrer">
+            <svg class="w-4 h-4 fill-current" viewBox="0 0 448 512"><path d="M224.1 141c-63.6 0-114.9 51.3-114.9 114.9s51.3 114.9 114.9 114.9S339 319.5 339 255.9 287.7 141 224.1 141zm0 189.6c-41.1 0-74.7-33.5-74.7-74.7s33.5-74.7 74.7-74.7 74.7 33.5 74.7 74.7-33.6 74.7-74.7 74.7zm146.4-194.3c0 14.9-12 26.8-26.8 26.8-14.9 0-26.8-12-26.8-26.8s12-26.8 26.8-26.8 26.8 12 26.8 26.8zm76.1 27.2c-1.7-35.9-9.9-67.7-36.2-93.9-26.2-26.2-58-34.4-93.9-36.2-37-2.1-147.9-2.1-184.9 0-35.8 1.7-67.6 9.9-93.9 36.1s-34.4 58-36.2 93.9c-2.1 37-2.1 147.9 0 184.9 1.7 35.9 9.9 67.7 36.2 93.9s58 34.4 93.9 36.2c37 2.1 147.9 2.1 184.9 0 35.9-1.7 67.7-9.9 93.9-36.2 26.2-26.2 34.4-58 36.2-93.9 2.1-37 2.1-147.8 0-184.8zM398.8 388c-7.8 19.6-22.9 34.7-42.6 42.6-29.5 11.7-99.5 9-132.1 9s-102.7 2.6-132.1-9c-19.6-7.8-34.7-22.9-42.6-42.6-11.7-29.5-9-99.5-9-132.1s-2.6-102.7 9-132.1c7.8-19.6 22.9-34.7 42.6-42.6 29.5-11.7 99.5-9 132.1-9s102.7-2.6 132.1 9c19.6 7.8 34.7 22.9 42.6 42.6 11.7 29.5 9 99.5 9 132.1s2.7 102.7-9 132.1z"/></svg>
+          </a>
+          <a aria-label="YouTube" class="w-8 h-8 rounded-full bg-surface-container-lowest flex items-center justify-center hover:bg-surface-variant transition-colors border border-outline-variant/30 text-primary" href="https://youtube.com/@wehereapp?si=NT6kDj3Hr7Ufnwb-" target="_blank" rel="noopener noreferrer">
+            <svg class="w-4 h-4 fill-current" viewBox="0 0 576 512"><path d="M549.655 124.083c-6.281-23.65-24.787-42.276-48.284-48.597C458.781 64 288 64 288 64S117.22 64 74.629 75.486c-23.497 6.322-42.003 24.947-48.284 48.597-11.412 42.867-11.412 132.305-11.412 132.305s0 89.438 11.412 132.305c6.281 23.65 24.787 41.5 48.284 47.821C117.22 448 288 448 288 448s170.78 0 213.371-11.486c23.497-6.321 42.003-24.171 48.284-47.821 11.412-42.867 11.412-132.305 11.412-132.305s0-89.438-11.412-132.305zm-317.51 213.508V175.185l142.739 81.205-142.739 81.201z"/></svg>
+          </a>
+        </div>
+      </div>
+
+      <div>
+        <h4 class="font-display font-bold text-primary mb-3">Product</h4>
+        <ul class="space-y-2 text-on-surface-variant">
+          <li><a class="hover:text-primary transition-colors" href="index.html#how-it-works">How It Works</a></li>
+          <li><a class="hover:text-primary transition-colors" href="index.html#features">Features</a></li>
+          <li><a class="hover:text-primary transition-colors" href="index.html#download">Get the App</a></li>
+        </ul>
+      </div>
+
+      <div>
+        <h4 class="font-display font-bold text-primary mb-3">Company</h4>
+        <ul class="space-y-2 text-on-surface-variant">
+          <li><a class="hover:text-primary transition-colors" href="about.html">About Us</a></li>
+          <li><a class="hover:text-primary transition-colors" href="index.html#institutions">Partnerships</a></li>
+          <li><a class="hover:text-primary transition-colors" href="mailto:partnerships@wehere.app">Contact Us</a></li>
+        </ul>
+      </div>
+
+      <div>
+        <h4 class="font-display font-bold text-primary mb-3">Legal & Safety</h4>
+        <ul class="space-y-2 text-on-surface-variant">
+          <li><a class="hover:text-primary transition-colors" href="policies.html">Safety Center</a></li>
+          <li><a class="hover:text-primary transition-colors" href="policies.html">Privacy Policy</a></li>
+          <li><a class="hover:text-primary transition-colors" href="policies.html">Terms of Service</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="pt-8 border-t border-surface-container-high flex flex-col md:flex-row items-center justify-between text-xs text-secondary gap-2">
+      <span>© 2026 Wehere. All rights reserved.</span>
+      <span class="flex items-center gap-1.5">
+        <i data-lucide="heart" class="lucide-icon text-sm fill-current text-tertiary-container"></i>
+        Built with care for vulnerable hearts.
+      </span>
+    </div>
+  </div>
+</footer>
+
+<script>
+  document.getElementById('mobile-menu-btn')?.addEventListener('click', () => {
+    document.getElementById('mobile-menu')?.classList.toggle('hidden');
+  });
+</script>
+
+  <script>lucide.createIcons();</script>
+</body>
+</html>

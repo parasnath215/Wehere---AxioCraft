@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "adm-zip": "^0.6.1",
+    "lucide-react": "^1.55.0"
+  }
+}

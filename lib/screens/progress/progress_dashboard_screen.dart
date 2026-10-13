@@ -260,59 +260,82 @@ class _ProgressDashboardScreenState extends State<ProgressDashboardScreen> {
 
               const SizedBox(height: 20),
 
-              if (appState.goals.isNotEmpty && appState.goals.every((g) => g.isCompleted)) ...[
-                // Milestone Unlocked Banner
-                Container(
-                  padding: const EdgeInsets.all(18),
-                  decoration: BoxDecoration(
-                    gradient: AppColors.primaryGradient,
-                    borderRadius: BorderRadius.circular(22),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.primary.withValues(alpha: 0.35),
-                        blurRadius: 14,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 52,
-                        height: 52,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.2),
-                          shape: BoxShape.circle,
+              // Milestone Banner
+              Builder(
+                builder: (context) {
+                  final unlockedCount = appState.milestones.where((m) => m.isUnlocked).length;
+                  final totalCount = appState.milestones.length;
+                  final latest = appState.latestUnlockedMilestone ??
+                      appState.milestones.where((m) => m.isUnlocked).firstOrNull;
+
+                  return Container(
+                    padding: const EdgeInsets.all(18),
+                    decoration: BoxDecoration(
+                      gradient: AppColors.primaryGradient,
+                      borderRadius: BorderRadius.circular(22),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.primary.withValues(alpha: 0.35),
+                          blurRadius: 14,
+                          offset: const Offset(0, 4),
                         ),
-                        child: const Icon(Icons.emoji_events_rounded, color: Colors.white, size: 30),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text('Milestone Unlocked! 🎉', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
-                            const SizedBox(height: 2),
-                            Text('You completed ${appState.goals.length} goals this week. Amazing work!', style: const TextStyle(color: Colors.white70, fontSize: 11, height: 1.3)),
-                          ],
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 52,
+                          height: 52,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.2),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Center(
+                            child: Text(
+                              latest != null ? latest.emoji : '🏆',
+                              style: const TextStyle(fontSize: 26),
+                            ),
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 6),
-                      ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.white,
-                          foregroundColor: AppColors.primary,
-                          minimumSize: const Size(90, 34),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                latest != null ? '${latest.title} Unlocked! 🎉' : 'Milestone Journey 🏆',
+                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                latest != null
+                                    ? latest.description
+                                    : '$unlockedCount of $totalCount milestones achieved so far.',
+                                style: const TextStyle(color: Colors.white70, fontSize: 11, height: 1.3),
+                              ),
+                            ],
+                          ),
                         ),
-                        onPressed: () => _showMilestonesSheet(context),
-                        child: const Text('Milestones', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+                        const SizedBox(width: 8),
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            foregroundColor: AppColors.primary,
+                            minimumSize: const Size(80, 34),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                            padding: const EdgeInsets.symmetric(horizontal: 10),
+                          ),
+                          onPressed: () => _showMilestonesSheet(context, appState),
+                          child: Text(
+                            '$unlockedCount/$totalCount',
+                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
 
               const SizedBox(height: 24),
             ],
@@ -383,45 +406,151 @@ class _ProgressDashboardScreenState extends State<ProgressDashboardScreen> {
     );
   }
 
-  void _showMilestonesSheet(BuildContext context) {
+  void _showMilestonesSheet(BuildContext context, AppState appState) {
+    final milestones = appState.milestones;
+    final unlockedCount = milestones.where((m) => m.isUnlocked).length;
+
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
+      isScrollControlled: true,
       builder: (ctx) => Container(
+        height: MediaQuery.of(context).size.height * 0.72,
         padding: const EdgeInsets.all(22),
         decoration: const BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
         ),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Icon(Icons.emoji_events_rounded, color: AppColors.primary, size: 24),
-                const SizedBox(width: 8),
-                Text('Earned Milestones 🏆', style: AppTextStyles.h2.copyWith(fontSize: 18)),
+                Row(
+                  children: [
+                    const Icon(Icons.emoji_events_rounded, color: AppColors.primary, size: 24),
+                    const SizedBox(width: 8),
+                    Text('Milestones & Badges 🏆', style: AppTextStyles.h2.copyWith(fontSize: 18)),
+                  ],
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.primarySoft,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    '$unlockedCount / ${milestones.length} Earned',
+                    style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 12),
+                  ),
+                ),
               ],
             ),
+            const SizedBox(height: 8),
+            const Text(
+              'Unlock achievements by journaling, holding streaks, completing goals, and connecting safely.',
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+            ),
             const SizedBox(height: 16),
-            const ListTile(
-              leading: CircleAvatar(backgroundColor: Color(0xFFEEEAFE), child: Text('🎧')),
-              title: Text('Helpful Listener', style: TextStyle(fontWeight: FontWeight.bold)),
-              subtitle: Text('Exchanged 10+ supportive messages with peers'),
-              trailing: Icon(Icons.check_circle_rounded, color: AppColors.onlineGreen),
-            ),
-            const ListTile(
-              leading: CircleAvatar(backgroundColor: Color(0xFFFEF3C7), child: Text('🔥')),
-              title: Text('Consistency Master', style: TextStyle(fontWeight: FontWeight.bold)),
-              subtitle: Text('Maintained an active 16-day reflection streak'),
-              trailing: Icon(Icons.check_circle_rounded, color: AppColors.onlineGreen),
-            ),
-            const ListTile(
-              leading: CircleAvatar(backgroundColor: Color(0xFFE8F8F0), child: Text('🛡️')),
-              title: Text('Safe Space Creator', style: TextStyle(fontWeight: FontWeight.bold)),
-              subtitle: Text('100% positive kindness and empathy ratings'),
-              trailing: Icon(Icons.check_circle_rounded, color: AppColors.onlineGreen),
+            Expanded(
+              child: ListView.separated(
+                itemCount: milestones.length,
+                separatorBuilder: (c, i) => const Divider(height: 16, color: AppColors.cardBorder),
+                itemBuilder: (c, i) {
+                  final m = milestones[i];
+                  return Row(
+                    children: [
+                      Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: m.isUnlocked ? const Color(0xFFF0EEFF) : const Color(0xFFF3F3FA),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Center(
+                          child: Text(m.emoji, style: const TextStyle(fontSize: 22)),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Text(
+                                  m.title,
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                    color: m.isUnlocked ? AppColors.textPrimary : AppColors.textSecondary,
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.surfaceSubtle,
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    m.category,
+                                    style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: AppColors.textMuted),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 3),
+                            Text(
+                              m.description,
+                              style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                            ),
+                            const SizedBox(height: 6),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(4),
+                                    child: LinearProgressIndicator(
+                                      value: m.percent,
+                                      minHeight: 4,
+                                      backgroundColor: AppColors.surfaceSubtle,
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        m.isUnlocked ? AppColors.onlineGreen : AppColors.primary,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  '${m.currentProgress}/${m.targetProgress}',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: m.isUnlocked ? AppColors.onlineGreen : AppColors.textMuted,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      if (m.isUnlocked)
+                        const Column(
+                          children: [
+                            Icon(Icons.check_circle_rounded, color: AppColors.onlineGreen, size: 20),
+                            SizedBox(height: 2),
+                            Text('Earned', style: TextStyle(color: AppColors.onlineGreen, fontSize: 9, fontWeight: FontWeight.bold)),
+                          ],
+                        )
+                      else
+                        const Icon(Icons.lock_outline_rounded, color: AppColors.textMuted, size: 20),
+                    ],
+                  );
+                },
+              ),
             ),
           ],
         ),

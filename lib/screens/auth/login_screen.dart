@@ -254,11 +254,17 @@ class _LoginScreenState extends State<LoginScreen> {
                           }
 
                           final success = await context.read<AuthNotifier>().login(_loginController.text.trim(), _passwordController.text.trim());
-                          if (success && context.mounted) {
-                            context.read<AppState>().setTabIndex(0);
-                            Navigator.pushNamedAndRemoveUntil(context, AppRoutes.main, (route) => false);
-                          } else if (context.mounted && context.read<AuthNotifier>().authError != null) {
-                            UiUtils.showTopSnackBar(context, context.read<AuthNotifier>().authError!);
+                          if (context.mounted) {
+                            final authNotifier = context.read<AuthNotifier>();
+                            if (success && authNotifier.status == AuthStatus.authenticated) {
+                              context.read<AppState>().setTabIndex(0);
+                              Navigator.pushNamedAndRemoveUntil(context, AppRoutes.main, (route) => false);
+                            } else if (authNotifier.status == AuthStatus.unverified) {
+                              UiUtils.showTopSnackBar(context, 'Please verify your email address to continue.');
+                              Navigator.pushNamed(context, AppRoutes.otp);
+                            } else if (authNotifier.authError != null) {
+                              UiUtils.showTopSnackBar(context, authNotifier.authError!);
+                            }
                           }
                         },
                   child: auth.isLoading

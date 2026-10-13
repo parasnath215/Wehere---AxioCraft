@@ -1,4 +1,4 @@
-package com.wehere.wehere
+package com.wehere.app
 
 import io.flutter.embedding.android.FlutterActivity
 

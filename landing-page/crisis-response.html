@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html class="scroll-smooth" lang="en">
+<head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Self-Harm & Crisis Response | Wehere</title>
+<!-- Google Fonts & Material Symbols -->
+<link href="https://fonts.googleapis.com" rel="preconnect">
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,700;1,9..40,400&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet">
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        colors: {
+          "surface": "#fcf8ff",
+          "on-surface": "#191540",
+          "primary": "#280a80",
+          "primary-container": "#3f2b96",
+          "on-primary": "#ffffff",
+          "on-primary-container": "#c9bfff",
+          "secondary": "#5f5c73",
+          "secondary-container": "#e5dffb",
+          "on-secondary-container": "#656279",
+          "secondary-fixed": "#e5dffb",
+          "secondary-fixed-dim": "#c8c3de",
+          "surface-variant": "#e3dfff",
+          "on-surface-variant": "#484552",
+          "surface-container-lowest": "#ffffff",
+          "surface-container-low": "#f6f2ff",
+          "surface-container": "#f0ebff",
+          "surface-container-high": "#e9e5ff",
+          "surface-container-highest": "#e3dfff",
+          "inverse-surface": "#2e2b56",
+          "inverse-on-surface": "#f3eeff",
+          "inverse-primary": "#c9bfff",
+          "tertiary": "#4e1700",
+          "tertiary-container": "#732500",
+          "on-tertiary-container": "#ff8b5c",
+          "tertiary-fixed": "#ffdbce",
+          "tertiary-fixed-dim": "#ffb599",
+          "on-tertiary-fixed": "#370e00",
+          "outline": "#797584",
+          "outline-variant": "#c9c4d4",
+          "error": "#ba1a1a",
+          "error-container": "#ffdad6",
+          "background": "#fcf8ff",
+        },
+        fontFamily: {
+          sans: ["DM Sans", "sans-serif"],
+          display: ["Plus Jakarta Sans", "sans-serif"],
+        },
+        keyframes: {
+          "fade-up": {
+            "0%": { opacity: "0", transform: "translateY(24px)" },
+            "100%": { opacity: "1", transform: "translateY(0)" },
+          },
+        },
+        animation: {
+          "fade-up": "fade-up 0.6s ease-out forwards",
+        },
+      }
+    }
+  }
+</script>
+<style>
+  .material-symbols-rounded {
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    display: inline-block;
+    vertical-align: middle;
+    line-height: 1;
+    user-select: none;
+  }
+  .material-symbols-rounded.fill {
+    font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  }
+  .reveal { opacity: 0; transform: translateY(28px); transition: opacity 0.65s ease, transform 0.65s ease; }
+  .reveal.visible { opacity: 1; transform: translateY(0); }
+  .reveal-delay-1 { transition-delay: 0.1s; }
+  .reveal-delay-2 { transition-delay: 0.2s; }
+</style>
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body class="bg-background text-on-surface font-sans antialiased overflow-x-hidden flex flex-col min-h-screen">
+
+<!-- Ambient Background Blobs -->
+<div class="fixed inset-0 pointer-events-none -z-10 overflow-hidden">
+  <div class="absolute -top-40 -left-40 w-[500px] h-[500px] rounded-full bg-secondary-fixed/50 blur-[140px]"></div>
+  <div class="absolute top-1/2 -right-40 w-[600px] h-[600px] rounded-full bg-surface-container-high/60 blur-[160px]"></div>
+</div>
+
+<!-- ═══════════════════════════ NAVBAR ═══════════════════════════ -->
+<header class="bg-surface/80 backdrop-blur-xl sticky top-0 z-50 border-b border-outline-variant/20 shadow-[0_4px_24px_-4px_rgba(40,10,128,0.06)]">
+  <div class="flex justify-between items-center w-full px-6 md:px-12 max-w-7xl mx-auto h-16">
+    <a class="flex items-center gap-2.5 active:scale-[0.98] transition-transform" href="index.html">
+      <img src="./assets/logo/icon_logo.png" class="w-9 h-9 object-contain" alt="Wehere Logo">
+      <span class="text-[18px] font-display font-extrabold text-primary tracking-tight">Wehere</span>
+    </a>
+
+    <nav class="hidden md:flex items-center gap-7">
+      <a class="text-on-surface-variant font-medium text-sm hover:text-primary transition-colors" href="index.html#how-it-works">How It Works</a>
+      <a class="text-on-surface-variant font-medium text-sm hover:text-primary transition-colors" href="index.html#features">Features</a>
+      <a class="text-on-surface-variant font-medium text-sm hover:text-primary transition-colors" href="about.html">About Us</a>
+      <a class="text-on-surface-variant font-medium text-sm hover:text-primary transition-colors" href="policies.html">Policies</a>
+    </nav>
+
+    <div class="hidden md:flex items-center gap-3">
+      <a class="text-sm font-display font-semibold px-5 py-2.5 rounded-full bg-primary-container text-white hover:shadow-lg hover:shadow-primary/25 active:scale-[0.98] transition-all" href="index.html#download">
+        Get the App
+      </a>
+    </div>
+
+    <button aria-label="Toggle navigation" class="md:hidden text-primary p-2 rounded-full" id="mobile-menu-btn">
+      <i data-lucide="menu" class="lucide-icon text-2xl"></i>
+    </button>
+  </div>
+
+  <div class="hidden md:hidden px-6 pb-5 pt-2 border-t border-surface-container flex flex-col gap-2" id="mobile-menu">
+    <a class="text-on-surface-variant py-2 text-sm" href="index.html#how-it-works">How It Works</a>
+    <a class="text-on-surface-variant py-2 text-sm" href="index.html#features">Features</a>
+    <a class="text-on-surface-variant py-2 text-sm" href="about.html">About Us</a>
+    <a class="text-primary font-bold py-2 text-sm" href="policies.html">Policies</a>
+  </div>
+</header>
+
+
+<main class="flex-grow py-16 md:py-24 px-6 md:px-12 max-w-4xl mx-auto w-full">
+  <div class="mb-12 animate-fade-up">
+    <a href="policies.html" class="inline-flex items-center gap-2 text-primary font-display text-sm font-bold bg-surface-container py-2 px-4 rounded-full w-max hover:bg-surface-container-high transition-colors mb-8">
+      <i data-lucide="arrow-left" class="lucide-icon text-lg"></i>
+      Back to Policies
+    </a>
+    <h1 class="font-display text-[clamp(2rem,4vw,3rem)] font-extrabold text-on-surface leading-tight tracking-tight">
+      Self-Harm & Crisis Response
+    </h1>
+  </div>
+  
+  <div class="bg-surface-container-lowest rounded-3xl p-8 md:p-12 border border-outline-variant/30 shadow-sm animate-fade-up prose prose-indigo max-w-none text-on-surface-variant leading-relaxed" style="animation-delay: 0.1s">
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">WEHERE SAFETY, SELF-HARM &amp; CRISIS RESPONSE POLICY</h3>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">Effective Date: 10th October 2026</h3>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">Last Updated: 7th October 2026</h3>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">1. Purpose</h3>
+    <p class="mb-4">This Policy explains WeHere's approach to self-harm, suicide-related content, serious emotional distress and crisis situations.</p>
+    <p class="mb-4">WeHere is a peer-support platform and is not an emergency service, hospital, medical provider, psychiatric provider or substitute for professional care.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">2. Permitted Discussion</h3>
+    <p class="mb-4">Users may discuss:</p>
+    <p class="mb-4">loneliness;</p>
+    <p class="mb-4">grief;</p>
+    <p class="mb-4">emotional distress;</p>
+    <p class="mb-4">relationship difficulties;</p>
+    <p class="mb-4">personal struggles;</p>
+    <p class="mb-4">recovery experiences;</p>
+    <p class="mb-4">difficult life circumstances; and</p>
+    <p class="mb-4">seeking peer support.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">3. Prohibited Conduct</h3>
+    <p class="mb-4">Users must not:</p>
+    <p class="mb-4">encourage suicide;</p>
+    <p class="mb-4">encourage self-harm;</p>
+    <p class="mb-4">provide dangerous instructions;</p>
+    <p class="mb-4">glorify self-harm or suicide;</p>
+    <p class="mb-4">pressure another person to self-harm;</p>
+    <p class="mb-4">organise self-harm challenges;</p>
+    <p class="mb-4">exploit a person in crisis;</p>
+    <p class="mb-4">deliberately intensify a crisis; or</p>
+    <p class="mb-4">use self-harm threats to manipulate another</p>
+    <p class="mb-4">user.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">4. Crisis Disclosures</h3>
+    <p class="mb-4">Where WeHere becomes aware of a credible safety concern through reporting or available safety systems, it may:</p>
+    <p class="mb-4">review content;</p>
+    <p class="mb-4">restrict harmful content;</p>
+    <p class="mb-4">restrict an abusive account;</p>
+    <p class="mb-4">provide appropriate safety information;</p>
+    <p class="mb-4">escalate internally;</p>
+    <p class="mb-4">preserve relevant information where lawful; or</p>
+    <p class="mb-4">contact appropriate authorities where legally required or reasonably necessary.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">5. Immediate Danger</h3>
+    <p class="mb-4">Anyone facing immediate danger should contact</p>
+    <p class="mb-4">the appropriate emergency service or qualified professional in their jurisdiction.</p>
+    <p class="mb-4">WeHere does not guarantee immediate human monitoring or intervention.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">6. Peer Support Is Not Treatment</h3>
+    <p class="mb-4">Information provided by another user is peer-generated content.</p>
+    <p class="mb-4">It is not:</p>
+    <p class="mb-4">diagnosis;</p>
+    <p class="mb-4">medical advice;</p>
+    <p class="mb-4">psychiatric advice;</p>
+    <p class="mb-4">therapy;</p>
+    <p class="mb-4">counselling; or</p>
+    <p class="mb-4">emergency treatment.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">7. Privacy</h3>
+    <p class="mb-4">Safety information may be processed where</p>
+    <p class="mb-4">necessary to operate safety mechanisms, enforce Platform rules, comply with law or protect people.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">8. Counselling</h3>
+    <p class="mb-4">WeHere does not currently provide a counselling section or professional counselling service in the application.</p>
+    <p class="mb-4">Any future counselling service will be separately reviewed and documented.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">9. Reporting</h3>
+    <p class="mb-4">Users should report content involving:</p>
+    <p class="mb-4">self-harm encouragement;</p>
+    <p class="mb-4">suicide encouragement;</p>
+    <p class="mb-4">imminent threats;</p>
+    <p class="mb-4">exploitation;</p>
+    <p class="mb-4">dangerous instructions; or</p>
+    <p class="mb-4">serious safety concerns.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">10. Limitations</h3>
+    <p class="mb-4">WeHere cannot guarantee:</p>
+    <p class="mb-4">detection of every crisis;</p>
+    <p class="mb-4">immediate response;</p>
+    <p class="mb-4">accurate location information;</p>
+    <p class="mb-4">emergency-service availability;</p>
+    <p class="mb-4">successful contact with a user; or</p>
+    <p class="mb-4">prevention of all harmful interactions.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">WEHERE SUBSCRIPTION, CANCELLATION &amp; REFUND POLICY</h3>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">1. General</h3>
+    <p class="mb-4">WeHere provides certain functionality free of</p>
+    <p class="mb-4">charge and may provide optional paid subscriptions.</p>
+    <p class="mb-4">The exact price displayed at the time of purchase governs the transaction.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">2. Subscription Plans</h3>
+    <p class="mb-4">The planned India subscription structure includes:</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">Plan</h3>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">Price</h3>
+    <p class="mb-4">Weekly</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">₹34.99</h3>
+    <p class="mb-4">Monthly</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">₹84.99</h3>
+    <p class="mb-4">Yearly</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">₹554.99</h3>
+    <p class="mb-4">Student Weekly</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">₹18.99</h3>
+    <p class="mb-4">Student Monthly promotional price</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">₹45.99</h3>
+    <p class="mb-4">Student Yearly promotional price</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">₹499.99</h3>
+    <p class="mb-4">Festival/Holiday/Birthday Weekly</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">₹12.99</h3>
+    <p class="mb-4">Festival/Holiday/Birthday Monthly</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">₹24.99</h3>
+    <p class="mb-4">Promotional plans may be subject to eligibility, timing and availability conditions.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">3. Student Eligibility</h3>
+    <p class="mb-4">Where a student plan is offered, WeHere may require reasonable evidence of eligibility.</p>
+    <p class="mb-4">False claims of student status may result in cancellation or account action.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">4. Free Version</h3>
+    <p class="mb-4">The free version may contain advertisements.</p>
+    <p class="mb-4">Features available to free users may change.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">5. Auto-Renewal</h3>
+    <p class="mb-4">Where applicable, subscriptions may automatically renew unless cancelled through the applicable billing provider before renewal.</p>
+    <p class="mb-4">6. Google Play and Apple App Store Where purchased through Google Play or Apple App Store, payment, renewal, cancellation and certain refund processes may be controlled by the relevant store.</p>
+    <p class="mb-4">Users may need to manage subscriptions through their store account.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">7. Cancellation</h3>
+    <p class="mb-4">Cancellation generally stops future renewal.</p>
+    <p class="mb-4">Unless otherwise required by law or expressly stated, cancellation does not automatically</p>
+    <p class="mb-4">create a right to a refund for unused time in the current billing period.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">8. Refunds</h3>
+    <p class="mb-4">Refunds will be handled according to applicable law, the applicable payment provider's rules and any specific refund terms shown at purchase.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">9. Failed Payments</h3>
+    <p class="mb-4">Failed renewal payments may result in suspension of paid functionality.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">10. Price Changes</h3>
+    <p class="mb-4">WeHere may change subscription prices.</p>
+    <p class="mb-4">Where required by law, appropriate notice will be provided before changes affect renewing subscriptions.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">11. Taxes</h3>
+    <p class="mb-4">Applicable taxes may be charged as required by law.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">12. Fraud</h3>
+    <p class="mb-4">WeHere may restrict accounts associated with fraudulent transactions, payment abuse or chargeback abuse.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">13. Consumer Rights</h3>
+    <p class="mb-4">Nothing in this Policy excludes mandatory consumer rights.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">WEHERE GRIEVANCE REDRESSAL POLICY</h3>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">1. Grievance Officer</h3>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">Name: Srishti Gautam</h3>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">Designation: Grievance Officer</h3>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">Email:grievance@wehere.co.in</h3>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">Address: B-2484 Indira Nagar, Lucknow 226016</h3>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">Working Hours: 8:00 AM to 7:00 PM</h3>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">2. What Can Be Reported</h3>
+    <p class="mb-4">Users may raise complaints concerning:</p>
+    <p class="mb-4">privacy;</p>
+    <p class="mb-4">personal data;</p>
+    <p class="mb-4">content;</p>
+    <p class="mb-4">harassment;</p>
+    <p class="mb-4">safety;</p>
+    <p class="mb-4">self-harm content;</p>
+    <p class="mb-4">impersonation;</p>
+    <p class="mb-4">intellectual property;</p>
+    <p class="mb-4">subscriptions;</p>
+    <p class="mb-4">payments;</p>
+    <p class="mb-4">refunds;</p>
+    <p class="mb-4">account issues; and</p>
+    <p class="mb-4">other Platform matters.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">3. Complaint Information</h3>
+    <p class="mb-4">Where available, provide:</p>
+    <p class="mb-4">name;</p>
+    <p class="mb-4">contact details;</p>
+    <p class="mb-4">account details;</p>
+    <p class="mb-4">description;</p>
+    <p class="mb-4">relevant content;</p>
+    <p class="mb-4">URL or identifier;</p>
+    <p class="mb-4">date/time; and</p>
+    <p class="mb-4">supporting evidence.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">4. Processing</h3>
+    <p class="mb-4">WeHere will process grievances according to applicable legal requirements and its internal procedures.</p>
+    <p class="mb-4">Applicable statutory timelines will take precedence over any general timeline in this Policy.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">5. Investigation</h3>
+    <p class="mb-4">WeHere may examine relevant information reasonably necessary to investigate a complaint.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">6. Resolution</h3>
+    <p class="mb-4">Depending on the matter, WeHere may:</p>
+    <p class="mb-4">remove content;</p>
+    <p class="mb-4">restore content;</p>
+    <p class="mb-4">restrict content;</p>
+    <p class="mb-4">suspend an account;</p>
+    <p class="mb-4">terminate an account;</p>
+    <p class="mb-4">correct information;</p>
+    <p class="mb-4">provide an explanation; or</p>
+    <p class="mb-4">take other appropriate action.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">7. Privacy Complaints</h3>
+    <p class="mb-4">Privacy complaints may be sent to PRIVACY</p>
+    <p class="mb-4">EMAIL: privacy@weherenetwork.com</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">8. IP Complaints</h3>
+    <p class="mb-4">IP complaints may be submitted with evidence establishing the complainant's rights and identifying the relevant content.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">9. Emergency Safety</h3>
+    <p class="mb-4">For immediate physical danger, users should contact the appropriate emergency service. WeHere may prioritise serious safety reports.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">WEHERE USER-GENERATED CONTENT &amp; INTELLECTUAL PROPERTY POLICY</h3>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">1. User Ownership</h3>
+    <p class="mb-4">Users retain applicable ownership rights in</p>
+    <p class="mb-4">original content they create.</p>
+    <p class="mb-4">Uploading content does not automatically transfer ownership to WeHere.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">2. Licence</h3>
+    <p class="mb-4">By submitting content, you grant WeHere a non-exclusive, worldwide, royalty-free licence, to the extent reasonably necessary to operate the Platform, to:</p>
+    <p class="mb-4">host;</p>
+    <p class="mb-4">store;</p>
+    <p class="mb-4">reproduce;</p>
+    <p class="mb-4">process;</p>
+    <p class="mb-4">display;</p>
+    <p class="mb-4">transmit;</p>
+    <p class="mb-4">format;</p>
+    <p class="mb-4">moderate; and</p>
+    <p class="mb-4">technically adapt</p>
+    <p class="mb-4">the content.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">3. User Responsibility</h3>
+    <p class="mb-4">You must have the necessary rights to upload content.</p>
+    <p class="mb-4">Do not upload content that infringes another person's rights.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">4. Copyright</h3>
+    <p class="mb-4">Copyright owners may report suspected infringement through:</p>
+    <p class="mb-4">grievance@wehere.co.in</p>
+    <p class="mb-4">A report should identify the protected work, allegedly infringing material, location and evidence of authority/ownership.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">5. Trademark</h3>
+    <p class="mb-4">Trademark owners may submit substantiated complaints concerning infringement.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">6. Removal</h3>
+    <p class="mb-4">WeHere may restrict or remove content where required by law, Platform rules, valid legal process, safety requirements or credible rights claims.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">7. Repeat Infringement</h3>
+    <p class="mb-4">Repeated serious infringement may result in account restrictions or termination.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">8. WeHere Intellectual Property</h3>
+    <p class="mb-4">The WeHere name, logo, software, interface, design and other Company-owned material belong to or are licensed to WeHere Networks Private Limited unless otherwise stated.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">9. Public Content</h3>
+    <p class="mb-4">Content intentionally posted publicly may be</p>
+    <p class="mb-4">viewed, copied or redistributed by other users.</p>
+    <p class="mb-4">Users should not publish information they do not want others to see.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">10. Account Deletion</h3>
+    <p class="mb-4">Deletion of an account does not necessarily remove every lawful copy immediately, particularly where retention is required for legal, security, backup or dispute purposes.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">INTERNAL SAFETY &amp; MODERATION STANDARD</h3>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">CONFIDENTIAL — INTERNAL USE</h3>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">1. Purpose</h3>
+    <p class="mb-4">This document establishes an internal framework for moderation and safety handling.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">2. Level 1 — Ordinary Distress</h3>
+    <p class="mb-4">Examples include loneliness, sadness, relationship problems or difficult days.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">Action: Normal community moderation.</h3>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">3. Level 2 — Significant Distress</h3>
+    <p class="mb-4">Statements indicating severe hopelessness or inability to cope.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">Action: Review context, monitor where appropriate and apply available safety response.</h3>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">4. Level 3 — Self-Harm Ideation</h3>
+    <p class="mb-4">Statements indicating thoughts of self-harm.</p>
+    <p class="mb-4">Action: Prioritise safety, review context, restrict harmful replies, provide appropriate safety information and escalate internally according to procedure.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">5. Level 4 — Imminent Threat</h3>
+    <p class="mb-4">Credible indications of immediate serious harm.</p>
+    <p class="mb-4">Action: Immediate safety escalation, preservation of relevant information where lawful, consideration of emergency-authority contact where legally appropriate, and restriction of harmful interactions.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">6. Prohibited Responses</h3>
+    <p class="mb-4">Moderators should not:</p>
+    <p class="mb-4">diagnose;</p>
+    <p class="mb-4">claim to be medical professionals;</p>
+    <p class="mb-4">promise emergency intervention;</p>
+    <p class="mb-4">shame users;</p>
+    <p class="mb-4">provide dangerous medical instructions; or</p>
+    <p class="mb-4">promise absolute confidentiality.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">7. Documentation</h3>
+    <p class="mb-4">Serious incidents should be documented with:</p>
+    <p class="mb-4">date/time;</p>
+    <p class="mb-4">relevant account;</p>
+    <p class="mb-4">relevant content;</p>
+    <p class="mb-4">action taken;</p>
+    <p class="mb-4">escalation; and</p>
+    <p class="mb-4">outcome where known.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">8. Confidentiality</h3>
+    <p class="mb-4">Safety records should only be accessible to personnel with a legitimate operational need.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">9. Training</h3>
+    <p class="mb-4">Relevant moderation personnel should receive training concerning:</p>
+    <p class="mb-4">Community Guidelines;</p>
+    <p class="mb-4">self-harm safety;</p>
+    <p class="mb-4">privacy;</p>
+    <p class="mb-4">harassment;</p>
+    <p class="mb-4">child protection;</p>
+    <p class="mb-4">escalation; and</p>
+    <p class="mb-4">documentation.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">10. Review</h3>
+    <p class="mb-4">This internal Standard should be reviewed periodically by management and legal counsel.</p>
+
+  </div>
+</main>
+
+
+<!-- ═══════════════════════════ FOOTER ═══════════════════════════ -->
+<footer class="bg-surface-container border-t border-outline-variant/20">
+  <div class="w-full px-6 md:px-12 max-w-7xl mx-auto py-14">
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-8 mb-10 text-sm">
+      <div class="col-span-2">
+        <div class="flex items-center gap-2 mb-4">
+          <img src="./assets/logo/icon_logo.png" class="w-8 h-8 object-contain" alt="Wehere Logo">
+          <span class="font-display text-lg font-extrabold text-primary">Wehere</span>
+        </div>
+        <p class="text-on-surface-variant leading-relaxed max-w-xs mb-4 text-sm">
+          An empathetic, secure peer-support sanctuary. Real people. Real empathy. Zero judgment.
+        </p>
+        <div class="flex items-center gap-2">
+          <a aria-label="Facebook" class="w-8 h-8 rounded-full bg-surface-container-lowest flex items-center justify-center hover:bg-surface-variant transition-colors border border-outline-variant/30 text-primary" href="https://m.facebook.com/profile.php?id=61595426812276" target="_blank" rel="noopener noreferrer">
+            <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 320 512"><path d="M279.14 288l14.22-92.66h-88.91v-60.13c0-25.35 12.42-50.06 52.24-50.06h40.42V6.26S260.43 0 225.36 0c-73.22 0-121.08 44.38-121.08 124.72v70.62H22.89V288h81.39v224h100.17V288z"/></svg>
+          </a>
+          <a aria-label="Instagram" class="w-8 h-8 rounded-full bg-surface-container-lowest flex items-center justify-center hover:bg-surface-variant transition-colors border border-outline-variant/30 text-primary" href="https://www.instagram.com/weherenetwork?exln=MThmcjlqMnc0dWFjZg%3D%3D&utm_source=qr" target="_blank" rel="noopener noreferrer">
+            <svg class="w-4 h-4 fill-current" viewBox="0 0 448 512"><path d="M224.1 141c-63.6 0-114.9 51.3-114.9 114.9s51.3 114.9 114.9 114.9S339 319.5 339 255.9 287.7 141 224.1 141zm0 189.6c-41.1 0-74.7-33.5-74.7-74.7s33.5-74.7 74.7-74.7 74.7 33.5 74.7 74.7-33.6 74.7-74.7 74.7zm146.4-194.3c0 14.9-12 26.8-26.8 26.8-14.9 0-26.8-12-26.8-26.8s12-26.8 26.8-26.8 26.8 12 26.8 26.8zm76.1 27.2c-1.7-35.9-9.9-67.7-36.2-93.9-26.2-26.2-58-34.4-93.9-36.2-37-2.1-147.9-2.1-184.9 0-35.8 1.7-67.6 9.9-93.9 36.1s-34.4 58-36.2 93.9c-2.1 37-2.1 147.9 0 184.9 1.7 35.9 9.9 67.7 36.2 93.9s58 34.4 93.9 36.2c37 2.1 147.9 2.1 184.9 0 35.9-1.7 67.7-9.9 93.9-36.2 26.2-26.2 34.4-58 36.2-93.9 2.1-37 2.1-147.8 0-184.8zM398.8 388c-7.8 19.6-22.9 34.7-42.6 42.6-29.5 11.7-99.5 9-132.1 9s-102.7 2.6-132.1-9c-19.6-7.8-34.7-22.9-42.6-42.6-11.7-29.5-9-99.5-9-132.1s-2.6-102.7 9-132.1c7.8-19.6 22.9-34.7 42.6-42.6 29.5-11.7 99.5-9 132.1-9s102.7-2.6 132.1 9c19.6 7.8 34.7 22.9 42.6 42.6 11.7 29.5 9 99.5 9 132.1s2.7 102.7-9 132.1z"/></svg>
+          </a>
+          <a aria-label="YouTube" class="w-8 h-8 rounded-full bg-surface-container-lowest flex items-center justify-center hover:bg-surface-variant transition-colors border border-outline-variant/30 text-primary" href="https://youtube.com/@wehereapp?si=NT6kDj3Hr7Ufnwb-" target="_blank" rel="noopener noreferrer">
+            <svg class="w-4 h-4 fill-current" viewBox="0 0 576 512"><path d="M549.655 124.083c-6.281-23.65-24.787-42.276-48.284-48.597C458.781 64 288 64 288 64S117.22 64 74.629 75.486c-23.497 6.322-42.003 24.947-48.284 48.597-11.412 42.867-11.412 132.305-11.412 132.305s0 89.438 11.412 132.305c6.281 23.65 24.787 41.5 48.284 47.821C117.22 448 288 448 288 448s170.78 0 213.371-11.486c23.497-6.321 42.003-24.171 48.284-47.821 11.412-42.867 11.412-132.305 11.412-132.305s0-89.438-11.412-132.305zm-317.51 213.508V175.185l142.739 81.205-142.739 81.201z"/></svg>
+          </a>
+        </div>
+      </div>
+
+      <div>
+        <h4 class="font-display font-bold text-primary mb-3">Product</h4>
+        <ul class="space-y-2 text-on-surface-variant">
+          <li><a class="hover:text-primary transition-colors" href="index.html#how-it-works">How It Works</a></li>
+          <li><a class="hover:text-primary transition-colors" href="index.html#features">Features</a></li>
+          <li><a class="hover:text-primary transition-colors" href="index.html#download">Get the App</a></li>
+        </ul>
+      </div>
+
+      <div>
+        <h4 class="font-display font-bold text-primary mb-3">Company</h4>
+        <ul class="space-y-2 text-on-surface-variant">
+          <li><a class="hover:text-primary transition-colors" href="about.html">About Us</a></li>
+          <li><a class="hover:text-primary transition-colors" href="index.html#institutions">Partnerships</a></li>
+          <li><a class="hover:text-primary transition-colors" href="mailto:partnerships@wehere.app">Contact Us</a></li>
+        </ul>
+      </div>
+
+      <div>
+        <h4 class="font-display font-bold text-primary mb-3">Legal & Safety</h4>
+        <ul class="space-y-2 text-on-surface-variant">
+          <li><a class="hover:text-primary transition-colors" href="policies.html">Safety Center</a></li>
+          <li><a class="hover:text-primary transition-colors" href="policies.html">Privacy Policy</a></li>
+          <li><a class="hover:text-primary transition-colors" href="policies.html">Terms of Service</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="pt-8 border-t border-surface-container-high flex flex-col md:flex-row items-center justify-between text-xs text-secondary gap-2">
+      <span>© 2026 Wehere. All rights reserved.</span>
+      <span class="flex items-center gap-1.5">
+        <i data-lucide="heart" class="lucide-icon text-sm fill-current text-tertiary-container"></i>
+        Built with care for vulnerable hearts.
+      </span>
+    </div>
+  </div>
+</footer>
+
+<script>
+  document.getElementById('mobile-menu-btn')?.addEventListener('click', () => {
+    document.getElementById('mobile-menu')?.classList.toggle('hidden');
+  });
+</script>
+
+  <script>lucide.createIcons();</script>
+</body>
+</html>

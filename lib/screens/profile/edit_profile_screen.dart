@@ -215,8 +215,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             max: appState.configLimits?.bioMaxLength ?? 500,
             validator: (value) {
               if (value == null || value.isEmpty) return 'Required';
-              final words = value.trim().split(RegExp(r'\s+'));
-              if (words.length > 100) return 'Bio cannot exceed 100 words';
+              final limit = appState.configLimits?.bioMaxLength ?? 500;
+              if (value.length > limit) return 'Bio cannot exceed $limit characters';
               return null;
             }
           ),

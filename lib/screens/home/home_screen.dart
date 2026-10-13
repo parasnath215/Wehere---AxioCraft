@@ -6,6 +6,8 @@ import '../../core/theme/app_text_styles.dart';
 import '../../core/routing/app_routes.dart';
 import '../../state/app_state.dart';
 import '../../widgets/common/mood_chip.dart';
+import '../../widgets/common/animated_pressable.dart';
+import '../../widgets/common/animated_pulse.dart';
 import '../../widgets/shared/avatar_widget.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -84,31 +86,37 @@ class HomeScreen extends StatelessWidget {
           ),
           Row(
             children: [
-              GestureDetector(
-                onTap: () => Navigator.pushNamed(context, AppRoutes.sos),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFFFEF2F2), Color(0xFFFEE2E2)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
+              AnimatedPulse(
+                duration: const Duration(milliseconds: 1600),
+                minScale: 0.95,
+                maxScale: 1.05,
+                child: AnimatedPressable(
+                  onTap: () => Navigator.pushNamed(context, AppRoutes.sos),
+                  pressedScale: 0.92,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFFFEF2F2), Color(0xFFFEE2E2)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFFDC2626).withValues(alpha: 0.2),
+                          blurRadius: 14,
+                          offset: const Offset(0, 4),
+                        )
+                      ],
                     ),
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFFDC2626).withValues(alpha: 0.15),
-                        blurRadius: 12,
-                        offset: const Offset(0, 4),
-                      )
-                    ],
-                  ),
-                  child: const Row(
-                    children: [
-                      Text('🚨', style: TextStyle(fontSize: 14)),
-                      SizedBox(width: 6),
-                      Text('SOS', style: TextStyle(color: Color(0xFFDC2626), fontWeight: FontWeight.w900, fontSize: 13, letterSpacing: 0.5)),
-                    ],
+                    child: const Row(
+                      children: [
+                        Text('🚨', style: TextStyle(fontSize: 14)),
+                        SizedBox(width: 6),
+                        Text('SOS', style: TextStyle(color: Color(0xFFDC2626), fontWeight: FontWeight.w900, fontSize: 13, letterSpacing: 0.5)),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -302,7 +310,7 @@ class HomeScreen extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text('Quick Actions', style: AppTextStyles.h2.copyWith(fontSize: 20)),
-              if (appState.unreadNotifications > 0)
+              if (appState.unreadNotifications > 0 && appState.notifications.isNotEmpty)
                 GestureDetector(
                   onTap: () => _showNotifications(context, appState),
                   child: Container(
@@ -316,7 +324,7 @@ class HomeScreen extends StatelessWidget {
                         const Icon(Icons.notifications_active_rounded, color: AppColors.sosRed, size: 14),
                         const SizedBox(width: 6),
                         Text(
-                          '${appState.unreadNotifications} Alerts',
+                          '${appState.unreadNotifications} ${appState.unreadNotifications == 1 ? 'Alert' : 'Alerts'}',
                           style: const TextStyle(color: AppColors.sosRed, fontWeight: FontWeight.bold, fontSize: 12),
                         ),
                       ],
@@ -330,9 +338,9 @@ class HomeScreen extends StatelessWidget {
             title: 'My Journal',
             subtitle: lastJournalDate,
             icon: Icons.menu_book_rounded,
-            color: const Color(0xFFD97706),
+            color: AppColors.primary,
             gradient: const LinearGradient(
-              colors: [Color(0xFFFFEDD5), Color(0xFFFEF3C7)],
+              colors: [Color(0xFFEDE9FE), Color(0xFFDFD8FC)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -346,9 +354,9 @@ class HomeScreen extends StatelessWidget {
                   title: 'Find Peers',
                   subtitle: 'Connect with community',
                   icon: Icons.travel_explore_rounded,
-                  color: const Color(0xFF0284C7),
+                  color: AppColors.primaryDark,
                   gradient: const LinearGradient(
-                    colors: [Color(0xFFE0F2FE), Color(0xFFBAE6FD)],
+                    colors: [Color(0xFFF3F0FF), Color(0xFFE6E0FE)],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
@@ -362,7 +370,7 @@ class HomeScreen extends StatelessWidget {
                   title: 'Community',
                   subtitle: 'Discuss topics',
                   icon: Icons.forum_rounded,
-                  color: const Color(0xFF7C3AED),
+                  color: AppColors.primary,
                   gradient: const LinearGradient(
                     colors: [Color(0xFFEDE9FE), Color(0xFFDDD6FE)],
                     begin: Alignment.topLeft,
@@ -388,8 +396,9 @@ class HomeScreen extends StatelessWidget {
     required VoidCallback onTap,
     bool isSmall = false,
   }) {
-    return GestureDetector(
+    return AnimatedPressable(
       onTap: onTap,
+      pressedScale: 0.96,
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
@@ -412,12 +421,19 @@ class HomeScreen extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.7),
+                    color: Colors.white,
                     shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: color.withValues(alpha: 0.1),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                   ),
                   child: Icon(icon, color: color, size: 24),
                 ),
-                Icon(Icons.arrow_forward_ios_rounded, color: color.withValues(alpha: 0.5), size: 14),
+                Icon(Icons.arrow_forward_ios_rounded, color: color.withValues(alpha: 0.6), size: 14),
               ],
             ),
             SizedBox(height: isSmall ? 16 : 24),
@@ -426,7 +442,7 @@ class HomeScreen extends StatelessWidget {
               style: TextStyle(
                 fontWeight: FontWeight.w800,
                 fontSize: isSmall ? 16 : 18,
-                color: color.withAlpha(200),
+                color: color,
               ),
             ),
             const SizedBox(height: 4),
@@ -435,7 +451,7 @@ class HomeScreen extends StatelessWidget {
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w500,
-                color: color.withAlpha(150),
+                color: color.withValues(alpha: 0.8),
               ),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,

@@ -1,94 +1,986 @@
 <!DOCTYPE html>
-<html lang="en">
+<html class="scroll-smooth" lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Wehere | Find Your Tribe</title>
-    <meta name="description" content="A safe space to express, connect, and grow. Join the community today.">
-    <link rel="stylesheet" href="style.css">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Wehere — Peer-to-Peer Mental Wellness Support</title>
+<meta name="description" content="Wehere connects you with anonymous peers who truly understand what you're going through. No judgment. No real names. Real empathy.">
+<!-- Google Fonts & Material Symbols -->
+<link href="https://fonts.googleapis.com" rel="preconnect">
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,700;1,9..40,400&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet">
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        colors: {
+          "surface": "#fcf8ff",
+          "on-surface": "#191540",
+          "primary": "#280a80",
+          "primary-container": "#3f2b96",
+          "on-primary": "#ffffff",
+          "on-primary-container": "#c9bfff",
+          "secondary": "#5f5c73",
+          "secondary-container": "#e5dffb",
+          "on-secondary-container": "#656279",
+          "secondary-fixed": "#e5dffb",
+          "secondary-fixed-dim": "#c8c3de",
+          "surface-variant": "#e3dfff",
+          "on-surface-variant": "#484552",
+          "surface-container-lowest": "#ffffff",
+          "surface-container-low": "#f6f2ff",
+          "surface-container": "#f0ebff",
+          "surface-container-high": "#e9e5ff",
+          "surface-container-highest": "#e3dfff",
+          "inverse-surface": "#2e2b56",
+          "inverse-on-surface": "#f3eeff",
+          "inverse-primary": "#c9bfff",
+          "tertiary": "#4e1700",
+          "tertiary-container": "#732500",
+          "on-tertiary-container": "#ff8b5c",
+          "tertiary-fixed": "#ffdbce",
+          "tertiary-fixed-dim": "#ffb599",
+          "on-tertiary-fixed": "#370e00",
+          "outline": "#797584",
+          "outline-variant": "#c9c4d4",
+          "error": "#ba1a1a",
+          "error-container": "#ffdad6",
+          "background": "#fcf8ff",
+        },
+        fontFamily: {
+          sans: ["DM Sans", "sans-serif"],
+          display: ["Plus Jakarta Sans", "sans-serif"],
+        },
+        fontSize: {
+          "display-lg": ["56px", { lineHeight: "64px", letterSpacing: "-0.03em", fontWeight: "800" }],
+          "display-md": ["36px", { lineHeight: "44px", letterSpacing: "-0.02em", fontWeight: "800" }],
+          "headline-lg": ["40px", { lineHeight: "48px", letterSpacing: "-0.02em", fontWeight: "700" }],
+          "headline-md": ["24px", { lineHeight: "32px", letterSpacing: "-0.01em", fontWeight: "700" }],
+          "headline-sm": ["20px", { lineHeight: "28px", letterSpacing: "0em", fontWeight: "600" }],
+          "label-lg": ["16px", { lineHeight: "20px", letterSpacing: "0.01em", fontWeight: "600" }],
+          "label-md": ["14px", { lineHeight: "18px", letterSpacing: "0.01em", fontWeight: "600" }],
+          "label-sm": ["12px", { lineHeight: "16px", letterSpacing: "0.03em", fontWeight: "700" }],
+          "body-md": ["16px", { lineHeight: "24px", fontWeight: "400" }],
+          "body-sm": ["14px", { lineHeight: "20px", fontWeight: "400" }],
+        },
+        borderRadius: {
+          DEFAULT: "1rem",
+          lg: "2rem",
+          xl: "3rem",
+          full: "9999px",
+        },
+        keyframes: {
+          "fade-up": {
+            "0%": { opacity: "0", transform: "translateY(24px)" },
+            "100%": { opacity: "1", transform: "translateY(0)" },
+          },
+          pulse: {
+            "0%, 100%": { opacity: "1" },
+            "50%": { opacity: "0.4" },
+          },
+          "float": {
+            "0%, 100%": { transform: "translateY(0px)" },
+            "50%": { transform: "translateY(-8px)" },
+          }
+        },
+        animation: {
+          "fade-up": "fade-up 0.6s ease-out forwards",
+          "float": "float 4s ease-in-out infinite",
+        },
+      }
+    }
+  }
+</script>
+<style>
+  .material-symbols-rounded {
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    display: inline-block;
+    vertical-align: middle;
+    line-height: 1;
+    user-select: none;
+  }
+  .material-symbols-rounded.fill {
+    font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  }
+  .reveal { opacity: 0; transform: translateY(28px); transition: opacity 0.65s ease, transform 0.65s ease; }
+  .reveal.visible { opacity: 1; transform: translateY(0); }
+  .reveal-delay-1 { transition-delay: 0.1s; }
+  .reveal-delay-2 { transition-delay: 0.2s; }
+  .reveal-delay-3 { transition-delay: 0.3s; }
+  .reveal-delay-4 { transition-delay: 0.4s; }
+</style>
+  <script src="https://unpkg.com/lucide@latest"></script>
 </head>
-<body>
-    <div class="blob-bg"></div>
-    <div class="blob-bg blob-2"></div>
-    
-    <nav class="navbar">
-        <div class="logo">Wehere</div>
-        <a href="#download" class="nav-btn">Get the App</a>
+<body class="bg-background text-on-surface font-sans antialiased overflow-x-hidden">
+
+<!-- Ambient Background Blobs -->
+<div class="fixed inset-0 pointer-events-none -z-10 overflow-hidden">
+  <div class="absolute -top-40 -left-40 w-[500px] h-[500px] rounded-full bg-secondary-fixed/50 blur-[140px]"></div>
+  <div class="absolute top-1/2 -right-40 w-[600px] h-[600px] rounded-full bg-surface-container-high/60 blur-[160px]"></div>
+  <div class="absolute bottom-0 left-1/4 w-96 h-96 rounded-full bg-tertiary-fixed/25 blur-[140px]"></div>
+</div>
+
+<!-- ═══════════════════════════ NAVBAR ═══════════════════════════ -->
+<header class="bg-surface/80 backdrop-blur-xl sticky top-0 z-50 border-b border-outline-variant/20 shadow-[0_4px_24px_-4px_rgba(40,10,128,0.06)]">
+  <div class="flex justify-between items-center w-full px-6 md:px-12 max-w-7xl mx-auto h-16">
+    <a class="flex items-center gap-2.5 active:scale-[0.98] transition-transform" href="#">
+      <img src="./assets/logo/icon_logo.png" class="w-9 h-9 object-contain" alt="Wehere Logo">
+      <span class="text-[18px] font-display font-extrabold text-primary tracking-tight">Wehere</span>
+    </a>
+
+    <nav class="hidden md:flex items-center gap-7">
+      <a class="text-primary font-display font-bold text-sm hover:text-primary/70 transition-colors" href="#how-it-works">How It Works</a>
+      <a class="text-on-surface-variant font-medium text-sm hover:text-primary transition-colors" href="#features">Features</a>
+      <a class="text-on-surface-variant font-medium text-sm hover:text-primary transition-colors" href="#safety">Safety</a>
+      <a class="text-on-surface-variant font-medium text-sm hover:text-primary transition-colors" href="#institutions">Campuses</a>
     </nav>
 
-    <header class="hero">
-        <h1 class="hero-title">Be Real.<br><span class="gradient-text">Find Your People.</span></h1>
-        <p class="hero-subtitle">A sanctuary for authentic connections, mindful journaling, and genuine support.</p>
-        <div class="hero-cta">
-            <a href="#download" class="btn primary-btn">Download Now</a>
-            <a href="#features" class="btn secondary-btn">Explore Features</a>
-        </div>
-        
-        <div class="hero-mockup-container">
-            <div class="glass-mockup">
-                <div class="mockup-header">
-                    <div class="mockup-avatar"></div>
-                    <div class="mockup-text-line"></div>
-                </div>
-                <div class="mockup-body">
-                    <div class="mockup-card">
-                        <div class="card-icon">💜</div>
-                        <div class="card-content">
-                            <h4>Safe Space</h4>
-                            <p>Express yourself freely without judgment.</p>
-                        </div>
+    <div class="hidden md:flex items-center gap-3">
+      <a class="text-sm font-display font-semibold px-4 py-2 rounded-full text-tertiary-container bg-tertiary-fixed hover:bg-tertiary-fixed-dim transition-colors flex items-center gap-1.5" href="#safety">
+        <i data-lucide="shield-alert" class="lucide-icon fill-current text-base"></i>
+        SOS Support
+      </a>
+      <a class="text-sm font-display font-semibold px-5 py-2.5 rounded-full bg-primary-container text-white hover:shadow-lg hover:shadow-primary/25 active:scale-[0.98] transition-all" href="#download">
+        Get the App
+      </a>
+    </div>
+
+    <button aria-label="Toggle navigation" class="md:hidden text-primary p-2 rounded-full" id="mobile-menu-btn">
+      <i data-lucide="menu" class="lucide-icon text-2xl"></i>
+    </button>
+  </div>
+
+  <div class="hidden md:hidden px-6 pb-5 pt-2 border-t border-surface-container flex flex-col gap-2" id="mobile-menu">
+    <a class="text-primary font-bold py-2 text-sm" href="#how-it-works">How It Works</a>
+    <a class="text-on-surface-variant py-2 text-sm" href="#features">Features</a>
+    <a class="text-on-surface-variant py-2 text-sm" href="#safety">Safety</a>
+    <a class="text-on-surface-variant py-2 text-sm" href="#institutions">Campuses</a>
+    <div class="pt-2 flex flex-col gap-2">
+      <a class="text-center text-sm py-2.5 rounded-full text-tertiary-container bg-tertiary-fixed font-semibold" href="#safety">SOS Support</a>
+      <a class="text-center text-sm py-2.5 rounded-full bg-primary-container text-white font-semibold" href="#download">Get the App</a>
+    </div>
+  </div>
+</header>
+
+<main>
+
+<!-- ═══════════════════════════ HERO ═══════════════════════════ -->
+<section class="relative pt-14 pb-20 md:py-24 px-6 md:px-12 max-w-7xl mx-auto">
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+
+    <!-- Left Content -->
+    <div class="lg:col-span-7 flex flex-col items-start gap-6">
+      <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-secondary-container text-primary text-sm font-display font-semibold reveal">
+        <span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+        Peer emotional sanctuary
+      </div>
+
+      <h1 class="font-display text-[clamp(2rem,5vw,3.5rem)] font-extrabold text-on-surface tracking-tight leading-[1.1] reveal reveal-delay-1">
+        You don't have to<br>carry it alone.
+      </h1>
+
+      <p class="text-on-surface-variant text-lg leading-relaxed max-w-lg reveal reveal-delay-2">
+        Connect with real people who <em>actually</em> get it — anonymously, safely, and without judgment. Wehere is where you can finally breathe.
+      </p>
+
+      <div class="flex flex-wrap gap-2 reveal reveal-delay-2">
+        <span class="px-3.5 py-1.5 rounded-full bg-surface-container-high text-primary text-xs font-display font-bold flex items-center gap-1.5">
+          <i data-lucide="skull" class="lucide-icon text-sm fill-current"></i>
+          100% Anonymous
+        </span>
+        <span class="px-3.5 py-1.5 rounded-full bg-surface-container-high text-primary text-xs font-display font-bold flex items-center gap-1.5">
+          <i data-lucide="smile" class="lucide-icon text-sm fill-current"></i>
+          Zero Judgment
+        </span>
+        <span class="px-3.5 py-1.5 rounded-full bg-surface-container-high text-primary text-xs font-display font-bold flex items-center gap-1.5">
+          <i data-lucide="sparkles" class="lucide-icon text-sm fill-current"></i>
+          Real Empathy
+        </span>
+        <span class="px-3.5 py-1.5 rounded-full bg-tertiary-fixed text-tertiary-container text-xs font-display font-bold flex items-center gap-1.5">
+          <i data-lucide="shield-alert" class="lucide-icon text-sm fill-current"></i>
+          SOS Panic Button
+        </span>
+      </div>
+
+      <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 pt-1 reveal reveal-delay-3 w-full sm:w-auto">
+        <a class="inline-flex justify-center items-center gap-3 px-6 py-2.5 rounded-2xl bg-primary-container text-white hover:shadow-xl hover:shadow-primary/20 active:scale-[0.97] transition-all duration-200 shadow-md shadow-primary/15" href="#download">
+          <svg class="w-7 h-7 fill-current" viewBox="0 0 384 512"><path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 24 184.8 8 273.5q-9 62.1 26.2 144.5A793.6 793.6 0 0 0 90 512c35.6 0 52.5-19.1 92.8-19.1 40 0 55.8 19.1 93.6 19.1 38.3 0 59.6-27.7 85-71.5 28.9-38.3 40.8-73.6 41.3-75.1-37.4-19.1-55.8-51.5-55.8-93.5zM228.6 105.6c23.6-27.5 35.8-59.4 31.6-97.6-32.5 3.1-67.9 26.3-89.2 54.7-22.8 29.3-36.6 62.4-30.8 98 35.3 3.1 66.8-24.1 88.4-55.1z"/></svg>
+          <div class="flex flex-col items-start">
+            <span class="text-[10px] leading-tight font-medium">Download on the</span>
+            <span class="text-xl font-display font-bold leading-tight -mt-0.5">App Store</span>
+          </div>
+        </a>
+        <a class="inline-flex justify-center items-center gap-3 px-6 py-2.5 rounded-2xl bg-surface-container-lowest text-on-surface border border-outline-variant hover:border-primary hover:shadow-md transition-all duration-200 active:scale-[0.97]" href="#download">
+          <svg class="w-7 h-7" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M25.7 13.9C23.9 15.6 22.9 18 22.9 21.2V490.8C22.9 494 23.9 496.4 25.7 498.1L26.7 499 266 259.7V252.3L26.7 13L25.7 13.9Z" fill="#2196F3"/>
+            <path d="M345.9 339.7L266 259.7V252.3L345.9 172.3L347.3 173.1L442.2 227C469.3 242.4 469.3 267.6 442.2 283L347.3 338.9L345.9 339.7Z" fill="#FFC107"/>
+            <path d="M345.9 339.7L266 259.7L25.7 498.1C35.5 507.9 52.8 506.7 73.1 495.2L345.9 339.7Z" fill="#F44336"/>
+            <path d="M345.9 172.3L73.1 16.8C52.8 5.3 35.5 4.1 25.7 13.9L266 252.3L345.9 172.3Z" fill="#4CAF50"/>
+          </svg>
+          <div class="flex flex-col items-start">
+            <span class="text-[10px] leading-tight font-medium uppercase">Get it on</span>
+            <span class="text-xl font-display font-bold leading-tight -mt-0.5">Google Play</span>
+          </div>
+        </a>
+      </div>
+    </div>
+
+    <!-- Right Phone Mockup -->
+    <div class="lg:col-span-5 flex justify-center reveal reveal-delay-2">
+      <div class="relative w-full max-w-[300px] sm:max-w-[320px] animate-float">
+        <div class="rounded-[44px] bg-inverse-surface p-2.5 shadow-[0_32px_64px_-8px_rgba(40,10,128,0.28)] border-4 border-surface-container-highest">
+          <div class="w-20 h-3.5 bg-inverse-surface rounded-b-xl mx-auto mb-2"></div>
+          <div class="bg-surface rounded-[34px] p-4 flex flex-col gap-3 overflow-hidden">
+            <!-- App Bar -->
+            <div class="flex justify-between items-center px-1">
+              <span class="font-display text-sm font-extrabold text-primary flex items-center gap-1.5">
+                <i data-lucide="heart" class="lucide-icon text-base fill-current text-primary"></i>
+                Wehere
+              </span>
+              <span class="text-[10px] font-display font-semibold text-secondary bg-surface-container px-2 py-0.5 rounded-full">Discover</span>
+            </div>
+            <!-- Match Card -->
+            <div class="bg-surface-container-lowest rounded-2xl p-3.5 shadow-sm border border-outline-variant/30 flex flex-col gap-2.5">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <div class="w-9 h-9 rounded-full bg-secondary-container flex items-center justify-center text-primary font-display font-bold text-xs">GM</div>
+                  <div>
+                    <div class="font-display text-sm font-bold text-on-surface">@gentle_moss</div>
+                    <div class="text-[10px] text-secondary flex items-center gap-1">
+                      <span class="w-1.5 h-1.5 rounded-full bg-green-400 inline-block"></span> Online now
                     </div>
-                    <div class="mockup-card delay">
-                        <div class="card-icon">🌱</div>
-                        <div class="card-content">
-                            <h4>Growth</h4>
-                            <p>Track your mental wellness journey daily.</p>
-                        </div>
-                    </div>
+                  </div>
                 </div>
+                <i data-lucide="shield-check" class="lucide-icon text-outline text-base fill-current"></i>
+              </div>
+              <div class="bg-surface-container-low rounded-xl p-2.5 text-on-surface-variant text-[11px] leading-relaxed">
+                "Overwhelmed with work deadlines. Need someone to just listen — no fixing, please."
+              </div>
+              <div class="flex flex-wrap gap-1">
+                <span class="px-2 py-0.5 rounded-full bg-secondary-container text-primary text-[10px] font-bold">Burnout</span>
+                <span class="px-2 py-0.5 rounded-full bg-surface-container text-secondary text-[10px]">Listener needed</span>
+              </div>
+              <div class="flex items-center justify-center gap-3 pt-0.5">
+                <button class="w-9 h-9 rounded-full bg-surface-container flex items-center justify-center text-outline hover:text-error transition-colors">
+                  <i data-lucide="x" class="lucide-icon text-base"></i>
+                </button>
+                <button class="px-4 py-1.5 rounded-full bg-primary-container text-white text-[10px] font-display font-bold flex items-center gap-1 shadow-md shadow-primary/20">
+                  <i data-lucide="heart" class="lucide-icon text-xs fill-current"></i>
+                  Connect
+                </button>
+              </div>
             </div>
+            <!-- XP Bar -->
+            <div class="flex items-center gap-2 px-1">
+              <i data-lucide="flame" class="lucide-icon text-sm fill-current text-primary"></i>
+              <div class="flex-1 bg-surface-container rounded-full h-1.5">
+                <div class="bg-primary-container h-1.5 rounded-full w-2/3"></div>
+              </div>
+              <span class="text-[9px] font-display font-bold text-primary">Lvl 3</span>
+            </div>
+          </div>
         </div>
-    </header>
-
-    <section id="features" class="features">
-        <h2 class="section-title">Why Wehere?</h2>
-        <div class="feature-grid">
-            <div class="feature-box">
-                <div class="feature-icon">✨</div>
-                <h3>Meaningful Matches</h3>
-                <p>Connect with people who share your vibe and values.</p>
-            </div>
-            <div class="feature-box">
-                <div class="feature-icon">📖</div>
-                <h3>Mindful Journals</h3>
-                <p>Reflect on your day. Keep it private or share it.</p>
-            </div>
-            <div class="feature-box">
-                <div class="feature-icon">🛡️</div>
-                <h3>Absolute Privacy</h3>
-                <p>Your data is yours. Pseudonymous identity by default.</p>
-            </div>
+        <!-- Floating badges -->
+        <div class="absolute -top-4 -right-4 bg-surface-container-lowest rounded-2xl px-3 py-1.5 shadow-lg border border-outline-variant/30 flex items-center gap-1.5 text-xs font-display font-bold text-primary">
+          <i data-lucide="check-circle" class="lucide-icon text-sm fill-current text-green-500"></i>
+          Matched!
         </div>
-    </section>
-
-    <section id="download" class="cta-section">
-        <div class="glass-cta">
-            <h2>Ready to join?</h2>
-            <p>Download Wehere today and start building genuine connections.</p>
-            <div class="store-buttons">
-                <button class="store-btn apple"> App Store</button>
-                <button class="store-btn google">▶ Google Play</button>
-            </div>
+        <div class="absolute -bottom-4 -left-4 bg-tertiary-fixed rounded-2xl px-3 py-1.5 shadow-lg flex items-center gap-1.5 text-xs font-display font-bold text-tertiary-container">
+          <i data-lucide="shield-alert" class="lucide-icon text-sm fill-current"></i>
+          SOS Ready
         </div>
-    </section>
+      </div>
+    </div>
+  </div>
+</section>
 
-    <footer>
-        <p>&copy; 2026 Wehere. All rights reserved.</p>
-    </footer>
+<!-- ═══════════════════════════ TRUST STRIP ═══════════════════════════ -->
+<div class="w-full bg-surface-container-high/60 border-y border-outline-variant/20 py-4 px-6 md:px-12">
+  <div class="max-w-7xl mx-auto grid grid-cols-2 lg:grid-cols-4 gap-4 text-center justify-items-center text-sm font-display font-semibold">
+    <div class="flex items-center gap-2 text-primary">
+      <i data-lucide="user-minus" class="lucide-icon fill-current text-lg"></i>
+      Anonymous by Design
+    </div>
+    <div class="flex items-center gap-2 text-primary">
+      <i data-lucide="ban" class="lucide-icon fill-current text-lg"></i>
+      Block & Report Tools
+    </div>
+    <div class="flex items-center gap-2 text-tertiary-container">
+      <i data-lucide="shield-alert" class="lucide-icon fill-current text-lg"></i>
+      Built-in SOS Button
+    </div>
+    <div class="flex items-center gap-2 text-primary">
+      <i data-lucide="zap" class="lucide-icon fill-current text-lg"></i>
+      XP & Wellness Streaks
+    </div>
+  </div>
+</div>
 
-    <script src="script.js"></script>
+<!-- ═══════════════════════════ HOW IT WORKS ═══════════════════════════ -->
+<section class="py-24 px-6 md:px-12 max-w-7xl mx-auto" id="how-it-works">
+  <div class="text-center max-w-xl mx-auto mb-14">
+    <span class="px-4 py-1 rounded-full bg-secondary-container text-primary text-xs font-display font-bold uppercase tracking-wider">Simple by design</span>
+    <h2 class="font-display text-headline-lg text-on-surface mt-3 text-[clamp(1.75rem,3.5vw,2.5rem)] font-bold">Three gentle steps</h2>
+    <p class="text-on-surface-variant mt-2">No awkward profiles. No social anxiety. Just authentic connection.</p>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <div class="bg-surface-container-lowest rounded-3xl p-7 shadow-sm border border-outline-variant/30 hover:-translate-y-1.5 transition-all duration-300 reveal">
+      <div class="flex justify-between items-start mb-8">
+        <span class="text-5xl font-extrabold text-primary/20 font-display">01</span>
+        <div class="w-12 h-12 rounded-2xl bg-secondary-container text-primary flex items-center justify-center shadow-sm">
+          <i data-lucide="venetian-mask" class="lucide-icon text-2xl fill-current"></i>
+        </div>
+      </div>
+      <h3 class="font-display text-lg font-bold text-on-surface mb-2">Pick Your Alias</h3>
+      <p class="text-on-surface-variant text-sm leading-relaxed mb-4">Choose a pseudonym like @quiet_wanderer or @gentle_moss. No real name. No photo required.</p>
+      <div class="flex flex-wrap gap-1.5">
+        <span class="px-2.5 py-1 rounded-full bg-surface-container text-secondary text-xs font-bold">Botanical Handle</span>
+        <span class="px-2.5 py-1 rounded-full bg-surface-container text-secondary text-xs font-bold">Email Only</span>
+      </div>
+    </div>
+
+    <div class="bg-surface-container-lowest rounded-3xl p-7 shadow-sm border border-outline-variant/30 hover:-translate-y-1.5 transition-all duration-300 reveal reveal-delay-1">
+      <div class="flex justify-between items-start mb-8">
+        <span class="text-5xl font-extrabold text-primary/20 font-display">02</span>
+        <div class="w-12 h-12 rounded-2xl bg-tertiary-fixed flex items-center justify-center shadow-sm">
+          <i data-lucide="frown" class="lucide-icon text-2xl fill-current text-tertiary-container"></i>
+        </div>
+      </div>
+      <h3 class="font-display text-lg font-bold text-on-surface mb-2">Share Your Feeling</h3>
+      <p class="text-on-surface-variant text-sm leading-relaxed mb-4">Tell the app what you're going through. Anxiety, burnout, grief — there's no wrong answer.</p>
+      <div class="flex flex-wrap gap-1.5">
+        <span class="px-2.5 py-1 rounded-full bg-surface-container text-secondary text-xs font-bold">Vent Mode</span>
+        <span class="px-2.5 py-1 rounded-full bg-surface-container text-secondary text-xs font-bold">Listener Mode</span>
+      </div>
+    </div>
+
+    <div class="bg-surface-container-lowest rounded-3xl p-7 shadow-sm border border-outline-variant/30 hover:-translate-y-1.5 transition-all duration-300 reveal reveal-delay-2">
+      <div class="flex justify-between items-start mb-8">
+        <span class="text-5xl font-extrabold text-primary/20 font-display">03</span>
+        <div class="w-12 h-12 rounded-2xl bg-primary-container text-white flex items-center justify-center shadow-sm">
+          <i data-lucide="handshake" class="lucide-icon text-2xl fill-current"></i>
+        </div>
+      </div>
+      <h3 class="font-display text-lg font-bold text-on-surface mb-2">Connect & Heal</h3>
+      <p class="text-on-surface-variant text-sm leading-relaxed mb-4">Swipe right to connect. When both match, a private, secure conversation opens instantly.</p>
+      <div class="flex flex-wrap gap-1.5">
+        <span class="px-2.5 py-1 rounded-full bg-surface-container text-secondary text-xs font-bold">Private Chat</span>
+        <span class="px-2.5 py-1 rounded-full bg-surface-container text-secondary text-xs font-bold">Instant Unmatch</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════ FEATURE 1: EMPATHY MATCH ═══════════════════════════ -->
+<section class="py-16 px-6 md:px-12 bg-surface-container-low" id="features">
+  <div class="max-w-7xl mx-auto">
+    <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-12">
+      <div class="reveal">
+        <span class="px-3.5 py-1 rounded-full bg-secondary-container text-primary text-xs font-display font-bold">Empathy Match</span>
+        <h2 class="font-display text-[clamp(1.75rem,3vw,2.5rem)] font-bold text-on-surface mt-2 leading-tight">Find your people<br>by heart, not profile.</h2>
+      </div>
+      <div class="flex flex-wrap gap-2 reveal reveal-delay-1">
+        <span class="px-3 py-1.5 rounded-full bg-surface-container-lowest text-primary text-xs font-display font-bold shadow-sm border border-outline-variant/30">🌿 Mood-based matching</span>
+        <span class="px-3 py-1.5 rounded-full bg-surface-container-lowest text-primary text-xs font-display font-bold shadow-sm border border-outline-variant/30">✨ No follower counts</span>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+      <div class="lg:col-span-7 reveal">
+        <div class="relative rounded-3xl overflow-hidden shadow-xl border border-outline-variant/30 group">
+          <img alt="Two peers connecting warmly in a botanical room" class="w-full h-[380px] md:h-[440px] object-cover transition-transform duration-700 group-hover:scale-[1.03]" src="./assets/peer_connection.jpg">
+          <div class="absolute inset-0 bg-gradient-to-t from-primary/85 via-primary/10 to-transparent flex items-end p-6">
+            <div class="flex items-center gap-3 text-white">
+              <div class="w-11 h-11 rounded-full bg-white/15 backdrop-blur-lg flex items-center justify-center border border-white/20">
+                <i data-lucide="heart" class="lucide-icon text-white fill-current"></i>
+              </div>
+              <div>
+                <h4 class="font-display text-base font-bold text-white">Shared wavelength, not shared photos</h4>
+                <p class="text-xs text-white/75 mt-0.5">Matched by emotional space — not looks, follower count or status</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="lg:col-span-5 flex justify-center reveal reveal-delay-1">
+        <div class="w-full max-w-[310px] sm:max-w-[340px] rounded-3xl bg-surface-container-lowest p-5 shadow-lg border border-outline-variant/30">
+          <div class="flex items-center justify-between pb-3 border-b border-surface-container">
+            <span class="font-display text-sm font-bold text-on-surface">Match Score</span>
+            <span class="px-2.5 py-0.5 rounded-full bg-secondary-container text-primary text-xs font-display font-bold">92% Aligned</span>
+          </div>
+          <div class="py-4 space-y-3">
+            <div class="p-3.5 rounded-2xl bg-surface-container-low border border-outline-variant/20">
+              <span class="text-[10px] font-display font-bold text-secondary uppercase tracking-wider">Shared Feeling</span>
+              <p class="font-display text-sm font-bold text-on-surface mt-0.5">Anxiety About Starting Over</p>
+              <p class="text-xs text-on-surface-variant mt-1.5 leading-relaxed">"New city, no friends yet. Just need someone to talk to."</p>
+            </div>
+            <div class="flex items-center justify-between text-xs px-1">
+              <span class="text-secondary">Support style:</span>
+              <span class="font-display font-bold text-primary">Just listen, please</span>
+            </div>
+            <div class="flex items-center gap-1.5 px-1">
+              <i data-lucide="activity" class="lucide-icon text-sm fill-current text-primary"></i>
+              <span class="px-2 py-0.5 rounded-full bg-secondary-container text-primary text-[10px] font-display font-bold">Anxiety</span>
+              <span class="px-2 py-0.5 rounded-full bg-surface-container text-secondary text-[10px]">Loneliness</span>
+            </div>
+          </div>
+          <div class="flex gap-2">
+            <button class="w-1/2 py-2.5 rounded-full bg-surface-container text-on-surface text-xs font-display font-bold hover:bg-surface-container-high transition-colors">Pass</button>
+            <button class="w-1/2 py-2.5 rounded-full bg-primary-container text-white text-xs font-display font-bold flex items-center justify-center gap-1.5 shadow-sm shadow-primary/20 hover:shadow-md transition-shadow">
+              <i data-lucide="heart" class="lucide-icon text-sm fill-current"></i>
+              Connect
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════ FEATURE 2: SAFE CHAT ═══════════════════════════ -->
+<section class="py-16 px-6 md:px-12 max-w-7xl mx-auto">
+  <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-12">
+    <div class="reveal">
+      <span class="px-3.5 py-1 rounded-full bg-surface-variant text-primary text-xs font-display font-bold">Safe Haven</span>
+      <h2 class="font-display text-[clamp(1.75rem,3vw,2.5rem)] font-bold text-on-surface mt-2 leading-tight">Talk safely,<br>guarded by design.</h2>
+    </div>
+    <div class="flex flex-wrap gap-2 reveal reveal-delay-1">
+      <span class="px-3 py-1.5 rounded-full bg-surface-container text-primary text-xs font-display font-bold border border-outline-variant/30">🛡️ Block & Report</span>
+      <span class="px-3 py-1.5 rounded-full bg-surface-container text-primary text-xs font-display font-bold border border-outline-variant/30">🔒 Pseudonymous</span>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+    <div class="lg:col-span-5 flex justify-center order-2 lg:order-1 reveal">
+      <div class="w-full max-w-[310px] sm:max-w-[340px] rounded-3xl bg-surface-container-lowest p-5 shadow-lg border border-outline-variant/30 flex flex-col gap-3.5">
+        <div class="flex items-center justify-between pb-3 border-b border-surface-container">
+          <div class="flex items-center gap-2">
+            <div class="w-8 h-8 rounded-full bg-primary-container text-white flex items-center justify-center text-xs font-display font-bold">SP</div>
+            <div>
+              <div class="text-xs font-display font-bold text-on-surface">@sea_pine</div>
+              <div class="text-[10px] text-primary flex items-center gap-0.5 font-medium">
+                <span class="w-1.5 h-1.5 rounded-full bg-green-400 inline-block"></span> Active now
+              </div>
+            </div>
+          </div>
+          <button class="px-2 py-1 rounded-full bg-error-container text-error text-[10px] font-display font-bold flex items-center gap-1">
+            <i data-lucide="log-out" class="lucide-icon text-xs"></i>
+            Unmatch
+          </button>
+        </div>
+
+        <div class="space-y-2 text-xs">
+          <div class="bg-surface-container p-3 rounded-2xl rounded-bl-sm max-w-[85%] leading-relaxed">
+            "I feel like no one around me understands what anxiety actually feels like."
+          </div>
+          <div class="bg-primary-container text-white p-3 rounded-2xl rounded-br-sm ml-auto max-w-[85%] leading-relaxed">
+            I hear you. I've felt that exact same isolation. You're not alone in this.
+          </div>
+          <div class="bg-surface-container p-3 rounded-2xl rounded-bl-sm max-w-[85%] leading-relaxed">
+            Thank you for saying that. It actually helps.
+          </div>
+        </div>
+
+        <div class="bg-surface-container rounded-full px-4 py-2.5 flex items-center justify-between text-xs text-secondary border border-outline-variant/20">
+          <span>Type something kind...</span>
+          <i data-lucide="send" class="lucide-icon text-primary text-base fill-current"></i>
+        </div>
+        <div class="text-center text-[10px] text-secondary font-semibold flex items-center justify-center gap-1">
+          <i data-lucide="lock" class="lucide-icon text-xs"></i>
+          Anonymous & Secure
+        </div>
+      </div>
+    </div>
+
+    <div class="lg:col-span-7 order-1 lg:order-2 reveal reveal-delay-1">
+      <div class="relative rounded-3xl overflow-hidden shadow-xl border border-outline-variant/30 group">
+        <img alt="Person feeling safe and peaceful while using their phone" class="w-full h-[380px] md:h-[440px] object-cover transition-transform duration-700 group-hover:scale-[1.03]" src="./assets/emotional_safety.jpg">
+        <div class="absolute inset-0 bg-gradient-to-t from-primary/85 via-primary/10 to-transparent flex items-end p-6">
+          <div class="flex items-center gap-3 text-white">
+            <div class="w-11 h-11 rounded-full bg-white/15 backdrop-blur-lg flex items-center justify-center border border-white/20">
+              <i data-lucide="shield" class="lucide-icon text-white fill-current"></i>
+            </div>
+            <div>
+              <h4 class="font-display text-base font-bold text-white">Total psychological safety</h4>
+              <p class="text-xs text-white/75 mt-0.5">One-tap unmatch & block — your comfort is always in your hands</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════ FEATURE 3: JOURNALING ═══════════════════════════ -->
+<section class="py-16 px-6 md:px-12 bg-surface-container-low">
+  <div class="max-w-7xl mx-auto">
+    <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-12">
+      <div class="reveal">
+        <span class="px-3.5 py-1 rounded-full bg-secondary-container text-primary text-xs font-display font-bold">Mindful Journal</span>
+        <h2 class="font-display text-[clamp(1.75rem,3vw,2.5rem)] font-bold text-on-surface mt-2 leading-tight">Write it out.<br>Heal at your pace.</h2>
+      </div>
+      <div class="flex flex-wrap gap-2 reveal reveal-delay-1">
+        <span class="px-3 py-1.5 rounded-full bg-surface-container-lowest text-primary text-xs font-display font-bold shadow-sm border border-outline-variant/30">📓 Private or Public</span>
+        <span class="px-3 py-1.5 rounded-full bg-surface-container-lowest text-primary text-xs font-display font-bold shadow-sm border border-outline-variant/30">🌤️ Mood Tracking</span>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+      <div class="lg:col-span-7 reveal">
+        <div class="relative rounded-3xl overflow-hidden shadow-xl border border-outline-variant/30 group">
+          <img alt="Person journaling peacefully in a plant-filled room" class="w-full h-[380px] md:h-[440px] object-cover transition-transform duration-700 group-hover:scale-[1.03]" src="./assets/mindful_journaling.jpg">
+          <div class="absolute inset-0 bg-gradient-to-t from-primary/85 via-primary/10 to-transparent flex items-end p-6">
+            <div class="flex items-center gap-3 text-white">
+              <div class="w-11 h-11 rounded-full bg-white/15 backdrop-blur-lg flex items-center justify-center border border-white/20">
+                <i data-lucide="pen-line" class="lucide-icon text-white fill-current"></i>
+              </div>
+              <div>
+                <h4 class="font-display text-base font-bold text-white">Your private emotional space</h4>
+                <p class="text-xs text-white/75 mt-0.5">Write privately or share anonymously to inspire the community</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="lg:col-span-5 flex justify-center reveal reveal-delay-1">
+        <div class="w-full max-w-[310px] sm:max-w-[340px] rounded-3xl bg-surface-container-lowest p-5 shadow-lg border border-outline-variant/30 flex flex-col gap-4">
+          <div class="flex items-center justify-between">
+            <span class="font-display text-sm font-bold text-on-surface">Today's Entry</span>
+            <span class="text-[10px] font-display font-bold text-primary bg-secondary-container px-2.5 py-1 rounded-full">+20 XP</span>
+          </div>
+
+          <div>
+            <p class="text-[11px] text-secondary font-display font-semibold mb-2">How are you feeling right now?</p>
+            <div class="flex justify-between items-center bg-surface-container-low p-1.5 rounded-2xl">
+              <button class="w-9 h-9 rounded-xl hover:bg-surface-container flex items-center justify-center text-base transition-colors">🌧️</button>
+              <button class="w-9 h-9 rounded-xl hover:bg-surface-container flex items-center justify-center text-base transition-colors">⛅</button>
+              <button class="w-9 h-9 rounded-xl bg-primary-container shadow-md flex items-center justify-center text-base">🌿</button>
+              <button class="w-9 h-9 rounded-xl hover:bg-surface-container flex items-center justify-center text-base transition-colors">✨</button>
+              <button class="w-9 h-9 rounded-xl hover:bg-surface-container flex items-center justify-center text-base transition-colors">☀️</button>
+            </div>
+          </div>
+
+          <div>
+            <p class="text-[11px] text-secondary font-display font-semibold mb-2">Tags</p>
+            <div class="flex flex-wrap gap-1.5">
+              <span class="px-2.5 py-1 rounded-full bg-secondary-container text-primary text-[10px] font-display font-bold">#Anxiety</span>
+              <span class="px-2.5 py-1 rounded-full bg-tertiary-fixed text-tertiary-container text-[10px] font-display font-bold">#Gratitude</span>
+              <span class="px-2.5 py-1 rounded-full bg-surface-container text-secondary text-[10px]">#Vent</span>
+            </div>
+          </div>
+
+          <div class="bg-surface-variant/50 rounded-2xl p-3 border border-surface-variant/60">
+            <div class="flex items-center gap-1.5 mb-1">
+              <i data-lucide="sparkles" class="lucide-icon text-sm fill-current text-primary"></i>
+              <span class="text-[10px] font-display font-bold text-primary uppercase tracking-wider">Gentle Prompt</span>
+            </div>
+            <p class="text-xs text-on-surface leading-relaxed">"What's one small thing that brought you comfort today?"</p>
+          </div>
+
+          <div class="flex gap-2">
+            <button class="flex-1 py-2.5 rounded-full border border-outline-variant text-on-surface-variant text-xs font-display font-bold flex items-center justify-center gap-1 hover:bg-surface-container transition-colors">
+              <i data-lucide="lock" class="lucide-icon text-sm"></i> Private
+            </button>
+            <button class="flex-1 py-2.5 rounded-full bg-primary-container text-white text-xs font-display font-bold flex items-center justify-center gap-1 shadow-sm">
+              <i data-lucide="users" class="lucide-icon text-sm"></i> Share
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════ FEATURE 4: GAMIFICATION ═══════════════════════════ -->
+<section class="py-16 px-6 md:px-12 max-w-7xl mx-auto">
+  <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-12">
+    <div class="reveal">
+      <span class="px-3.5 py-1 rounded-full bg-tertiary-fixed text-tertiary-container text-xs font-display font-bold">Progress & Growth</span>
+      <h2 class="font-display text-[clamp(1.75rem,3vw,2.5rem)] font-bold text-on-surface mt-2 leading-tight">Wellness isn't a race.<br>But every step matters.</h2>
+    </div>
+    <div class="flex flex-wrap gap-2 reveal reveal-delay-1">
+      <span class="px-3 py-1.5 rounded-full bg-surface-container text-primary text-xs font-display font-bold border border-outline-variant/30">🏆 Level Up</span>
+      <span class="px-3 py-1.5 rounded-full bg-surface-container text-primary text-xs font-display font-bold border border-outline-variant/30">🔥 Daily Streaks</span>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <!-- XP Card -->
+    <div class="bg-surface-container-lowest rounded-3xl p-6 border border-outline-variant/30 shadow-sm hover:-translate-y-1 transition-all reveal">
+      <div class="w-12 h-12 rounded-2xl bg-primary-container text-white flex items-center justify-center mb-5 shadow-md shadow-primary/20">
+        <i data-lucide="award" class="lucide-icon text-2xl fill-current"></i>
+      </div>
+      <h3 class="font-display text-lg font-bold text-on-surface mb-2">XP & Levels</h3>
+      <p class="text-on-surface-variant text-sm leading-relaxed mb-4">Earn experience points for journaling, connecting, and supporting others. Level up your wellness journey.</p>
+      <div class="space-y-2">
+        <div class="flex justify-between text-xs font-display font-semibold">
+          <span class="text-secondary">Level 3 → 4</span>
+          <span class="text-primary">340 / 500 XP</span>
+        </div>
+        <div class="bg-surface-container rounded-full h-2">
+          <div class="bg-gradient-to-r from-primary-container to-primary h-2 rounded-full" style="width: 68%"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Streaks Card -->
+    <div class="bg-surface-container-lowest rounded-3xl p-6 border border-outline-variant/30 shadow-sm hover:-translate-y-1 transition-all reveal reveal-delay-1">
+      <div class="w-12 h-12 rounded-2xl bg-tertiary-fixed flex items-center justify-center mb-5">
+        <i data-lucide="flame" class="lucide-icon text-2xl fill-current text-tertiary-container"></i>
+      </div>
+      <h3 class="font-display text-lg font-bold text-on-surface mb-2">Daily Streaks</h3>
+      <p class="text-on-surface-variant text-sm leading-relaxed mb-4">Log in daily to build your streak. Small habits compound into big changes over time.</p>
+      <div class="flex gap-1">
+        <!-- Monday to Friday (Active Streaks) -->
+        <div class="flex-1 flex flex-col items-center gap-1">
+          <div class="w-full aspect-square rounded-lg bg-primary-container flex items-center justify-center">
+            <i data-lucide="check" class="lucide-icon text-xs text-white fill-current"></i>
+          </div>
+          <span class="text-[9px] text-secondary">M</span>
+        </div>
+        <div class="flex-1 flex flex-col items-center gap-1">
+          <div class="w-full aspect-square rounded-lg bg-primary-container flex items-center justify-center">
+            <i data-lucide="check" class="lucide-icon text-xs text-white fill-current"></i>
+          </div>
+          <span class="text-[9px] text-secondary">T</span>
+        </div>
+        <div class="flex-1 flex flex-col items-center gap-1">
+          <div class="w-full aspect-square rounded-lg bg-primary-container flex items-center justify-center">
+            <i data-lucide="check" class="lucide-icon text-xs text-white fill-current"></i>
+          </div>
+          <span class="text-[9px] text-secondary">W</span>
+        </div>
+        <div class="flex-1 flex flex-col items-center gap-1">
+          <div class="w-full aspect-square rounded-lg bg-primary-container flex items-center justify-center">
+            <i data-lucide="check" class="lucide-icon text-xs text-white fill-current"></i>
+          </div>
+          <span class="text-[9px] text-secondary">T</span>
+        </div>
+        <div class="flex-1 flex flex-col items-center gap-1">
+          <div class="w-full aspect-square rounded-lg bg-primary-container flex items-center justify-center">
+            <i data-lucide="check" class="lucide-icon text-xs text-white fill-current"></i>
+          </div>
+          <span class="text-[9px] text-secondary">F</span>
+        </div>
+        <!-- Saturday to Sunday (Upcoming) -->
+        <div class="flex-1 flex flex-col items-center gap-1">
+          <div class="w-full aspect-square rounded-lg bg-surface-container flex items-center justify-center"></div>
+          <span class="text-[9px] text-secondary">S</span>
+        </div>
+        <div class="flex-1 flex flex-col items-center gap-1">
+          <div class="w-full aspect-square rounded-lg bg-surface-container flex items-center justify-center"></div>
+          <span class="text-[9px] text-secondary">S</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- SOS Card -->
+    <div class="bg-surface-container-lowest rounded-3xl p-6 border border-tertiary-fixed/60 shadow-sm hover:-translate-y-1 transition-all reveal reveal-delay-2">
+      <div class="w-12 h-12 rounded-2xl bg-tertiary-fixed flex items-center justify-center mb-5">
+        <i data-lucide="shield-alert" class="lucide-icon text-2xl fill-current text-tertiary-container"></i>
+      </div>
+      <h3 class="font-display text-lg font-bold text-on-surface mb-2">SOS Panic Button</h3>
+      <p class="text-on-surface-variant text-sm leading-relaxed mb-4">In crisis? One tap sends alerts to your trusted emergency contacts and surfaces grounding exercises.</p>
+      <div class="flex flex-wrap gap-1.5">
+        <span class="px-2.5 py-1 rounded-full bg-tertiary-fixed text-tertiary-container text-xs font-display font-bold">Trusted Contacts</span>
+        <span class="px-2.5 py-1 rounded-full bg-tertiary-fixed text-tertiary-container text-xs font-display font-bold">Grounding Tools</span>
+        <span class="px-2.5 py-1 rounded-full bg-tertiary-fixed text-tertiary-container text-xs font-display font-bold">Crisis Lines</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════ SAFETY GRID ═══════════════════════════ -->
+<section class="py-20 px-6 md:px-12 bg-surface-container-low" id="safety">
+  <div class="max-w-7xl mx-auto">
+    <div class="text-center max-w-xl mx-auto mb-14 reveal">
+      <span class="px-4 py-1 rounded-full bg-secondary-container text-primary text-xs font-display font-bold uppercase tracking-wider">By Design, Not Afterthought</span>
+      <h2 class="font-display text-[clamp(1.75rem,3.5vw,2.5rem)] font-bold text-on-surface mt-3">Built for absolute vulnerability</h2>
+      <p class="text-on-surface-variant mt-2 text-sm leading-relaxed">Safety isn't a feature — it's the foundation every line of Wehere is built on.</p>
+    </div>
+
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+      <div class="bg-surface-container-lowest p-5 rounded-2xl border border-outline-variant/30 text-center flex flex-col items-center gap-2.5 hover:shadow-md hover:-translate-y-0.5 transition-all reveal">
+        <div class="w-12 h-12 rounded-2xl bg-secondary-container text-primary flex items-center justify-center">
+          <i data-lucide="venetian-mask" class="lucide-icon text-xl fill-current"></i>
+        </div>
+        <h4 class="font-display text-sm font-bold text-on-surface">Anonymous</h4>
+        <span class="text-[11px] text-secondary leading-tight">Alias only, zero real info</span>
+      </div>
+
+      <div class="bg-surface-container-lowest p-5 rounded-2xl border border-outline-variant/30 text-center flex flex-col items-center gap-2.5 hover:shadow-md hover:-translate-y-0.5 transition-all reveal reveal-delay-1">
+        <div class="w-12 h-12 rounded-2xl bg-secondary-container text-primary flex items-center justify-center">
+          <i data-lucide="ban" class="lucide-icon text-xl fill-current"></i>
+        </div>
+        <h4 class="font-display text-sm font-bold text-on-surface">Block & Report</h4>
+        <span class="text-[11px] text-secondary leading-tight">Instant from any screen</span>
+      </div>
+
+      <div class="bg-surface-container-lowest p-5 rounded-2xl border border-outline-variant/30 text-center flex flex-col items-center gap-2.5 hover:shadow-md hover:-translate-y-0.5 transition-all reveal reveal-delay-2">
+        <div class="w-12 h-12 rounded-2xl bg-secondary-container text-primary flex items-center justify-center">
+          <i data-lucide="log-out" class="lucide-icon text-xl fill-current"></i>
+        </div>
+        <h4 class="font-display text-sm font-bold text-on-surface">Instant Exit</h4>
+        <span class="text-[11px] text-secondary leading-tight">Silent unmatch anytime</span>
+      </div>
+
+      <div class="bg-surface-container-lowest p-5 rounded-2xl border border-outline-variant/30 text-center flex flex-col items-center gap-2.5 hover:shadow-md hover:-translate-y-0.5 transition-all reveal reveal-delay-3">
+        <div class="w-12 h-12 rounded-2xl bg-secondary-container text-primary flex items-center justify-center">
+          <i data-lucide="smile" class="lucide-icon text-xl fill-current"></i>
+        </div>
+        <h4 class="font-display text-sm font-bold text-on-surface">Free to Use</h4>
+        <span class="text-[11px] text-secondary leading-tight">All core features are free</span>
+      </div>
+
+      <div class="bg-surface-container-lowest p-5 rounded-2xl border border-outline-variant/30 text-center flex flex-col items-center gap-2.5 hover:shadow-md hover:-translate-y-0.5 transition-all reveal reveal-delay-1">
+        <div class="w-12 h-12 rounded-2xl bg-secondary-container text-primary flex items-center justify-center">
+          <i data-lucide="user-check" class="lucide-icon text-xl fill-current"></i>
+        </div>
+        <h4 class="font-display text-sm font-bold text-on-surface">Secure Accounts</h4>
+        <span class="text-[11px] text-secondary leading-tight">JWT protected sessions</span>
+      </div>
+
+      <div class="bg-surface-container-lowest p-5 rounded-2xl border border-outline-variant/30 text-center flex flex-col items-center gap-2.5 hover:shadow-md hover:-translate-y-0.5 transition-all reveal reveal-delay-2">
+        <div class="w-12 h-12 rounded-2xl bg-tertiary-fixed flex items-center justify-center">
+          <i data-lucide="shield-alert" class="lucide-icon text-xl fill-current text-tertiary-container"></i>
+        </div>
+        <h4 class="font-display text-sm font-bold text-on-surface">SOS Button</h4>
+        <span class="text-[11px] text-secondary leading-tight">Panic button + crisis lines</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════ CAMPUSES ═══════════════════════════ -->
+<section class="py-16 px-6 md:px-12 max-w-7xl mx-auto" id="institutions">
+  <div class="relative rounded-3xl overflow-hidden shadow-2xl border border-outline-variant/20 reveal">
+    <img alt="Diverse group of students supporting each other in a campus atrium" class="w-full h-[420px] md:h-[500px] object-cover" src="./assets/campus_community.jpg">
+    <div class="absolute inset-0 bg-gradient-to-t md:bg-gradient-to-r from-inverse-surface/95 via-inverse-surface/70 to-transparent flex items-center p-8 md:p-14">
+      <div class="max-w-lg flex flex-col gap-5">
+        <span class="px-3 py-1 rounded-full bg-secondary-container text-primary text-xs font-display font-bold w-max">For Campuses & Organizations</span>
+        <h3 class="font-display text-2xl md:text-3xl font-bold text-white leading-tight">
+          Anonymous peer wellness for your whole campus or team.
+        </h3>
+        <p class="text-white/75 text-sm leading-relaxed">Unlock Wehere for your institution with access codes and premium tiers. Students connect privately, while you get aggregated wellness insights.</p>
+        <div class="flex flex-wrap gap-2">
+          <span class="px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-md text-white text-xs font-display font-semibold border border-white/10">🔑 Access Codes</span>
+          <span class="px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-md text-white text-xs font-display font-semibold border border-white/10">💎 Premium Tiers</span>
+          <span class="px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-md text-white text-xs font-display font-semibold border border-white/10">🏛️ Community Forums</span>
+        </div>
+        <div>
+          <a class="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-white text-primary font-display text-sm font-bold hover:bg-surface-container-low active:scale-[0.98] transition-all shadow-lg" href="mailto:partnerships@wehere.app">
+            Partner with Wehere
+            <i data-lucide="arrow-right" class="lucide-icon text-sm"></i>
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════ FAQ ═══════════════════════════ -->
+<section class="py-20 px-6 md:px-12 max-w-3xl mx-auto">
+  <div class="text-center mb-12 reveal">
+    <span class="px-4 py-1 rounded-full bg-secondary-container text-primary text-xs font-display font-bold uppercase tracking-wider">Transparency</span>
+    <h2 class="font-display text-[clamp(1.75rem,3.5vw,2.5rem)] font-bold text-on-surface mt-3">Real questions, honest answers</h2>
+  </div>
+
+  <div class="space-y-3">
+    <div class="faq-item bg-surface-container-lowest rounded-2xl border border-outline-variant/30 overflow-hidden reveal">
+      <button class="faq-toggle w-full px-6 py-4 flex items-center justify-between text-left font-display text-sm font-bold text-on-surface">
+        <span>Is Wehere 100% anonymous?</span>
+        <i data-lucide="chevron-down" class="lucide-icon text-primary text-xl transition-transform duration-200"></i>
+      </button>
+      <div class="faq-answer hidden px-6 pb-5 text-sm text-on-surface-variant border-t border-surface-container pt-4 leading-relaxed">
+        Yes. You sign up with just an email and pick a pseudonym handle — like @quiet_wanderer. Your real name, phone number, and location are never asked for or stored. Other users only ever see your alias.
+      </div>
+    </div>
+
+    <div class="faq-item bg-surface-container-lowest rounded-2xl border border-outline-variant/30 overflow-hidden reveal reveal-delay-1">
+      <button class="faq-toggle w-full px-6 py-4 flex items-center justify-between text-left font-display text-sm font-bold text-on-surface">
+        <span>Is Wehere a replacement for therapy?</span>
+        <i data-lucide="chevron-down" class="lucide-icon text-primary text-xl transition-transform duration-200"></i>
+      </button>
+      <div class="faq-answer hidden px-6 pb-5 text-sm text-on-surface-variant border-t border-surface-container pt-4 leading-relaxed">
+        No. Wehere provides non-clinical peer emotional support. It's a space to feel heard and less alone — not a substitute for professional mental health care. We always encourage seeking professional help when needed.
+      </div>
+    </div>
+
+    <div class="faq-item bg-surface-container-lowest rounded-2xl border border-outline-variant/30 overflow-hidden reveal reveal-delay-2">
+      <button class="faq-toggle w-full px-6 py-4 flex items-center justify-between text-left font-display text-sm font-bold text-on-surface">
+        <span>What happens when I use the SOS button?</span>
+        <i data-lucide="chevron-down" class="lucide-icon text-primary text-xl transition-transform duration-200"></i>
+      </button>
+      <div class="faq-answer hidden px-6 pb-5 text-sm text-on-surface-variant border-t border-surface-container pt-4 leading-relaxed">
+        The SOS screen immediately shows grounding exercises (like 5-4-3-2-1 breathing), lets you alert your pre-saved emergency contacts, and surfaces crisis hotlines. It's designed to be accessible in under one tap.
+      </div>
+    </div>
+
+    <div class="faq-item bg-surface-container-lowest rounded-2xl border border-outline-variant/30 overflow-hidden reveal reveal-delay-3">
+      <button class="faq-toggle w-full px-6 py-4 flex items-center justify-between text-left font-display text-sm font-bold text-on-surface">
+        <span>Is Wehere free to use?</span>
+        <i data-lucide="chevron-down" class="lucide-icon text-primary text-xl transition-transform duration-200"></i>
+      </button>
+      <div class="faq-answer hidden px-6 pb-5 text-sm text-on-surface-variant border-t border-surface-container pt-4 leading-relaxed">
+        Yes. Core peer matching, private messaging, journaling, XP system, and the SOS button are completely free for individual users.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════ CTA ═══════════════════════════ -->
+<section class="py-16 px-6 md:px-12 max-w-7xl mx-auto" id="download">
+  <div class="bg-gradient-to-br from-secondary-container via-secondary-container to-surface-container-high rounded-3xl p-10 md:p-16 text-center relative overflow-hidden shadow-lg border border-outline-variant/20 reveal">
+    <!-- Decorative blob -->
+    <div class="absolute -top-20 -right-20 w-64 h-64 rounded-full bg-primary-container/10 blur-3xl pointer-events-none"></div>
+    <div class="absolute -bottom-20 -left-20 w-64 h-64 rounded-full bg-tertiary-fixed/30 blur-3xl pointer-events-none"></div>
+
+    <div class="max-w-xl mx-auto flex flex-col items-center gap-6 relative z-10">
+      <img src="./assets/logo/icon_logo.png" class="w-14 h-14 object-contain shadow-xl rounded-full" alt="Wehere Logo">
+      <h2 class="font-display text-[clamp(1.75rem,3.5vw,2.5rem)] font-extrabold text-primary leading-tight">
+        Find people who truly get it.
+      </h2>
+      <p class="text-on-surface-variant max-w-sm leading-relaxed">Experience the profound relief of being genuinely heard — without judgment, without a real name, without pretense.</p>
+
+      <div class="flex flex-col sm:flex-row justify-center items-stretch sm:items-center w-full sm:w-auto gap-4 px-4 sm:px-0">
+        <a class="inline-flex justify-center items-center gap-3 px-6 py-2.5 rounded-2xl bg-primary-container text-white hover:shadow-xl hover:shadow-primary/25 active:scale-[0.97] transition-all shadow-md" href="#">
+          <svg class="w-7 h-7 fill-current" viewBox="0 0 384 512"><path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 24 184.8 8 273.5q-9 62.1 26.2 144.5A793.6 793.6 0 0 0 90 512c35.6 0 52.5-19.1 92.8-19.1 40 0 55.8 19.1 93.6 19.1 38.3 0 59.6-27.7 85-71.5 28.9-38.3 40.8-73.6 41.3-75.1-37.4-19.1-55.8-51.5-55.8-93.5zM228.6 105.6c23.6-27.5 35.8-59.4 31.6-97.6-32.5 3.1-67.9 26.3-89.2 54.7-22.8 29.3-36.6 62.4-30.8 98 35.3 3.1 66.8-24.1 88.4-55.1z"/></svg>
+          <div class="flex flex-col items-start">
+            <span class="text-[10px] leading-tight font-medium">Download on the</span>
+            <span class="text-xl font-display font-bold leading-tight -mt-0.5">App Store</span>
+          </div>
+        </a>
+        <a class="inline-flex justify-center items-center gap-3 px-6 py-2.5 rounded-2xl bg-surface-container-lowest text-on-surface border border-outline-variant hover:border-primary hover:shadow-md active:scale-[0.97] transition-all" href="#">
+          <svg class="w-7 h-7" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M25.7 13.9C23.9 15.6 22.9 18 22.9 21.2V490.8C22.9 494 23.9 496.4 25.7 498.1L26.7 499 266 259.7V252.3L26.7 13L25.7 13.9Z" fill="#2196F3"/>
+            <path d="M345.9 339.7L266 259.7V252.3L345.9 172.3L347.3 173.1L442.2 227C469.3 242.4 469.3 267.6 442.2 283L347.3 338.9L345.9 339.7Z" fill="#FFC107"/>
+            <path d="M345.9 339.7L266 259.7L25.7 498.1C35.5 507.9 52.8 506.7 73.1 495.2L345.9 339.7Z" fill="#F44336"/>
+            <path d="M345.9 172.3L73.1 16.8C52.8 5.3 35.5 4.1 25.7 13.9L266 252.3L345.9 172.3Z" fill="#4CAF50"/>
+          </svg>
+          <div class="flex flex-col items-start">
+            <span class="text-[10px] leading-tight font-medium uppercase">Get it on</span>
+            <span class="text-xl font-display font-bold leading-tight -mt-0.5">Google Play</span>
+          </div>
+        </a>
+      </div>
+
+      <div class="flex flex-wrap justify-center gap-5 text-xs font-display font-semibold text-secondary pt-1">
+        <span class="flex items-center gap-1.5">
+          <i data-lucide="lock" class="lucide-icon text-sm fill-current"></i>
+          Anonymous Sign-up
+        </span>
+        <span class="flex items-center gap-1.5">
+          <i data-lucide="smile" class="lucide-icon text-sm fill-current"></i>
+          Free to Use
+        </span>
+        <span class="flex items-center gap-1.5">
+          <i data-lucide="shield-alert" class="lucide-icon text-sm fill-current text-tertiary-container"></i>
+          SOS Built-in
+        </span>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<!-- ═══════════════════════════ FOOTER ═══════════════════════════ -->
+<footer class="bg-surface-container border-t border-outline-variant/20">
+  <div class="w-full px-6 md:px-12 max-w-7xl mx-auto py-14">
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-8 mb-10 text-sm">
+      <div class="col-span-2">
+        <div class="flex items-center gap-2 mb-4">
+          <img src="./assets/logo/icon_logo.png" class="w-8 h-8 object-contain" alt="Wehere Logo">
+          <span class="font-display text-lg font-extrabold text-primary">Wehere</span>
+        </div>
+        <p class="text-on-surface-variant leading-relaxed max-w-xs mb-4 text-sm">
+          An empathetic, secure peer-support sanctuary. Real people. Real empathy. Zero judgment.
+        </p>
+        <div class="flex items-center gap-2">
+          <a aria-label="Facebook" class="w-8 h-8 rounded-full bg-surface-container-lowest flex items-center justify-center hover:bg-surface-variant transition-colors border border-outline-variant/30 text-primary" href="https://m.facebook.com/profile.php?id=61595426812276" target="_blank" rel="noopener noreferrer">
+            <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 320 512"><path d="M279.14 288l14.22-92.66h-88.91v-60.13c0-25.35 12.42-50.06 52.24-50.06h40.42V6.26S260.43 0 225.36 0c-73.22 0-121.08 44.38-121.08 124.72v70.62H22.89V288h81.39v224h100.17V288z"/></svg>
+          </a>
+          <a aria-label="Instagram" class="w-8 h-8 rounded-full bg-surface-container-lowest flex items-center justify-center hover:bg-surface-variant transition-colors border border-outline-variant/30 text-primary" href="https://www.instagram.com/weherenetwork?exln=MThmcjlqMnc0dWFjZg%3D%3D&utm_source=qr" target="_blank" rel="noopener noreferrer">
+            <svg class="w-4 h-4 fill-current" viewBox="0 0 448 512"><path d="M224.1 141c-63.6 0-114.9 51.3-114.9 114.9s51.3 114.9 114.9 114.9S339 319.5 339 255.9 287.7 141 224.1 141zm0 189.6c-41.1 0-74.7-33.5-74.7-74.7s33.5-74.7 74.7-74.7 74.7 33.5 74.7 74.7-33.6 74.7-74.7 74.7zm146.4-194.3c0 14.9-12 26.8-26.8 26.8-14.9 0-26.8-12-26.8-26.8s12-26.8 26.8-26.8 26.8 12 26.8 26.8zm76.1 27.2c-1.7-35.9-9.9-67.7-36.2-93.9-26.2-26.2-58-34.4-93.9-36.2-37-2.1-147.9-2.1-184.9 0-35.8 1.7-67.6 9.9-93.9 36.1s-34.4 58-36.2 93.9c-2.1 37-2.1 147.9 0 184.9 1.7 35.9 9.9 67.7 36.2 93.9s58 34.4 93.9 36.2c37 2.1 147.9 2.1 184.9 0 35.9-1.7 67.7-9.9 93.9-36.2 26.2-26.2 34.4-58 36.2-93.9 2.1-37 2.1-147.8 0-184.8zM398.8 388c-7.8 19.6-22.9 34.7-42.6 42.6-29.5 11.7-99.5 9-132.1 9s-102.7 2.6-132.1-9c-19.6-7.8-34.7-22.9-42.6-42.6-11.7-29.5-9-99.5-9-132.1s-2.6-102.7 9-132.1c7.8-19.6 22.9-34.7 42.6-42.6 29.5-11.7 99.5-9 132.1-9s102.7-2.6 132.1 9c19.6 7.8 34.7 22.9 42.6 42.6 11.7 29.5 9 99.5 9 132.1s2.7 102.7-9 132.1z"/></svg>
+          </a>
+          <a aria-label="YouTube" class="w-8 h-8 rounded-full bg-surface-container-lowest flex items-center justify-center hover:bg-surface-variant transition-colors border border-outline-variant/30 text-primary" href="https://youtube.com/@wehereapp?si=NT6kDj3Hr7Ufnwb-" target="_blank" rel="noopener noreferrer">
+            <svg class="w-4 h-4 fill-current" viewBox="0 0 576 512"><path d="M549.655 124.083c-6.281-23.65-24.787-42.276-48.284-48.597C458.781 64 288 64 288 64S117.22 64 74.629 75.486c-23.497 6.322-42.003 24.947-48.284 48.597-11.412 42.867-11.412 132.305-11.412 132.305s0 89.438 11.412 132.305c6.281 23.65 24.787 41.5 48.284 47.821C117.22 448 288 448 288 448s170.78 0 213.371-11.486c23.497-6.321 42.003-24.171 48.284-47.821 11.412-42.867 11.412-132.305 11.412-132.305s0-89.438-11.412-132.305zm-317.51 213.508V175.185l142.739 81.205-142.739 81.201z"/></svg>
+          </a>
+        </div>
+      </div>
+
+      <div>
+        <h4 class="font-display font-bold text-primary mb-3">Product</h4>
+        <ul class="space-y-2 text-on-surface-variant">
+          <li><a class="hover:text-primary transition-colors" href="index.html#how-it-works">How It Works</a></li>
+          <li><a class="hover:text-primary transition-colors" href="index.html#features">Features</a></li>
+          <li><a class="hover:text-primary transition-colors" href="index.html#download">Get the App</a></li>
+        </ul>
+      </div>
+
+      <div>
+        <h4 class="font-display font-bold text-primary mb-3">Company</h4>
+        <ul class="space-y-2 text-on-surface-variant">
+          <li><a class="hover:text-primary transition-colors" href="about.html">About Us</a></li>
+          <li><a class="hover:text-primary transition-colors" href="index.html#institutions">Partnerships</a></li>
+          <li><a class="hover:text-primary transition-colors" href="mailto:partnerships@wehere.app">Contact Us</a></li>
+        </ul>
+      </div>
+
+      <div>
+        <h4 class="font-display font-bold text-primary mb-3">Legal & Safety</h4>
+        <ul class="space-y-2 text-on-surface-variant">
+          <li><a class="hover:text-primary transition-colors" href="policies.html">Safety Center</a></li>
+          <li><a class="hover:text-primary transition-colors" href="policies.html">Privacy Policy</a></li>
+          <li><a class="hover:text-primary transition-colors" href="policies.html">Terms of Service</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="pt-8 border-t border-surface-container-high flex flex-col md:flex-row items-center justify-between text-xs text-secondary gap-2">
+      <span>© 2026 Wehere. All rights reserved.</span>
+      <span class="flex items-center gap-1.5">
+        <i data-lucide="heart" class="lucide-icon text-sm fill-current text-tertiary-container"></i>
+        Built with care for vulnerable hearts.
+      </span>
+    </div>
+  </div>
+</footer>
+
+<script>
+  // Mobile menu
+  document.getElementById('mobile-menu-btn')?.addEventListener('click', () => {
+    document.getElementById('mobile-menu')?.classList.toggle('hidden');
+  });
+
+  // FAQ Accordion
+  document.querySelectorAll('.faq-toggle').forEach(toggle => {
+    toggle.addEventListener('click', () => {
+      const answer = toggle.nextElementSibling;
+      const icon = toggle.querySelector('.material-symbols-rounded');
+      const isOpen = !answer.classList.contains('hidden');
+      document.querySelectorAll('.faq-answer').forEach(a => a.classList.add('hidden'));
+      document.querySelectorAll('.faq-toggle .material-symbols-rounded').forEach(i => i.style.transform = 'rotate(0deg)');
+      if (!isOpen) {
+        answer.classList.remove('hidden');
+        if (icon) icon.style.transform = 'rotate(180deg)';
+      }
+    });
+  });
+
+  // Scroll reveal
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); } });
+  }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+  document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+</script>
+
+  <script>lucide.createIcons();</script>
 </body>
 </html>

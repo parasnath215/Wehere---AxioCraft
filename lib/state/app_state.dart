@@ -12,6 +12,8 @@ import '../core/constants/app_constants.dart';
 import '../core/utils/storage_helper.dart';
 import '../models/notification.dart';
 import '../models/config_options.dart';
+import '../models/milestone.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class AppState extends ChangeNotifier {
   // Current Logged-in User
@@ -181,7 +183,10 @@ class AppState extends ChangeNotifier {
 
   // Unread counts
   int _unreadNotifications = 0;
-  int get unreadNotifications => _unreadNotifications;
+  int get unreadNotifications {
+    if (_notifications.isEmpty) return 0;
+    return _notifications.where((n) => !n.isRead).length;
+  }
   
   int _unreadMessages = 0;
   int get unreadMessages => _unreadMessages;
@@ -315,11 +320,155 @@ class AppState extends ChangeNotifier {
 
   AppState() {
     _initMockData();
+    _loadPersistedMilestones();
   }
 
   void _initMockData() {
     // All mock data has been removed.
     // The app will now rely purely on live data fetched from the backend.
+  }
+
+  // --- MILESTONES SYSTEM ---
+  final Set<String> _persistedUnlockedMilestoneIds = {};
+  Milestone? _latestUnlockedMilestone;
+  Milestone? get latestUnlockedMilestone => _latestUnlockedMilestone;
+
+  Future<void> _loadPersistedMilestones() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final keys = prefs.getKeys();
+      for (var k in keys) {
+        if (k.startsWith('milestone_unlocked_') && prefs.getBool(k) == true) {
+          _persistedUnlockedMilestoneIds.add(k.replaceFirst('milestone_unlocked_', ''));
+        }
+      }
+      notifyListeners();
+    } catch (_) {}
+  }
+
+  List<Milestone> get milestones => _computeMilestones();
+
+  List<Milestone> _computeMilestones() {
+    final journalCount = _journalEntries.length;
+    final completedGoals = _goals.where((g) => g.isCompleted).length;
+    final totalGoals = _goals.isEmpty ? 1 : _goals.length;
+    final contactsCount = _emergencyContacts.length;
+    final streak = _dayStreak;
+    final chatsCount = _messages.length;
+
+    return [
+      Milestone(
+        id: 'first_journal',
+        title: 'First Reflection',
+        description: 'Wrote your first personal reflection in the journal',
+        emoji: '📖',
+        category: 'Journal',
+        currentProgress: journalCount.clamp(0, 1),
+        targetProgress: 1,
+        isUnlocked: journalCount >= 1 || _persistedUnlockedMilestoneIds.contains('first_journal'),
+      ),
+      Milestone(
+        id: 'dedicated_journal',
+        title: 'Mindful Explorer',
+        description: 'Penned 3 heartfelt journal entries to process your thoughts',
+        emoji: '✍️',
+        category: 'Journal',
+        currentProgress: journalCount.clamp(0, 3),
+        targetProgress: 3,
+        isUnlocked: journalCount >= 3 || _persistedUnlockedMilestoneIds.contains('dedicated_journal'),
+      ),
+      Milestone(
+        id: 'journal_7',
+        title: 'Deep Healer',
+        description: 'Cultivated deep self-reflection with 7 journal entries',
+        emoji: '🌟',
+        category: 'Journal',
+        currentProgress: journalCount.clamp(0, 7),
+        targetProgress: 7,
+        isUnlocked: journalCount >= 7 || _persistedUnlockedMilestoneIds.contains('journal_7'),
+      ),
+      Milestone(
+        id: 'streak_3',
+        title: 'Consistency Spark',
+        description: 'Built momentum by holding an active 3-day reflection streak',
+        emoji: '🔥',
+        category: 'Streak',
+        currentProgress: streak.clamp(0, 3),
+        targetProgress: 3,
+        isUnlocked: streak >= 3 || _persistedUnlockedMilestoneIds.contains('streak_3'),
+      ),
+      Milestone(
+        id: 'streak_7',
+        title: 'Weekly Champion',
+        description: 'Nurtured daily mental wellness across a full 7-day streak',
+        emoji: '⚡',
+        category: 'Streak',
+        currentProgress: streak.clamp(0, 7),
+        targetProgress: 7,
+        isUnlocked: streak >= 7 || _persistedUnlockedMilestoneIds.contains('streak_7'),
+      ),
+      Milestone(
+        id: 'first_goal',
+        title: 'Goal Achiever',
+        description: 'Conquered and completed your first weekly self-care goal',
+        emoji: '🎯',
+        category: 'Goals',
+        currentProgress: completedGoals.clamp(0, 1),
+        targetProgress: 1,
+        isUnlocked: completedGoals >= 1 || _persistedUnlockedMilestoneIds.contains('first_goal'),
+      ),
+      Milestone(
+        id: 'all_goals',
+        title: 'Master of Habits',
+        description: 'Checked off all active wellness goals for the week',
+        emoji: '🏆',
+        category: 'Goals',
+        currentProgress: completedGoals.clamp(0, totalGoals),
+        targetProgress: totalGoals,
+        isUnlocked: (completedGoals >= totalGoals && _goals.isNotEmpty) || _persistedUnlockedMilestoneIds.contains('all_goals'),
+      ),
+      Milestone(
+        id: 'safety_guardian',
+        title: 'Safety Guardian',
+        description: 'Added a trusted contact to create your safety net',
+        emoji: '🛡️',
+        category: 'Safety',
+        currentProgress: contactsCount.clamp(0, 1),
+        targetProgress: 1,
+        isUnlocked: contactsCount >= 1 || _persistedUnlockedMilestoneIds.contains('safety_guardian'),
+      ),
+      Milestone(
+        id: 'peer_connector',
+        title: 'Empathetic Heart',
+        description: 'Reached out to connect and chat with a supportive peer',
+        emoji: '💬',
+        category: 'Connection',
+        currentProgress: chatsCount.clamp(0, 1),
+        targetProgress: 1,
+        isUnlocked: chatsCount >= 1 || _persistedUnlockedMilestoneIds.contains('peer_connector'),
+      ),
+    ];
+  }
+
+  Future<void> checkMilestones() async {
+    final list = _computeMilestones();
+    Milestone? newlyUnlocked;
+
+    for (final m in list) {
+      if (m.isUnlocked && !_persistedUnlockedMilestoneIds.contains(m.id)) {
+        _persistedUnlockedMilestoneIds.add(m.id);
+        newlyUnlocked = m;
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setBool('milestone_unlocked_${m.id}', true);
+        } catch (_) {}
+      }
+    }
+
+    if (newlyUnlocked != null) {
+      _latestUnlockedMilestone = newlyUnlocked;
+      notifyListeners();
+    }
   }
 
   // --- ACTIONS ---
@@ -368,7 +517,7 @@ class AppState extends ChangeNotifier {
           _journalEntries.add(JournalEntry(
             id: entry['id'],
             date: DateTime.parse(entry['createdAt']),
-            mood: entry['moodScore'].toString(),
+            mood: mapScoreToMood(entry['moodScore']),
             thought: entry['content'],
             gratitude: '', // backend does not have gratitude currently
             category: entry['category'] ?? 'General',
@@ -566,6 +715,7 @@ class AppState extends ChangeNotifier {
       }
     } catch (e) {
     }
+    await checkMilestones();
     isLoadingData = false;
     notifyListeners();
   }
@@ -797,18 +947,60 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  Future<void> addJournalEntry(String mood, String thought, String gratitude, String category, {bool isPrivate = true}) async {
+  static String mapScoreToMood(dynamic score) {
+    final s = score?.toString();
+    switch (s) {
+      case '5': return 'Amazing';
+      case '4': return 'Good';
+      case '3': return 'Okay';
+      case '2': return 'Tired';
+      case '1': return 'Stressed';
+      default:
+        if (['Amazing', 'Good', 'Okay', 'Tired', 'Stressed', 'Great', 'Not Good', 'Struggling'].contains(s)) return s!;
+        return 'Okay';
+    }
+  }
+
+  static int mapMoodToScore(String mood) {
+    switch (mood) {
+      case 'Amazing':
+      case 'Great':
+        return 5;
+      case 'Good':
+        return 4;
+      case 'Okay':
+        return 3;
+      case 'Tired':
+      case 'Not Good':
+        return 2;
+      case 'Stressed':
+      case 'Struggling':
+        return 1;
+      default:
+        return 3;
+    }
+  }
+
+  Future<JournalEntry?> addJournalEntry(String mood, String thought, String gratitude, String category, {bool isPrivate = true}) async {
     try {
+      final score = mapMoodToScore(mood);
       final res = await apiClient.post('/journal/create', data: {
         'content': thought,
-        'moodScore': 5, // mock mood score calculation
+        'moodScore': score,
         'category': category,
         'isPrivate': isPrivate,
       });
 
+      final entryId = res.data != null && res.data['entry'] != null && res.data['entry']['id'] != null
+          ? res.data['entry']['id'].toString()
+          : 'j_${DateTime.now().millisecondsSinceEpoch}';
+      final createdAt = res.data != null && res.data['entry'] != null && res.data['entry']['createdAt'] != null
+          ? DateTime.tryParse(res.data['entry']['createdAt'].toString()) ?? DateTime.now()
+          : DateTime.now();
+
       final entry = JournalEntry(
-        id: res.data['entry']['id'],
-        date: DateTime.parse(res.data['entry']['createdAt']),
+        id: entryId,
+        date: createdAt,
         mood: mood,
         thought: thought,
         gratitude: gratitude,
@@ -819,7 +1011,7 @@ class AppState extends ChangeNotifier {
 
       if (!isPrivate) {
         _communityPosts.insert(0, CommunityPost(
-          id: res.data['entry']['id'], // Just using the same ID for now since we don't return the community post ID
+          id: entryId,
           authorName: _currentUser.isAnonymous ? 'Anonymous' : _currentUser.name,
           authorBadge: _currentUser.isAnonymous ? 'Anonymous Peer' : 'Member',
           authorAvatar: _currentUser.isAnonymous ? '' : _currentUser.avatarUrl,
@@ -833,13 +1025,66 @@ class AppState extends ChangeNotifier {
       }
       
       // Update XP from backend
-      if (res.data['user'] != null) {
+      if (res.data != null && res.data['user'] != null) {
         _currentXp = res.data['user']['xp'] ?? _currentXp;
         _dayStreak = res.data['user']['currentStreak'] ?? _dayStreak;
       }
       
+      // Sync today's mood check-in with journal reflection
+      checkInMood(mood);
+
       notifyListeners();
+      await checkMilestones();
+      return entry;
     } catch (e) {
+      final fallbackEntry = JournalEntry(
+        id: 'j_${DateTime.now().millisecondsSinceEpoch}',
+        date: DateTime.now(),
+        mood: mood,
+        thought: thought,
+        gratitude: gratitude,
+        category: category,
+        isPrivate: isPrivate,
+      );
+      _journalEntries.insert(0, fallbackEntry);
+      checkInMood(mood);
+      notifyListeners();
+      return fallbackEntry;
+    }
+  }
+
+  Future<bool> updateJournalEntry(String id, String mood, String thought, String gratitude, String category, {required bool isPrivate}) async {
+    try {
+      final score = mapMoodToScore(mood);
+      await apiClient.put('/journal/$id', data: {
+        'content': thought,
+        'moodScore': score,
+        'category': category,
+        'isPrivate': isPrivate,
+      });
+
+      final idx = _journalEntries.indexWhere((j) => j.id == id);
+      if (idx != -1) {
+        _journalEntries[idx] = JournalEntry(
+          id: id,
+          date: _journalEntries[idx].date,
+          mood: mood,
+          thought: thought,
+          gratitude: gratitude,
+          category: category,
+          isPrivate: isPrivate,
+          photoUrl: _journalEntries[idx].photoUrl,
+        );
+      }
+
+      // Sync today's mood check-in
+      checkInMood(mood);
+
+      notifyListeners();
+      await checkMilestones();
+      return true;
+    } catch (e) {
+      return false;
     }
   }
 
@@ -879,6 +1124,7 @@ class AppState extends ChangeNotifier {
       );
       _currentXp += newStatus ? 50 : -50;
       notifyListeners();
+      await checkMilestones();
 
       try {
         await apiClient.put('/goals/$goalId/toggle');
@@ -1042,6 +1288,7 @@ class AppState extends ChangeNotifier {
       );
       _emergencyContacts.add(contact);
       notifyListeners();
+      await checkMilestones();
     } catch (e) {
     }
   }

@@ -300,8 +300,11 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> with Widg
 
               TextButton(
                 onPressed: () {
-                  auth.logout();
-                  Navigator.pushNamedAndRemoveUntil(context, AppRoutes.login, (route) => false);
+                  if (Navigator.canPop(context)) {
+                    Navigator.pop(context);
+                  } else {
+                    Navigator.pushReplacementNamed(context, AppRoutes.signup);
+                  }
                 },
                 child: Text(
                   'Change Email',
@@ -332,7 +335,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> with Widg
     final success = await auth.verifyOtp(pin);
     if (success && context.mounted) {
       appState.initializeUserFromAuth(
-        id: auth.userId ?? 'user_1',
+        id: auth.userId?.isNotEmpty == true ? auth.userId! : 'usr_${DateTime.now().millisecondsSinceEpoch}',
         name: auth.registeredName,
         email: auth.registeredEmail,
       );

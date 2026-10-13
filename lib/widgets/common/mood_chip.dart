@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'animated_pressable.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 
@@ -20,17 +21,15 @@ class MoodChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return AnimatedPressable(
       onTap: onTap,
-      child: Stack(
-        clipBehavior: Clip.none,
-        alignment: Alignment.center,
-        children: [
-          AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
+      pressedScale: 0.94,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 240),
+        curve: Curves.easeOutBack,
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
         decoration: BoxDecoration(
-          color: isSelected ? tintColor.withValues(alpha: 0.12) : AppColors.surface,
+          color: isSelected ? tintColor.withValues(alpha: 0.14) : AppColors.surface,
           borderRadius: BorderRadius.circular(18),
           border: Border.all(
             color: isSelected ? tintColor : AppColors.cardBorder,
@@ -39,9 +38,9 @@ class MoodChip extends StatelessWidget {
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: tintColor.withValues(alpha: 0.2),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
+                    color: tintColor.withValues(alpha: 0.25),
+                    blurRadius: 12,
+                    offset: const Offset(0, 5),
                   )
                 ]
               : [],
@@ -49,17 +48,22 @@ class MoodChip extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: tintColor.withValues(alpha: 0.2),
-              ),
-              alignment: Alignment.center,
-              child: Text(
-                emoji,
-                style: const TextStyle(fontSize: 24),
+            AnimatedScale(
+              scale: isSelected ? 1.15 : 1.0,
+              duration: const Duration(milliseconds: 240),
+              curve: Curves.easeOutBack,
+              child: Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: tintColor.withValues(alpha: isSelected ? 0.25 : 0.15),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  emoji,
+                  style: const TextStyle(fontSize: 24),
+                ),
               ),
             ),
             const SizedBox(height: 8),
@@ -72,21 +76,6 @@ class MoodChip extends StatelessWidget {
             ),
           ],
         ),
-          ),
-          if (isSelected)
-            Positioned(
-              top: -20,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.9),
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 4, offset: const Offset(0, 2))],
-                ),
-                child: const Text('A small moment for you.', style: TextStyle(fontSize: 9, color: AppColors.textSecondary)),
-              ),
-            ),
-        ],
       ),
     );
   }

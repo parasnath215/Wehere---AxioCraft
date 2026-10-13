@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html class="scroll-smooth" lang="en">
+<head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Terms of Service & User Guide | Wehere</title>
+<!-- Google Fonts & Material Symbols -->
+<link href="https://fonts.googleapis.com" rel="preconnect">
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,700;1,9..40,400&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet">
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        colors: {
+          "surface": "#fcf8ff",
+          "on-surface": "#191540",
+          "primary": "#280a80",
+          "primary-container": "#3f2b96",
+          "on-primary": "#ffffff",
+          "on-primary-container": "#c9bfff",
+          "secondary": "#5f5c73",
+          "secondary-container": "#e5dffb",
+          "on-secondary-container": "#656279",
+          "secondary-fixed": "#e5dffb",
+          "secondary-fixed-dim": "#c8c3de",
+          "surface-variant": "#e3dfff",
+          "on-surface-variant": "#484552",
+          "surface-container-lowest": "#ffffff",
+          "surface-container-low": "#f6f2ff",
+          "surface-container": "#f0ebff",
+          "surface-container-high": "#e9e5ff",
+          "surface-container-highest": "#e3dfff",
+          "inverse-surface": "#2e2b56",
+          "inverse-on-surface": "#f3eeff",
+          "inverse-primary": "#c9bfff",
+          "tertiary": "#4e1700",
+          "tertiary-container": "#732500",
+          "on-tertiary-container": "#ff8b5c",
+          "tertiary-fixed": "#ffdbce",
+          "tertiary-fixed-dim": "#ffb599",
+          "on-tertiary-fixed": "#370e00",
+          "outline": "#797584",
+          "outline-variant": "#c9c4d4",
+          "error": "#ba1a1a",
+          "error-container": "#ffdad6",
+          "background": "#fcf8ff",
+        },
+        fontFamily: {
+          sans: ["DM Sans", "sans-serif"],
+          display: ["Plus Jakarta Sans", "sans-serif"],
+        },
+        keyframes: {
+          "fade-up": {
+            "0%": { opacity: "0", transform: "translateY(24px)" },
+            "100%": { opacity: "1", transform: "translateY(0)" },
+          },
+        },
+        animation: {
+          "fade-up": "fade-up 0.6s ease-out forwards",
+        },
+      }
+    }
+  }
+</script>
+<style>
+  .material-symbols-rounded {
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    display: inline-block;
+    vertical-align: middle;
+    line-height: 1;
+    user-select: none;
+  }
+  .material-symbols-rounded.fill {
+    font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  }
+  .reveal { opacity: 0; transform: translateY(28px); transition: opacity 0.65s ease, transform 0.65s ease; }
+  .reveal.visible { opacity: 1; transform: translateY(0); }
+  .reveal-delay-1 { transition-delay: 0.1s; }
+  .reveal-delay-2 { transition-delay: 0.2s; }
+</style>
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body class="bg-background text-on-surface font-sans antialiased overflow-x-hidden flex flex-col min-h-screen">
+
+<!-- Ambient Background Blobs -->
+<div class="fixed inset-0 pointer-events-none -z-10 overflow-hidden">
+  <div class="absolute -top-40 -left-40 w-[500px] h-[500px] rounded-full bg-secondary-fixed/50 blur-[140px]"></div>
+  <div class="absolute top-1/2 -right-40 w-[600px] h-[600px] rounded-full bg-surface-container-high/60 blur-[160px]"></div>
+</div>
+
+<!-- ═══════════════════════════ NAVBAR ═══════════════════════════ -->
+<header class="bg-surface/80 backdrop-blur-xl sticky top-0 z-50 border-b border-outline-variant/20 shadow-[0_4px_24px_-4px_rgba(40,10,128,0.06)]">
+  <div class="flex justify-between items-center w-full px-6 md:px-12 max-w-7xl mx-auto h-16">
+    <a class="flex items-center gap-2.5 active:scale-[0.98] transition-transform" href="index.html">
+      <img src="./assets/logo/icon_logo.png" class="w-9 h-9 object-contain" alt="Wehere Logo">
+      <span class="text-[18px] font-display font-extrabold text-primary tracking-tight">Wehere</span>
+    </a>
+
+    <nav class="hidden md:flex items-center gap-7">
+      <a class="text-on-surface-variant font-medium text-sm hover:text-primary transition-colors" href="index.html#how-it-works">How It Works</a>
+      <a class="text-on-surface-variant font-medium text-sm hover:text-primary transition-colors" href="index.html#features">Features</a>
+      <a class="text-on-surface-variant font-medium text-sm hover:text-primary transition-colors" href="about.html">About Us</a>
+      <a class="text-on-surface-variant font-medium text-sm hover:text-primary transition-colors" href="policies.html">Policies</a>
+    </nav>
+
+    <div class="hidden md:flex items-center gap-3">
+      <a class="text-sm font-display font-semibold px-5 py-2.5 rounded-full bg-primary-container text-white hover:shadow-lg hover:shadow-primary/25 active:scale-[0.98] transition-all" href="index.html#download">
+        Get the App
+      </a>
+    </div>
+
+    <button aria-label="Toggle navigation" class="md:hidden text-primary p-2 rounded-full" id="mobile-menu-btn">
+      <i data-lucide="menu" class="lucide-icon text-2xl"></i>
+    </button>
+  </div>
+
+  <div class="hidden md:hidden px-6 pb-5 pt-2 border-t border-surface-container flex flex-col gap-2" id="mobile-menu">
+    <a class="text-on-surface-variant py-2 text-sm" href="index.html#how-it-works">How It Works</a>
+    <a class="text-on-surface-variant py-2 text-sm" href="index.html#features">Features</a>
+    <a class="text-on-surface-variant py-2 text-sm" href="about.html">About Us</a>
+    <a class="text-primary font-bold py-2 text-sm" href="policies.html">Policies</a>
+  </div>
+</header>
+
+
+<main class="flex-grow py-16 md:py-24 px-6 md:px-12 max-w-4xl mx-auto w-full">
+  <div class="mb-12 animate-fade-up">
+    <a href="policies.html" class="inline-flex items-center gap-2 text-primary font-display text-sm font-bold bg-surface-container py-2 px-4 rounded-full w-max hover:bg-surface-container-high transition-colors mb-8">
+      <i data-lucide="arrow-left" class="lucide-icon text-lg"></i>
+      Back to Policies
+    </a>
+    <h1 class="font-display text-[clamp(2rem,4vw,3rem)] font-extrabold text-on-surface leading-tight tracking-tight">
+      Terms of Service & User Guide
+    </h1>
+  </div>
+  
+  <div class="bg-surface-container-lowest rounded-3xl p-8 md:p-12 border border-outline-variant/30 shadow-sm animate-fade-up prose prose-indigo max-w-none text-on-surface-variant leading-relaxed" style="animation-delay: 0.1s">
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">WEHERE APP</h3>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">TERMS OF SERVICE &amp; USER AGREEMENT</h3>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">Effective Date: 10th October 2026</h3>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">Last Updated: 7th October 2026</h3>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">Version: 1.0</h3>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">Country of Initial Operation: India</h3>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">IMPORTANT NOTICE</h3>
+    <p class="mb-4">PLEASE READ THESE TERMS OF SERVICE AND USER AGREEMENT CAREFULLY BEFORE CREATING AN ACCOUNT, ACCESSING, OR USING WEHERE.</p>
+    <p class="mb-4">BY CREATING AN ACCOUNT, CLICKING “I AGREE,” ACCESSING, DOWNLOADING, INSTALLING OR USING THE WEHERE APPLICATION, WEBSITE OR ANY OTHER</p>
+    <p class="mb-4">WEHERE SERVICE, YOU ACKNOWLEDGE THAT YOU HAVE READ, UNDERSTOOD AND AGREED TO THESE TERMS, TO THE EXTENT PERMITTED BY APPLICABLE LAW.</p>
+    <p class="mb-4">IF YOU DO NOT AGREE TO THESE TERMS, YOU MUST NOT ACCESS OR USE WEHERE.</p>
+    <p class="mb-4">THESE TERMS GOVERN YOUR USE OF WEHERE AND FORM A LEGALLY BINDING AGREEMENT BETWEEN YOU AND THE WEHERE OPERATING ENTITY IDENTIFIED IN SECTION 2.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">1. ABOUT WEHERE</h3>
+    <p class="mb-4">1.1 WeHere is a digital platform designed to facilitate human connection, peer support, social interaction and communication between users who may share similar experiences, interests, life circumstances, challenges or support</p>
+    <p class="mb-4">preferences.</p>
+    <p class="mb-4">1.2 WeHere is intended to help users feel less alone, find people who may understand their experiences, communicate with others, participate in communities and support one another.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">1.3 WeHere is a non-clinical platform.</h3>
+    <p class="mb-4">1.4 Unless a particular service is expressly identified by WeHere as being provided by an appropriately qualified and legally authorised professional under a separate arrangement, WeHere does not provide:</p>
+    <p class="mb-4">(a) medical diagnosis;</p>
+    <p class="mb-4">(b) medical treatment;</p>
+    <p class="mb-4">(c) psychiatric treatment;</p>
+    <p class="mb-4">(d) psychotherapy;</p>
+    <p class="mb-4">(e) psychological diagnosis;</p>
+    <p class="mb-4">(f) medical advice;</p>
+    <p class="mb-4">(g) emergency medical services;</p>
+    <p class="mb-4">(h) ambulance services;</p>
+    <p class="mb-4">(i) police or law-enforcement emergency services;</p>
+    <p class="mb-4">(j) suicide-prevention or crisis-intervention services;</p>
+    <p class="mb-4">(k) hospital services; or</p>
+    <p class="mb-4">(l) any guarantee of mental-health or medical outcomes.</p>
+    <p class="mb-4">1.5 Communications between users are communications between users. A person communicating with you through WeHere is not automatically a doctor, psychologist, psychiatrist, counsellor, therapist, medical professional or other licensed professional merely because of their profile, statements, experience or claims.</p>
+    <p class="mb-4">1.6 WeHere does not represent that another user's experience, opinion, suggestion, statement or advice is accurate, safe, professionally appropriate or suitable for you.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">2. CONTRACTING ENTITY</h3>
+    <p class="mb-4">2.1 These Terms constitute an agreement between you and the legal entity that owns and/or operates WeHere in India:</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">Legal Name: WEHERE NETWORKS PRIVATE LIMITED</h3>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">Entity Type: PRIVATE LIMITED COMPANY</h3>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">Registered/Principal Address: B-2484 Indira Nagar, Lucknow 226016</h3>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">Email: contact@weherenetworks.com</h3>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">Website: www.Weherenetworks.com</h3>
+    <p class="mb-4">2.2 References in these Terms to “WeHere,” “we,” “us” or “our” mean the above entity and, where applicable, its affiliates, successors and permitted assigns.</p>
+    <p class="mb-4">2.3 If WeHere's legal entity changes, these Terms may be updated to reflect the new operating entity.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">3. DEFINITIONS</h3>
+    <p class="mb-4">For these Terms:</p>
+    <p class="mb-4">“Account” means the account created by a user to access WeHere.</p>
+    <p class="mb-4">“App” means the WeHere mobile application and any updated or successor version.</p>
+    <p class="mb-4">“Content” means text, photographs, videos, audio, messages, comments, profiles, posts, usernames, images, information and other material submitted, transmitted, uploaded or otherwise made available through WeHere.</p>
+    <p class="mb-4">“Community” means a WeHere group, category, discussion area or other user community.</p>
+    <p class="mb-4">“Platform” means the App, website, services, systems, features and technology operated or made available by WeHere.</p>
+    <p class="mb-4">“User,” “you” or “your” means any person accessing or using WeHere.</p>
+    <p class="mb-4">“User Content” means Content submitted or generated by a user.</p>
+    <p class="mb-4">“Services” means the services and functionality made available by WeHere from time to time.</p>
+    <p class="mb-4">“Subscription” means any paid plan or recurring or non-recurring paid access offered by WeHere.</p>
+    <p class="mb-4">“Applicable Law” means laws, rules, regulations, governmental directions and legally binding requirements applicable to the relevant activity, user, transaction or circumstance.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">4. ELIGIBILITY</h3>
+    <p class="mb-4">4.1 WeHere is intended for adults.</p>
+    <p class="mb-4">4.2 Unless WeHere expressly launches a separate service specifically designed for minors and establishes the required safeguards, you must be at least 18 years old to create or use a WeHere account.</p>
+    <p class="mb-4">4.3 A person below 18 years of age must not create or operate a WeHere account by falsely representing that they are 18 or older.</p>
+    <p class="mb-4">4.4 You must provide accurate age information when requested.</p>
+    <p class="mb-4">4.5 WeHere may require age verification where reasonably necessary for safety, legal compliance, fraud prevention or protection of the Platform.</p>
+    <p class="mb-4">4.6 WeHere may suspend or terminate an account where it reasonably believes that the user does not satisfy the applicable age requirement.</p>
+    <p class="mb-4">4.7 You must not allow another person to use your Account where doing so would violate these Terms or Applicable Law.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">5. ACCOUNT REGISTRATION AND SECURITY</h3>
+    <p class="mb-4">5.1 You are responsible for providing accurate and reasonably current information during registration.</p>
+    <p class="mb-4">5.2 You must not:</p>
+    <p class="mb-4">(a) impersonate another person;</p>
+    <p class="mb-4">(b) create an account using another person's identity without lawful authorisation;</p>
+    <p class="mb-4">(c) create an account using fraudulent information;</p>
+    <p class="mb-4">(d) create an account for unlawful purposes;</p>
+    <p class="mb-4">(e) create multiple accounts to evade a suspension or restriction;</p>
+    <p class="mb-4">(f) sell, rent, transfer or commercially exploit</p>
+    <p class="mb-4">your Account without our written permission; or</p>
+    <p class="mb-4">(g) permit another person to access your Account where such access creates a security or legal risk.</p>
+    <p class="mb-4">5.3 You are responsible for maintaining the confidentiality of your login credentials and for activity occurring through your Account, except to the extent Applicable Law provides otherwise.</p>
+    <p class="mb-4">5.4 You must promptly notify WeHere if you believe that your Account has been compromised, accessed without permission or used fraudulently.</p>
+    <p class="mb-4">5.5 WeHere may require additional verification where reasonably necessary to protect users, prevent fraud or comply with Applicable Law.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">6. NATURE OF PEER SUPPORT</h3>
+    <p class="mb-4">6.1 WeHere facilitates communication between users. WeHere does not control the personal experiences, beliefs, opinions, qualifications, intentions or conduct of users.</p>
+    <p class="mb-4">6.2 A user's personal experience is not professional advice.</p>
+    <p class="mb-4">6.3 A user must not represent that their personal experience constitutes medical, psychological, psychiatric, legal, financial or other professional advice unless they are appropriately qualified and legally authorised to provide such advice and WeHere expressly permits that representation.</p>
+    <p class="mb-4">6.4 WeHere does not guarantee that:</p>
+    <p class="mb-4">(a) you will find a compatible person;</p>
+    <p class="mb-4">(b) another user will respond to you;</p>
+    <p class="mb-4">(c) another user will understand you;</p>
+    <p class="mb-4">(d) another user will behave appropriately;</p>
+    <p class="mb-4">(e) any conversation will improve your emotional state;</p>
+    <p class="mb-4">(f) any community will remain available;</p>
+    <p class="mb-4">(g) information provided by another user will be accurate; or</p>
+    <p class="mb-4">(h) use of WeHere will produce any particular personal, emotional, psychological or social outcome.</p>
+    <p class="mb-4">6.5 Users remain responsible for deciding whether, and to what extent, they rely upon information or communications received from other users.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">7. EMERGENCIES AND IMMEDIATE DANGER</h3>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">7.1 WEHERE IS NOT AN EMERGENCY SERVICE.</h3>
+    <p class="mb-4">7.2 If you believe that you or another person is in immediate danger, experiencing a medical emergency, at immediate risk of self-harm or suicide, or requires urgent professional intervention, you should immediately contact the appropriate emergency service, hospital, qualified professional, crisis service or other appropriate local authority.</p>
+    <p class="mb-4">7.3 Do not rely on WeHere as a substitute for emergency assistance.</p>
+    <p class="mb-4">7.4 WeHere does not guarantee that it will:</p>
+    <p class="mb-4">(a) receive a message immediately;</p>
+    <p class="mb-4">(b) read a message immediately;</p>
+    <p class="mb-4">(c) identify a person in crisis;</p>
+    <p class="mb-4">(d) contact emergency services;</p>
+    <p class="mb-4">(e) identify a user's physical location;</p>
+    <p class="mb-4">(f) be able to identify a user's identity;</p>
+    <p class="mb-4">(g) intervene before harm occurs; or</p>
+    <p class="mb-4">(h) prevent self-harm, suicide, violence, abuse, medical emergencies or other harmful events.</p>
+    <p class="mb-4">7.5 Where WeHere receives information suggesting a serious and credible safety risk, WeHere may take actions permitted or required by Applicable Law and its Safety and Crisis Response Policy, including restricting accounts, removing Content, contacting appropriate services or authorities where legally permitted or required, or taking other protective measures.</p>
+    <p class="mb-4">7.6 Nothing in these Terms is intended to exclude or limit any liability or obligation that Applicable Law does not permit WeHere to exclude or limit.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">8. USER-TO-USER INTERACTIONS</h3>
+    <p class="mb-4">8.1 Users interact with one another at their own discretion.</p>
+    <p class="mb-4">8.2 WeHere does not guarantee the identity, age, background, location, occupation, qualifications, intentions, statements or conduct of another</p>
+    <p class="mb-4">user unless WeHere expressly states that a particular verification process has been completed.</p>
+    <p class="mb-4">8.3 Verification badges or similar indicators, where offered, do not constitute a guarantee of a user's character, safety, qualifications or future conduct.</p>
+    <p class="mb-4">8.4 You should exercise appropriate caution before sharing personal information, meeting another user offline, transferring money or entering into any personal, romantic, professional or financial relationship with another user.</p>
+    <p class="mb-4">8.5 WeHere strongly discourages users from sending money, financial credentials, passwords, authentication codes, identity documents or other highly sensitive information to another user.</p>
+    <p class="mb-4">8.6 If you decide to meet another user offline, you are responsible for taking appropriate</p>
+    <p class="mb-4">personal-safety precautions.</p>
+    <p class="mb-4">8.7 WeHere is not a dating or matchmaking service for romantic relationships, although users may independently form personal relationships. Such relationships are between the users and are not controlled, endorsed or guaranteed by WeHere.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">9. PROHIBITED CONDUCT</h3>
+    <p class="mb-4">You must not use WeHere to:</p>
+    <p class="mb-4">9.1 threaten, intimidate, harass, bully, stalk or repeatedly contact another person against their wishes;</p>
+    <p class="mb-4">9.2 encourage, glorify, promote, instruct, facilitate or assist suicide or self-harm;</p>
+    <p class="mb-4">9.3 encourage another person to commit violence against themselves or another person;</p>
+    <p class="mb-4">9.4 provide or request instructions intended to facilitate serious physical harm;</p>
+    <p class="mb-4">9.5 exploit, manipulate, coerce or deliberately psychologically abuse another user;</p>
+    <p class="mb-4">9.6 groom, sexually exploit or sexually abuse another person;</p>
+    <p class="mb-4">9.7 engage in sexual exploitation or any unlawful sexual conduct;</p>
+    <p class="mb-4">9.8 target minors or attempt to circumvent age restrictions;</p>
+    <p class="mb-4">9.9 impersonate another person, organisation, professional or authority;</p>
+    <p class="mb-4">9.10 falsely claim to be a doctor, psychologist, psychiatrist, therapist, counsellor or other professional;</p>
+    <p class="mb-4">9.11 provide fraudulent professional credentials;</p>
+    <p class="mb-4">9.12 commit fraud, scams, extortion, blackmail or financial exploitation;</p>
+    <p class="mb-4">9.13 solicit money from vulnerable users through deception or coercion;</p>
+    <p class="mb-4">9.14 distribute malware, malicious software or harmful code;</p>
+    <p class="mb-4">9.15 attempt to obtain another person's password, OTP, authentication credential or account;</p>
+    <p class="mb-4">9.16 publish another person's private or identifying information without lawful authority or consent;</p>
+    <p class="mb-4">9.17 distribute non-consensual intimate imagery;</p>
+    <p class="mb-4">9.18 use WeHere to facilitate prostitution, trafficking or other unlawful commercial sexual activity;</p>
+    <p class="mb-4">9.19 facilitate the sale or distribution of illegal drugs or other unlawful substances;</p>
+    <p class="mb-4">9.20 use WeHere for unlawful gambling or other unlawful commercial activity;</p>
+    <p class="mb-4">9.21 promote terrorism or violent extremist activity;</p>
+    <p class="mb-4">9.22 publish content that violates Applicable Law;</p>
+    <p class="mb-4">9.23 deliberately spread deceptive information intended to cause serious harm;</p>
+    <p class="mb-4">9.24 evade a suspension or safety restriction;</p>
+    <p class="mb-4">9.25 scrape, copy, harvest or systematically collect user information without authorisation;</p>
+    <p class="mb-4">9.26 reverse engineer, interfere with or compromise the Platform except to the extent such restriction is prohibited by law;</p>
+    <p class="mb-4">9.27 attempt to bypass security controls;</p>
+    <p class="mb-4">9.28 use automated systems to access WeHere without permission;</p>
+    <p class="mb-4">9.29 use WeHere to test or deploy malicious artificial intelligence systems;</p>
+    <p class="mb-4">9.30 upload Content that infringes another person's intellectual-property rights;</p>
+    <p class="mb-4">9.31 use WeHere for activities that create a significant and unlawful risk to another person; or</p>
+    <p class="mb-4">9.32 assist, encourage or facilitate another person to engage in any prohibited conduct.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">10. USER CONTENT</h3>
+    <p class="mb-4">10.1 You retain ownership of User Content to the extent you legally own such Content.</p>
+    <p class="mb-4">10.2 By submitting User Content to WeHere, you grant WeHere a non-exclusive, worldwide, royalty-free, transferable only as necessary to operate the Service, sublicensable only as necessary to provide the Service, licence to host, store, reproduce, process, transmit, display and otherwise use that Content solely as reasonably necessary to operate, maintain, secure, improve and provide WeHere and to comply with Applicable Law.</p>
+    <p class="mb-4">10.3 The licence in Section 10.2 does not transfer ownership of your User Content to WeHere.</p>
+    <p class="mb-4">10.4 You represent that:</p>
+    <p class="mb-4">(a) you have the rights necessary to submit the Content;</p>
+    <p class="mb-4">(b) the Content does not knowingly violate another person's rights;</p>
+    <p class="mb-4">(c) the Content is not submitted for an unlawful purpose; and</p>
+    <p class="mb-4">(d) your submission of the Content does not violate any agreement binding upon you.</p>
+    <p class="mb-4">10.5 You remain responsible for your User Content.</p>
+    <p class="mb-4">10.6 WeHere does not endorse, guarantee or adopt opinions expressed by users.</p>
+    <p class="mb-4">10.7 WeHere may remove, restrict, disable access to or preserve User Content where WeHere reasonably believes this is necessary for safety, moderation, security, legal compliance, enforcement of these Terms or protection of users or the Platform.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">11. CONTENT MODERATION</h3>
+    <p class="mb-4">11.1 WeHere may use a combination of automated tools, human review, user reports and other mechanisms to detect and address violations.</p>
+    <p class="mb-4">11.2 Moderation may include:</p>
+    <p class="mb-4">(a) warnings;</p>
+    <p class="mb-4">(b) removal or restriction of Content;</p>
+    <p class="mb-4">(c) reduction of Content visibility;</p>
+    <p class="mb-4">(d) disabling specific functionality;</p>
+    <p class="mb-4">(e) temporary suspension;</p>
+    <p class="mb-4">(f) permanent termination;</p>
+    <p class="mb-4">(g) preservation of information where legally permitted or required; and/or</p>
+    <p class="mb-4">(h) referral or disclosure to appropriate authorities where legally permitted or required.</p>
+    <p class="mb-4">11.3 Automated systems may make mistakes.</p>
+    <p class="mb-4">Where appropriate, users may use available reporting or appeal mechanisms.</p>
+    <p class="mb-4">11.4 WeHere does not guarantee that every prohibited item of Content will be detected or removed.</p>
+    <p class="mb-4">11.5 WeHere does not guarantee that harmful Content will never appear on the Platform.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">12. REPORTING AND BLOCKING</h3>
+    <p class="mb-4">12.1 WeHere may provide tools allowing users to report or block other users or Content.</p>
+    <p class="mb-4">12.2 A report should contain accurate and relevant information.</p>
+    <p class="mb-4">12.3 Knowingly false, malicious or abusive reporting may itself violate these Terms.</p>
+    <p class="mb-4">12.4 Blocking another user may restrict direct interaction but may not necessarily remove Content that has already been publicly posted or otherwise shared.</p>
+    <p class="mb-4">12.5 WeHere may take action following a report based on the circumstances, available information, Applicable Law and its safety procedures.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">13. PROFESSIONALS AND PROFESSIONAL CONTENT</h3>
+    <p class="mb-4">13.1 WeHere may in the future provide access to separately identified professional services or professional content.</p>
+    <p class="mb-4">13.2 If such services are introduced, they may be governed by separate terms, informed-consent requirements, professional rules and agreements.</p>
+    <p class="mb-4">13.3 A person identifying themselves as a professional does not automatically establish that WeHere has verified their professional status.</p>
+    <p class="mb-4">13.4 Users must not rely upon a person's claimed credentials unless those credentials have been appropriately verified and the service is expressly presented as a professional service.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">14. ARTIFICIAL INTELLIGENCE AND AUTOMATED SYSTEMS</h3>
+    <p class="mb-4">14.1 WeHere may introduce artificial intelligence, machine-learning or automated systems for purposes including:</p>
+    <p class="mb-4">(a) content moderation;</p>
+    <p class="mb-4">(b) safety detection;</p>
+    <p class="mb-4">(c) fraud detection;</p>
+    <p class="mb-4">(d) spam prevention;</p>
+    <p class="mb-4">(e) matching and recommendations;</p>
+    <p class="mb-4">(f) search;</p>
+    <p class="mb-4">(g) translation;</p>
+    <p class="mb-4">(h) conversation assistance;</p>
+    <p class="mb-4">(i) customer support; and</p>
+    <p class="mb-4">(j) platform improvement.</p>
+    <p class="mb-4">14.2 Automated systems may be inaccurate and may produce false positives or false negatives.</p>
+    <p class="mb-4">14.3 WeHere does not represent that an automated system can reliably identify a person's emotional condition, medical condition, intentions or level of danger.</p>
+    <p class="mb-4">14.4 AI-generated or algorithmically generated information must not be treated as medical diagnosis, emergency assessment or professional advice.</p>
+    <p class="mb-4">14.5 Where required by Applicable Law, WeHere will provide additional notices, rights or controls</p>
+    <p class="mb-4">concerning automated processing.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">15. PRIVACY</h3>
+    <p class="mb-4">15.1 Your use of WeHere is also governed by the WeHere Privacy Policy.</p>
+    <p class="mb-4">15.2 The Privacy Policy explains how WeHere collects, uses, stores, discloses and otherwise processes personal data.</p>
+    <p class="mb-4">15.3 Nothing in these Terms overrides mandatory rights or obligations under Applicable Data Protection Law.</p>
+    <p class="mb-4">15.4 Where the processing of personal data requires consent, WeHere will seek consent through an appropriate mechanism.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">16. LOCATION INFORMATION</h3>
+    <p class="mb-4">16.1 Certain WeHere functionality may use location information where enabled or otherwise lawfully obtained.</p>
+    <p class="mb-4">16.2 Location functionality may be used for purposes such as:</p>
+    <p class="mb-4">(a) improving matching;</p>
+    <p class="mb-4">(b) showing relevant communities;</p>
+    <p class="mb-4">(c) enabling location-based features;</p>
+    <p class="mb-4">(d) security and fraud prevention; and/or</p>
+    <p class="mb-4">(e) other purposes described in the Privacy Policy.</p>
+    <p class="mb-4">16.3 WeHere does not guarantee the accuracy of location information.</p>
+    <p class="mb-4">16.4 Users should consider carefully whether they wish to disclose precise or approximate location information to other users.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">17. ADVERTISING</h3>
+    <p class="mb-4">17.1 WeHere may display advertisements.</p>
+    <p class="mb-4">17.2 Advertisements may be provided by third-party advertising partners.</p>
+    <p class="mb-4">17.3 Advertising practices and associated data processing are described in the Privacy Policy and any applicable advertising disclosures.</p>
+    <p class="mb-4">17.4 WeHere does not endorse every product, service or claim appearing in an advertisement.</p>
+    <p class="mb-4">17.5 Users should independently evaluate third-party products or services before purchasing them.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">18. SUBSCRIPTIONS AND PAID</h3>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">SERVICES</h3>
+    <p class="mb-4">18.1 WeHere may offer free and paid functionality.</p>
+    <p class="mb-4">18.2 Subscription prices, billing frequency, taxes, renewal terms, benefits and applicable limitations will be displayed before purchase.</p>
+    <p class="mb-4">18.3 The specific purchase flow, including Google Play or Apple App Store terms where applicable, may also apply.</p>
+    <p class="mb-4">18.4 A Subscription does not create any guarantee regarding:</p>
+    <p class="mb-4">(a) the number of matches;</p>
+    <p class="mb-4">(b) the number of replies;</p>
+    <p class="mb-4">(c) the behaviour of other users;</p>
+    <p class="mb-4">(d) emotional outcomes;</p>
+    <p class="mb-4">(e) community availability; or</p>
+    <p class="mb-4">(f) any particular result.</p>
+    <p class="mb-4">18.5 Subscription cancellation, renewal and refund rules are governed by the applicable Subscription and Refund Policy and, where applicable, the terms of the relevant app store.</p>
+    <p class="mb-4">18.6 Nothing in these Terms removes any mandatory consumer right that cannot legally be excluded.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">19. PAYMENTS AND TAXES</h3>
+    <p class="mb-4">19.1 Payments may be processed by third-party payment processors or app-store payment systems.</p>
+    <p class="mb-4">19.2 WeHere may not receive or store complete payment-card credentials where payment processing is handled by a third-party processor.</p>
+    <p class="mb-4">19.3 Applicable taxes may be charged in accordance with Applicable Law.</p>
+    <p class="mb-4">19.4 You are responsible for providing accurate billing information.</p>
+    <p class="mb-4">19.5 WeHere is not responsible for errors caused solely by a third-party payment processor or app-store platform, subject to Applicable Law.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">20. THIRD-PARTY SERVICES</h3>
+    <p class="mb-4">20.1 WeHere may integrate third-party services, including authentication providers, analytics providers, cloud infrastructure providers, payment processors, advertising providers, communication services and app stores.</p>
+    <p class="mb-4">20.2 Third-party services may be subject to their own terms and privacy policies.</p>
+    <p class="mb-4">20.3 WeHere does not control third-party services and does not guarantee their availability, security or performance.</p>
+    <p class="mb-4">20.4 Where Applicable Law imposes obligations</p>
+    <p class="mb-4">upon WeHere regarding a third-party service provider, WeHere will address those obligations as required.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">21. INTELLECTUAL PROPERTY</h3>
+    <p class="mb-4">21.1 WeHere and its licensors own or control, to the extent legally applicable, the Platform and its original components, including software, trademarks, logos, designs, interfaces, graphics, text, branding and other proprietary material.</p>
+    <p class="mb-4">21.2 Except as expressly permitted by these Terms or Applicable Law, you must not:</p>
+    <p class="mb-4">(a) copy;</p>
+    <p class="mb-4">(b) reproduce;</p>
+    <p class="mb-4">(c) modify;</p>
+    <p class="mb-4">(d) distribute;</p>
+    <p class="mb-4">(e) sell;</p>
+    <p class="mb-4">(f) lease;</p>
+    <p class="mb-4">(g) sublicense;</p>
+    <p class="mb-4">(h) publicly exploit;</p>
+    <p class="mb-4">(i) reverse engineer; or</p>
+    <p class="mb-4">(j) create derivative works from</p>
+    <p class="mb-4">WeHere's proprietary materials.</p>
+    <p class="mb-4">21.3 “WeHere” and associated logos and branding may constitute trademarks or other protected rights.</p>
+    <p class="mb-4">21.4 Nothing in these Terms grants you ownership of WeHere's intellectual property.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">22. COPYRIGHT AND RIGHTS COMPLAINTS</h3>
+    <p class="mb-4">22.1 If you believe Content on WeHere infringes your copyright or other legally protected rights,</p>
+    <p class="mb-4">you may submit a complaint through the designated rights-reporting mechanism.</p>
+    <p class="mb-4">22.2 WeHere may request information reasonably necessary to investigate a complaint.</p>
+    <p class="mb-4">22.3 Knowingly fraudulent or materially false rights complaints may be rejected and may result in action against the reporting account.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">23. SECURITY</h3>
+    <p class="mb-4">23.1 WeHere implements security measures appropriate to the nature and risks of the Services and personal data processed.</p>
+    <p class="mb-4">23.2 No internet-based service can guarantee absolute security.</p>
+    <p class="mb-4">23.3 You acknowledge that transmission of information over the internet carries inherent risks.</p>
+    <p class="mb-4">23.4 You must not attempt to compromise the security of WeHere or another user's Account.</p>
+    <p class="mb-4">23.5 If WeHere becomes aware of a qualifying security incident or personal-data breach requiring notification under Applicable Law, WeHere will take steps required by Applicable Law.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">24. SERVICE AVAILABILITY</h3>
+    <p class="mb-4">24.1 WeHere may modify, suspend, restrict or discontinue features from time to time.</p>
+    <p class="mb-4">24.2 We may perform maintenance, security updates and technical changes.</p>
+    <p class="mb-4">24.3 We do not guarantee that:</p>
+    <p class="mb-4">(a) WeHere will always be available;</p>
+    <p class="mb-4">(b) the Platform will be uninterrupted;</p>
+    <p class="mb-4">(c) the Platform will be error-free;</p>
+    <p class="mb-4">(d) all features will remain available;</p>
+    <p class="mb-4">(e) data will never be lost; or</p>
+    <p class="mb-4">(f) the Platform will work on every device.</p>
+    <p class="mb-4">24.4 Where legally required, WeHere will provide applicable notices or remedies.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">25. ACCOUNT SUSPENSION AND TERMINATION</h3>
+    <p class="mb-4">25.1 WeHere may restrict, suspend or terminate an Account where reasonably necessary, including where:</p>
+    <p class="mb-4">(a) these Terms are violated;</p>
+    <p class="mb-4">(b) Applicable Law requires or permits action;</p>
+    <p class="mb-4">(c) the Account creates a safety or security risk;</p>
+    <p class="mb-4">(d) fraud is suspected;</p>
+    <p class="mb-4">(e) the Account is used to evade a previous</p>
+    <p class="mb-4">restriction;</p>
+    <p class="mb-4">(f) the Account is involved in abusive conduct;</p>
+    <p class="mb-4">(g) payment fraud or misuse is suspected; or</p>
+    <p class="mb-4">(h) continued access creates a material risk to WeHere or another person.</p>
+    <p class="mb-4">25.2 Where appropriate and legally permissible, WeHere may provide an explanation or appeal mechanism.</p>
+    <p class="mb-4">25.3 WeHere may preserve certain information after termination where reasonably necessary for legal compliance, fraud prevention, security, dispute resolution or other lawful purposes.</p>
+    <p class="mb-4">25.4 Account deletion does not necessarily require immediate deletion of every record where retention is required or permitted by Applicable Law.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">26. EFFECT OF ACCOUNT TERMINATION</h3>
+    <p class="mb-4">Upon termination:</p>
+    <p class="mb-4">(a) your right to access affected Services may cease;</p>
+    <p class="mb-4">(b) you must stop using the affected Account;</p>
+    <p class="mb-4">(c) outstanding lawful obligations may survive;</p>
+    <p class="mb-4">(d) intellectual-property provisions may survive;</p>
+    <p class="mb-4">(e) privacy and data-retention provisions may survive; and</p>
+    <p class="mb-4">(f) provisions which by their nature should survive termination will survive.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">27. DISCLAIMER OF WARRANTIES</h3>
+    <p class="mb-4">27.1 To the maximum extent permitted by</p>
+    <p class="mb-4">Applicable Law, WeHere provides the Platform on an “as available” and “as is” basis, subject to any warranties that cannot legally be excluded.</p>
+    <p class="mb-4">27.2 To the extent permitted by law, WeHere does not warrant that:</p>
+    <p class="mb-4">(a) the Platform will meet your individual requirements;</p>
+    <p class="mb-4">(b) another user will behave safely or lawfully;</p>
+    <p class="mb-4">(c) information supplied by users will be accurate;</p>
+    <p class="mb-4">(d) the Platform will always be available;</p>
+    <p class="mb-4">(e) the Platform will be free from errors or harmful components; or</p>
+    <p class="mb-4">(f) any particular emotional, psychological, social, financial or personal outcome will result.</p>
+    <p class="mb-4">27.3 Nothing in this Section excludes or limits any warranty, consumer right or statutory protection that Applicable Law does not permit WeHere to exclude or limit.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">28. LIMITATION OF LIABILITY</h3>
+    <p class="mb-4">28.1 To the maximum extent permitted by Applicable Law, WeHere will not be liable for indirect, incidental, special, exemplary, punitive or consequential losses arising from or relating to use of the Platform.</p>
+    <p class="mb-4">28.2 To the maximum extent permitted by Applicable Law, WeHere will not be responsible for losses arising solely from:</p>
+    <p class="mb-4">(a) another user's conduct;</p>
+    <p class="mb-4">(b) User Content;</p>
+    <p class="mb-4">(c) inaccurate information supplied by another user;</p>
+    <p class="mb-4">(d) a user's decision to meet another user;</p>
+    <p class="mb-4">(e) a user's decision to rely upon another user's statements;</p>
+    <p class="mb-4">(f) third-party services;</p>
+    <p class="mb-4">(g) service interruptions outside WeHere's reasonable control; or</p>
+    <p class="mb-4">(h) unauthorised conduct by third parties,</p>
+    <p class="mb-4">subject always to liabilities that cannot lawfully be excluded or limited.</p>
+    <p class="mb-4">28.3 Nothing in these Terms excludes or limits liability where such exclusion or limitation is prohibited by Applicable Law.</p>
+    <p class="mb-4">28.4 Nothing in these Terms is intended to exclude liability for fraud, wilful misconduct or any other category of liability that cannot lawfully be excluded.</p>
+    <p class="mb-4">28.5 Any limitation of liability shall apply only to the maximum extent legally enforceable in the relevant circumstances.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">29. INDEMNIFICATION</h3>
+    <p class="mb-4">29.1 To the maximum extent permitted by Applicable Law, you agree to indemnify and hold harmless WeHere and its directors, officers, employees, contractors and authorised representatives against third-party claims, losses, liabilities, damages and reasonable costs arising directly from:</p>
+    <p class="mb-4">(a) your material breach of these Terms;</p>
+    <p class="mb-4">(b) your unlawful use of the Platform;</p>
+    <p class="mb-4">(c) your User Content;</p>
+    <p class="mb-4">(d) your infringement of another person's intellectual-property or other legal rights; or</p>
+    <p class="mb-4">(e) your fraudulent or wilfully wrongful conduct.</p>
+    <p class="mb-4">29.2 This Section does not require you to indemnify WeHere for losses caused by WeHere's own conduct to the extent Applicable Law prohibits such allocation.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">30. NO WAIVER</h3>
+    <p class="mb-4">30.1 If WeHere does not immediately enforce a provision of these Terms, that does not constitute a permanent waiver of the right to enforce that provision later.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">31. SEVERABILITY</h3>
+    <p class="mb-4">31.1 If a court or competent authority determines that a provision of these Terms is unlawful, invalid or unenforceable, that provision will be interpreted or limited to the minimum extent necessary, where legally permissible.</p>
+    <p class="mb-4">31.2 The remaining provisions will continue in effect to the extent permitted by law.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">32. CHANGES TO THESE TERMS</h3>
+    <p class="mb-4">32.1 WeHere may update these Terms when reasonably necessary, including because of:</p>
+    <p class="mb-4">(a) changes to the Services;</p>
+    <p class="mb-4">(b) new features;</p>
+    <p class="mb-4">(c) changes in law;</p>
+    <p class="mb-4">(d) security requirements;</p>
+    <p class="mb-4">(e) regulatory requirements;</p>
+    <p class="mb-4">(f) business changes; or</p>
+    <p class="mb-4">(g) changes to our operational practices.</p>
+    <p class="mb-4">32.2 Where required by Applicable Law, WeHere will provide appropriate notice of material changes.</p>
+    <p class="mb-4">32.3 The updated version will state its effective date.</p>
+    <p class="mb-4">32.4 Continued use of WeHere after the effective date of updated Terms may constitute</p>
+    <p class="mb-4">acceptance where legally permissible.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">33. GOVERNING LAW</h3>
+    <p class="mb-4">33.1 Subject to mandatory rights and protections available to a user under Applicable Law, these Terms shall be governed by the laws of India.</p>
+    <p class="mb-4">33.2 Nothing in this Section is intended to deprive a consumer or other protected person of mandatory rights or remedies that Applicable Law requires to remain available.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">34. DISPUTE RESOLUTION</h3>
+    <p class="mb-4">34.1 We encourage users to contact WeHere first so that complaints may be reviewed and, where appropriate, resolved informally.</p>
+    <p class="mb-4">34.2 Nothing in this Section prevents a user from exercising a statutory right to approach a competent governmental authority, regulator, consumer commission, court or other forum where such right cannot legally be waived.</p>
+    <p class="mb-4">34.3 Any arbitration agreement, if adopted by WeHere, shall be drafted and implemented separately to ensure compliance with applicable Indian arbitration and consumer law and shall not be interpreted to remove mandatory statutory remedies.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">35. GRIEVANCE REDRESSAL</h3>
+    <p class="mb-4">35.1 WeHere will maintain an appropriate grievance mechanism as required by Applicable Law.</p>
+    <p class="mb-4">35.2 Users may submit complaints concerning:</p>
+    <p class="mb-4">(a) violation of these Terms;</p>
+    <p class="mb-4">(b) prohibited Content;</p>
+    <p class="mb-4">(c) privacy concerns;</p>
+    <p class="mb-4">(d) safety concerns;</p>
+    <p class="mb-4">(e) account restrictions;</p>
+    <p class="mb-4">(f) intellectual-property complaints;</p>
+    <p class="mb-4">(g) payment or subscription issues; and</p>
+    <p class="mb-4">(h) other applicable grievances.</p>
+    <p class="mb-4">35.3 Current grievance contact information will be displayed on the WeHere website and/or within the App.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">Grievance Officer: Srishti Gautam</h3>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">Email:grievance@wehere.co.in</h3>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">Address: B-2484 Indira Nagar, Lucknow 226016</h3>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">Working Hours: 8:00 AM to 7:00 PM</h3>
+    <p class="mb-4">35.4 WeHere will process grievances in accordance with Applicable Law and its published grievance procedures.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">36. NOTICES</h3>
+    <p class="mb-4">36.1 WeHere may provide notices through:</p>
+    <p class="mb-4">(a) the App;</p>
+    <p class="mb-4">(b) email;</p>
+    <p class="mb-4">(c) the website;</p>
+    <p class="mb-4">(d) account notifications; or</p>
+    <p class="mb-4">(e) other legally permissible electronic methods.</p>
+    <p class="mb-4">36.2 You are responsible for maintaining access to the email address associated with your Account.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">37. ELECTRONIC ACCEPTANCE</h3>
+    <p class="mb-4">37.1 You agree that electronic acceptance, including selecting “I Agree,” creating an Account, subscribing to a paid service or continuing to use WeHere after appropriate notice, may constitute acceptance where legally valid.</p>
+    <p class="mb-4">37.2 You should retain a copy of these Terms for your records.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">38. ENTIRE AGREEMENT</h3>
+    <p class="mb-4">38.1 These Terms, together with documents expressly incorporated by reference, constitute the agreement governing your use of WeHere.</p>
+    <p class="mb-4">38.2 The documents incorporated into these</p>
+    <p class="mb-4">Terms may include, as applicable:</p>
+    <p class="mb-4">(a) the WeHere Privacy Policy;</p>
+    <p class="mb-4">(b) Community Guidelines;</p>
+    <p class="mb-4">(c) Safety, Self-Harm &amp; Crisis Response Policy;</p>
+    <p class="mb-4">(d) Subscription, Cancellation &amp; Refund Policy;</p>
+    <p class="mb-4">(e) User-Generated Content &amp; Intellectual Property Policy;</p>
+    <p class="mb-4">(f) Grievance Redressal Policy; and</p>
+    <p class="mb-4">(g) other policies expressly identified as forming part of the agreement.</p>
+    <p class="mb-4">38.3 If there is a conflict between these Terms and a mandatory requirement of Applicable Law, the mandatory requirement will prevail.</p>
+    <p class="mb-4">38.4 If there is a conflict between these Terms and a specific policy concerning a particular subject, the more specific policy will apply to that subject to the extent legally permissible.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">39. NO PROFESSIONAL RELATIONSHIP</h3>
+    <p class="mb-4">39.1 Use of WeHere does not create a doctor-patient, therapist-client, psychologist-client, psychiatrist-patient, counsellor-client, fiduciary, agency or other professional relationship between WeHere and a user solely because the user uses the Platform.</p>
+    <p class="mb-4">39.2 A separate professional relationship, if ever offered through a separately identified service, shall be governed by the applicable professional arrangement and terms.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">40. PERSONAL RESPONSIBILITY</h3>
+    <p class="mb-4">40.1 You remain responsible for your decisions,</p>
+    <p class="mb-4">actions and interactions while using WeHere.</p>
+    <p class="mb-4">40.2 You should use your own judgment when:</p>
+    <p class="mb-4">(a) communicating with another user;</p>
+    <p class="mb-4">(b) following information provided by another user;</p>
+    <p class="mb-4">(c) sharing personal information;</p>
+    <p class="mb-4">(d) deciding whether to meet someone offline;</p>
+    <p class="mb-4">(e) transferring money;</p>
+    <p class="mb-4">(f) relying upon information concerning health or wellbeing; or</p>
+    <p class="mb-4">(g) taking any action that could materially affect your safety, health, finances or legal position.</p>
+    <p class="mb-4">40.3 Where a matter concerns medical, psychiatric, psychological, legal, financial or other specialised professional advice, you should consult an appropriately qualified professional.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">41. SAFETY-FIRST PRINCIPLE</h3>
+    <p class="mb-4">41.1 WeHere is designed to facilitate connection, not to replace appropriate real-world support.</p>
+    <p class="mb-4">41.2 Where a situation exceeds the nature or capability of a peer-support platform, users should seek appropriate professional or emergency assistance.</p>
+    <p class="mb-4">41.3 WeHere may provide information directing users toward appropriate external support resources. Availability and suitability of such resources may vary by location.</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">42. CONTACT</h3>
+    <p class="mb-4">For questions concerning these Terms:</p>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">WeHere</h3>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">Legal Entity: Where Networks</h3>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">Email:contact@weherenetworks.com</h3>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">Support Email:  support@wehere.co.in</h3>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">Website: www.weherenetworks.com</h3>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">Registered/Principal Address: B-2484 Indira Nagar, Lucknow 226016</h3>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">USER ACKNOWLEDGEMENT</h3>
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">BY CREATING AN ACCOUNT OR USING WEHERE, YOU CONFIRM THAT:</h3>
+    <p class="mb-4">You have read and understood these Terms;</p>
+    <p class="mb-4">You satisfy the applicable eligibility requirements;</p>
+    <p class="mb-4">You understand that WeHere is a non-clinical peer-support and human-connection platform;</p>
+    <p class="mb-4">You understand that WeHere is not an emergency service;</p>
+    <p class="mb-4">You understand that communications from other users are not automatically professional advice;</p>
+    <p class="mb-4">You agree to comply with the Community Guidelines and other applicable WeHere policies;</p>
+    <p class="mb-4">You understand that other users are independent users and their conduct cannot be guaranteed by WeHere; and</p>
+    <p class="mb-4">You agree to these Terms to the extent permitted by Applicable Law.</p>
+
+  </div>
+</main>
+
+
+<!-- ═══════════════════════════ FOOTER ═══════════════════════════ -->
+<footer class="bg-surface-container border-t border-outline-variant/20">
+  <div class="w-full px-6 md:px-12 max-w-7xl mx-auto py-14">
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-8 mb-10 text-sm">
+      <div class="col-span-2">
+        <div class="flex items-center gap-2 mb-4">
+          <img src="./assets/logo/icon_logo.png" class="w-8 h-8 object-contain" alt="Wehere Logo">
+          <span class="font-display text-lg font-extrabold text-primary">Wehere</span>
+        </div>
+        <p class="text-on-surface-variant leading-relaxed max-w-xs mb-4 text-sm">
+          An empathetic, secure peer-support sanctuary. Real people. Real empathy. Zero judgment.
+        </p>
+        <div class="flex items-center gap-2">
+          <a aria-label="Facebook" class="w-8 h-8 rounded-full bg-surface-container-lowest flex items-center justify-center hover:bg-surface-variant transition-colors border border-outline-variant/30 text-primary" href="https://m.facebook.com/profile.php?id=61595426812276" target="_blank" rel="noopener noreferrer">
+            <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 320 512"><path d="M279.14 288l14.22-92.66h-88.91v-60.13c0-25.35 12.42-50.06 52.24-50.06h40.42V6.26S260.43 0 225.36 0c-73.22 0-121.08 44.38-121.08 124.72v70.62H22.89V288h81.39v224h100.17V288z"/></svg>
+          </a>
+          <a aria-label="Instagram" class="w-8 h-8 rounded-full bg-surface-container-lowest flex items-center justify-center hover:bg-surface-variant transition-colors border border-outline-variant/30 text-primary" href="https://www.instagram.com/weherenetwork?exln=MThmcjlqMnc0dWFjZg%3D%3D&utm_source=qr" target="_blank" rel="noopener noreferrer">
+            <svg class="w-4 h-4 fill-current" viewBox="0 0 448 512"><path d="M224.1 141c-63.6 0-114.9 51.3-114.9 114.9s51.3 114.9 114.9 114.9S339 319.5 339 255.9 287.7 141 224.1 141zm0 189.6c-41.1 0-74.7-33.5-74.7-74.7s33.5-74.7 74.7-74.7 74.7 33.5 74.7 74.7-33.6 74.7-74.7 74.7zm146.4-194.3c0 14.9-12 26.8-26.8 26.8-14.9 0-26.8-12-26.8-26.8s12-26.8 26.8-26.8 26.8 12 26.8 26.8zm76.1 27.2c-1.7-35.9-9.9-67.7-36.2-93.9-26.2-26.2-58-34.4-93.9-36.2-37-2.1-147.9-2.1-184.9 0-35.8 1.7-67.6 9.9-93.9 36.1s-34.4 58-36.2 93.9c-2.1 37-2.1 147.9 0 184.9 1.7 35.9 9.9 67.7 36.2 93.9s58 34.4 93.9 36.2c37 2.1 147.9 2.1 184.9 0 35.9-1.7 67.7-9.9 93.9-36.2 26.2-26.2 34.4-58 36.2-93.9 2.1-37 2.1-147.8 0-184.8zM398.8 388c-7.8 19.6-22.9 34.7-42.6 42.6-29.5 11.7-99.5 9-132.1 9s-102.7 2.6-132.1-9c-19.6-7.8-34.7-22.9-42.6-42.6-11.7-29.5-9-99.5-9-132.1s-2.6-102.7 9-132.1c7.8-19.6 22.9-34.7 42.6-42.6 29.5-11.7 99.5-9 132.1-9s102.7-2.6 132.1 9c19.6 7.8 34.7 22.9 42.6 42.6 11.7 29.5 9 99.5 9 132.1s2.7 102.7-9 132.1z"/></svg>
+          </a>
+          <a aria-label="YouTube" class="w-8 h-8 rounded-full bg-surface-container-lowest flex items-center justify-center hover:bg-surface-variant transition-colors border border-outline-variant/30 text-primary" href="https://youtube.com/@wehereapp?si=NT6kDj3Hr7Ufnwb-" target="_blank" rel="noopener noreferrer">
+            <svg class="w-4 h-4 fill-current" viewBox="0 0 576 512"><path d="M549.655 124.083c-6.281-23.65-24.787-42.276-48.284-48.597C458.781 64 288 64 288 64S117.22 64 74.629 75.486c-23.497 6.322-42.003 24.947-48.284 48.597-11.412 42.867-11.412 132.305-11.412 132.305s0 89.438 11.412 132.305c6.281 23.65 24.787 41.5 48.284 47.821C117.22 448 288 448 288 448s170.78 0 213.371-11.486c23.497-6.321 42.003-24.171 48.284-47.821 11.412-42.867 11.412-132.305 11.412-132.305s0-89.438-11.412-132.305zm-317.51 213.508V175.185l142.739 81.205-142.739 81.201z"/></svg>
+          </a>
+        </div>
+      </div>
+
+      <div>
+        <h4 class="font-display font-bold text-primary mb-3">Product</h4>
+        <ul class="space-y-2 text-on-surface-variant">
+          <li><a class="hover:text-primary transition-colors" href="index.html#how-it-works">How It Works</a></li>
+          <li><a class="hover:text-primary transition-colors" href="index.html#features">Features</a></li>
+          <li><a class="hover:text-primary transition-colors" href="index.html#download">Get the App</a></li>
+        </ul>
+      </div>
+
+      <div>
+        <h4 class="font-display font-bold text-primary mb-3">Company</h4>
+        <ul class="space-y-2 text-on-surface-variant">
+          <li><a class="hover:text-primary transition-colors" href="about.html">About Us</a></li>
+          <li><a class="hover:text-primary transition-colors" href="index.html#institutions">Partnerships</a></li>
+          <li><a class="hover:text-primary transition-colors" href="mailto:partnerships@wehere.app">Contact Us</a></li>
+        </ul>
+      </div>
+
+      <div>
+        <h4 class="font-display font-bold text-primary mb-3">Legal & Safety</h4>
+        <ul class="space-y-2 text-on-surface-variant">
+          <li><a class="hover:text-primary transition-colors" href="policies.html">Safety Center</a></li>
+          <li><a class="hover:text-primary transition-colors" href="policies.html">Privacy Policy</a></li>
+          <li><a class="hover:text-primary transition-colors" href="policies.html">Terms of Service</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="pt-8 border-t border-surface-container-high flex flex-col md:flex-row items-center justify-between text-xs text-secondary gap-2">
+      <span>© 2026 Wehere. All rights reserved.</span>
+      <span class="flex items-center gap-1.5">
+        <i data-lucide="heart" class="lucide-icon text-sm fill-current text-tertiary-container"></i>
+        Built with care for vulnerable hearts.
+      </span>
+    </div>
+  </div>
+</footer>
+
+<script>
+  document.getElementById('mobile-menu-btn')?.addEventListener('click', () => {
+    document.getElementById('mobile-menu')?.classList.toggle('hidden');
+  });
+</script>
+
+  <script>lucide.createIcons();</script>
+</body>
+</html>

@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html class="scroll-smooth" lang="en">
+<head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Grievance Redressal | Wehere</title>
+<!-- Google Fonts & Material Symbols -->
+<link href="https://fonts.googleapis.com" rel="preconnect">
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,700;1,9..40,400&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet">
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        colors: {
+          "surface": "#fcf8ff",
+          "on-surface": "#191540",
+          "primary": "#280a80",
+          "primary-container": "#3f2b96",
+          "on-primary": "#ffffff",
+          "on-primary-container": "#c9bfff",
+          "secondary": "#5f5c73",
+          "secondary-container": "#e5dffb",
+          "on-secondary-container": "#656279",
+          "secondary-fixed": "#e5dffb",
+          "secondary-fixed-dim": "#c8c3de",
+          "surface-variant": "#e3dfff",
+          "on-surface-variant": "#484552",
+          "surface-container-lowest": "#ffffff",
+          "surface-container-low": "#f6f2ff",
+          "surface-container": "#f0ebff",
+          "surface-container-high": "#e9e5ff",
+          "surface-container-highest": "#e3dfff",
+          "inverse-surface": "#2e2b56",
+          "inverse-on-surface": "#f3eeff",
+          "inverse-primary": "#c9bfff",
+          "tertiary": "#4e1700",
+          "tertiary-container": "#732500",
+          "on-tertiary-container": "#ff8b5c",
+          "tertiary-fixed": "#ffdbce",
+          "tertiary-fixed-dim": "#ffb599",
+          "on-tertiary-fixed": "#370e00",
+          "outline": "#797584",
+          "outline-variant": "#c9c4d4",
+          "error": "#ba1a1a",
+          "error-container": "#ffdad6",
+          "background": "#fcf8ff",
+        },
+        fontFamily: {
+          sans: ["DM Sans", "sans-serif"],
+          display: ["Plus Jakarta Sans", "sans-serif"],
+        },
+        keyframes: {
+          "fade-up": {
+            "0%": { opacity: "0", transform: "translateY(24px)" },
+            "100%": { opacity: "1", transform: "translateY(0)" },
+          },
+        },
+        animation: {
+          "fade-up": "fade-up 0.6s ease-out forwards",
+        },
+      }
+    }
+  }
+</script>
+<style>
+  .material-symbols-rounded {
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    display: inline-block;
+    vertical-align: middle;
+    line-height: 1;
+    user-select: none;
+  }
+  .material-symbols-rounded.fill {
+    font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  }
+  .reveal { opacity: 0; transform: translateY(28px); transition: opacity 0.65s ease, transform 0.65s ease; }
+  .reveal.visible { opacity: 1; transform: translateY(0); }
+  .reveal-delay-1 { transition-delay: 0.1s; }
+  .reveal-delay-2 { transition-delay: 0.2s; }
+</style>
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body class="bg-background text-on-surface font-sans antialiased overflow-x-hidden flex flex-col min-h-screen">
+
+<!-- Ambient Background Blobs -->
+<div class="fixed inset-0 pointer-events-none -z-10 overflow-hidden">
+  <div class="absolute -top-40 -left-40 w-[500px] h-[500px] rounded-full bg-secondary-fixed/50 blur-[140px]"></div>
+  <div class="absolute top-1/2 -right-40 w-[600px] h-[600px] rounded-full bg-surface-container-high/60 blur-[160px]"></div>
+</div>
+
+<!-- ═══════════════════════════ NAVBAR ═══════════════════════════ -->
+<header class="bg-surface/80 backdrop-blur-xl sticky top-0 z-50 border-b border-outline-variant/20 shadow-[0_4px_24px_-4px_rgba(40,10,128,0.06)]">
+  <div class="flex justify-between items-center w-full px-6 md:px-12 max-w-7xl mx-auto h-16">
+    <a class="flex items-center gap-2.5 active:scale-[0.98] transition-transform" href="index.html">
+      <img src="./assets/logo/icon_logo.png" class="w-9 h-9 object-contain" alt="Wehere Logo">
+      <span class="text-[18px] font-display font-extrabold text-primary tracking-tight">Wehere</span>
+    </a>
+
+    <nav class="hidden md:flex items-center gap-7">
+      <a class="text-on-surface-variant font-medium text-sm hover:text-primary transition-colors" href="index.html#how-it-works">How It Works</a>
+      <a class="text-on-surface-variant font-medium text-sm hover:text-primary transition-colors" href="index.html#features">Features</a>
+      <a class="text-on-surface-variant font-medium text-sm hover:text-primary transition-colors" href="about.html">About Us</a>
+      <a class="text-on-surface-variant font-medium text-sm hover:text-primary transition-colors" href="policies.html">Policies</a>
+    </nav>
+
+    <div class="hidden md:flex items-center gap-3">
+      <a class="text-sm font-display font-semibold px-5 py-2.5 rounded-full bg-primary-container text-white hover:shadow-lg hover:shadow-primary/25 active:scale-[0.98] transition-all" href="index.html#download">
+        Get the App
+      </a>
+    </div>
+
+    <button aria-label="Toggle navigation" class="md:hidden text-primary p-2 rounded-full" id="mobile-menu-btn">
+      <i data-lucide="menu" class="lucide-icon text-2xl"></i>
+    </button>
+  </div>
+
+  <div class="hidden md:hidden px-6 pb-5 pt-2 border-t border-surface-container flex flex-col gap-2" id="mobile-menu">
+    <a class="text-on-surface-variant py-2 text-sm" href="index.html#how-it-works">How It Works</a>
+    <a class="text-on-surface-variant py-2 text-sm" href="index.html#features">Features</a>
+    <a class="text-on-surface-variant py-2 text-sm" href="about.html">About Us</a>
+    <a class="text-primary font-bold py-2 text-sm" href="policies.html">Policies</a>
+  </div>
+</header>
+
+
+<main class="flex-grow py-16 md:py-24 px-6 md:px-12 max-w-4xl mx-auto w-full">
+  <div class="mb-12 animate-fade-up">
+    <a href="policies.html" class="inline-flex items-center gap-2 text-primary font-display text-sm font-bold bg-surface-container py-2 px-4 rounded-full w-max hover:bg-surface-container-high transition-colors mb-8">
+      <i data-lucide="arrow-left" class="lucide-icon text-lg"></i>
+      Back to Policies
+    </a>
+    <h1 class="font-display text-[clamp(2rem,4vw,3rem)] font-extrabold text-on-surface leading-tight tracking-tight">
+      Grievance Redressal
+    </h1>
+  </div>
+  
+  <div class="bg-surface-container-lowest rounded-3xl p-8 md:p-12 border border-outline-variant/30 shadow-sm animate-fade-up prose prose-indigo max-w-none text-on-surface-variant leading-relaxed" style="animation-delay: 0.1s">
+
+    <h3 class="font-display text-xl font-bold text-on-surface mt-8 mb-4">WEHERE GRIEVANCE REDRESSAL POLICY</h3>
+    <p class="mb-4">Grievance Officer</p>
+    <p class="mb-4">Name: Srishti Gautam</p>
+    <p class="mb-4">Designation: Grievance Officer</p>
+    <p class="mb-4">Email: grievance@wehere.co.in</p>
+    <p class="mb-4">Address: B-2484 Indira Nagar, Lucknow-226016</p>
+    <p class="mb-4">Working Hours: 8:00 AM - 7:00 PM</p>
+    <p class="mb-4">What Can Be Reported</p>
+    <p class="mb-4">Users may raise complaints concerning:</p>
+    <p class="mb-4">privacy;</p>
+    <p class="mb-4">personal data;</p>
+    <p class="mb-4">content;</p>
+    <p class="mb-4">harassment;</p>
+    <p class="mb-4">safety;</p>
+    <p class="mb-4">self-harm content;</p>
+    <p class="mb-4">impersonation;</p>
+    <p class="mb-4">intellectual property;</p>
+    <p class="mb-4">subscriptions;</p>
+    <p class="mb-4">payments;</p>
+    <p class="mb-4">refunds;</p>
+    <p class="mb-4">account issues; and</p>
+    <p class="mb-4">other Platform matters.</p>
+    <p class="mb-4">Complaint Information</p>
+    <p class="mb-4">Where available, provide:</p>
+    <p class="mb-4">name;</p>
+    <p class="mb-4">contact details;</p>
+    <p class="mb-4">account details;</p>
+    <p class="mb-4">description;</p>
+    <p class="mb-4">relevant content;</p>
+    <p class="mb-4">URL or identifier;</p>
+    <p class="mb-4">date/time; and</p>
+    <p class="mb-4">supporting evidence.</p>
+    <p class="mb-4">Processing</p>
+    <p class="mb-4">WeHere will process grievances according to applicable legal requirements and its internal procedures.</p>
+    <p class="mb-4">Applicable statutory timelines will take precedence over any general timeline in this Policy.</p>
+    <p class="mb-4">Investigation</p>
+    <p class="mb-4">WeHere may examine relevant information reasonably necessary to investigate a complaint.</p>
+    <p class="mb-4">Resolution</p>
+    <p class="mb-4">Depending on the matter, WeHere may:</p>
+    <p class="mb-4">remove content;</p>
+    <p class="mb-4">restore content;</p>
+    <p class="mb-4">restrict content;</p>
+    <p class="mb-4">suspend an account;</p>
+    <p class="mb-4">terminate an account;</p>
+    <p class="mb-4">correct information;</p>
+    <p class="mb-4">provide an explanation;</p>
+    <p class="mb-4">or</p>
+    <p class="mb-4">take other appropriate action.</p>
+    <p class="mb-4">Privacy Complaints</p>
+    <p class="mb-4">Privacy complaints may be sent to privacy@weherenetwork.com</p>
+    <p class="mb-4">IP Complaints</p>
+    <p class="mb-4">IP complaints may be submitted with evidence establishing the complainant's rights and identifying the relevant content.</p>
+    <p class="mb-4">Emergency Safety</p>
+    <p class="mb-4">For immediate physical danger, users should contact the appropriate emergency service. WeHere may prioritise serious safety reports.</p>
+
+  </div>
+</main>
+
+
+<!-- ═══════════════════════════ FOOTER ═══════════════════════════ -->
+<footer class="bg-surface-container border-t border-outline-variant/20">
+  <div class="w-full px-6 md:px-12 max-w-7xl mx-auto py-14">
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-8 mb-10 text-sm">
+      <div class="col-span-2">
+        <div class="flex items-center gap-2 mb-4">
+          <img src="./assets/logo/icon_logo.png" class="w-8 h-8 object-contain" alt="Wehere Logo">
+          <span class="font-display text-lg font-extrabold text-primary">Wehere</span>
+        </div>
+        <p class="text-on-surface-variant leading-relaxed max-w-xs mb-4 text-sm">
+          An empathetic, secure peer-support sanctuary. Real people. Real empathy. Zero judgment.
+        </p>
+        <div class="flex items-center gap-2">
+          <a aria-label="Facebook" class="w-8 h-8 rounded-full bg-surface-container-lowest flex items-center justify-center hover:bg-surface-variant transition-colors border border-outline-variant/30 text-primary" href="https://m.facebook.com/profile.php?id=61595426812276" target="_blank" rel="noopener noreferrer">
+            <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 320 512"><path d="M279.14 288l14.22-92.66h-88.91v-60.13c0-25.35 12.42-50.06 52.24-50.06h40.42V6.26S260.43 0 225.36 0c-73.22 0-121.08 44.38-121.08 124.72v70.62H22.89V288h81.39v224h100.17V288z"/></svg>
+          </a>
+          <a aria-label="Instagram" class="w-8 h-8 rounded-full bg-surface-container-lowest flex items-center justify-center hover:bg-surface-variant transition-colors border border-outline-variant/30 text-primary" href="https://www.instagram.com/weherenetwork?exln=MThmcjlqMnc0dWFjZg%3D%3D&utm_source=qr" target="_blank" rel="noopener noreferrer">
+            <svg class="w-4 h-4 fill-current" viewBox="0 0 448 512"><path d="M224.1 141c-63.6 0-114.9 51.3-114.9 114.9s51.3 114.9 114.9 114.9S339 319.5 339 255.9 287.7 141 224.1 141zm0 189.6c-41.1 0-74.7-33.5-74.7-74.7s33.5-74.7 74.7-74.7 74.7 33.5 74.7 74.7-33.6 74.7-74.7 74.7zm146.4-194.3c0 14.9-12 26.8-26.8 26.8-14.9 0-26.8-12-26.8-26.8s12-26.8 26.8-26.8 26.8 12 26.8 26.8zm76.1 27.2c-1.7-35.9-9.9-67.7-36.2-93.9-26.2-26.2-58-34.4-93.9-36.2-37-2.1-147.9-2.1-184.9 0-35.8 1.7-67.6 9.9-93.9 36.1s-34.4 58-36.2 93.9c-2.1 37-2.1 147.9 0 184.9 1.7 35.9 9.9 67.7 36.2 93.9s58 34.4 93.9 36.2c37 2.1 147.9 2.1 184.9 0 35.9-1.7 67.7-9.9 93.9-36.2 26.2-26.2 34.4-58 36.2-93.9 2.1-37 2.1-147.8 0-184.8zM398.8 388c-7.8 19.6-22.9 34.7-42.6 42.6-29.5 11.7-99.5 9-132.1 9s-102.7 2.6-132.1-9c-19.6-7.8-34.7-22.9-42.6-42.6-11.7-29.5-9-99.5-9-132.1s-2.6-102.7 9-132.1c7.8-19.6 22.9-34.7 42.6-42.6 29.5-11.7 99.5-9 132.1-9s102.7-2.6 132.1 9c19.6 7.8 34.7 22.9 42.6 42.6 11.7 29.5 9 99.5 9 132.1s2.7 102.7-9 132.1z"/></svg>
+          </a>
+          <a aria-label="YouTube" class="w-8 h-8 rounded-full bg-surface-container-lowest flex items-center justify-center hover:bg-surface-variant transition-colors border border-outline-variant/30 text-primary" href="https://youtube.com/@wehereapp?si=NT6kDj3Hr7Ufnwb-" target="_blank" rel="noopener noreferrer">
+            <svg class="w-4 h-4 fill-current" viewBox="0 0 576 512"><path d="M549.655 124.083c-6.281-23.65-24.787-42.276-48.284-48.597C458.781 64 288 64 288 64S117.22 64 74.629 75.486c-23.497 6.322-42.003 24.947-48.284 48.597-11.412 42.867-11.412 132.305-11.412 132.305s0 89.438 11.412 132.305c6.281 23.65 24.787 41.5 48.284 47.821C117.22 448 288 448 288 448s170.78 0 213.371-11.486c23.497-6.321 42.003-24.171 48.284-47.821 11.412-42.867 11.412-132.305 11.412-132.305s0-89.438-11.412-132.305zm-317.51 213.508V175.185l142.739 81.205-142.739 81.201z"/></svg>
+          </a>
+        </div>
+      </div>
+
+      <div>
+        <h4 class="font-display font-bold text-primary mb-3">Product</h4>
+        <ul class="space-y-2 text-on-surface-variant">
+          <li><a class="hover:text-primary transition-colors" href="index.html#how-it-works">How It Works</a></li>
+          <li><a class="hover:text-primary transition-colors" href="index.html#features">Features</a></li>
+          <li><a class="hover:text-primary transition-colors" href="index.html#download">Get the App</a></li>
+        </ul>
+      </div>
+
+      <div>
+        <h4 class="font-display font-bold text-primary mb-3">Company</h4>
+        <ul class="space-y-2 text-on-surface-variant">
+          <li><a class="hover:text-primary transition-colors" href="about.html">About Us</a></li>
+          <li><a class="hover:text-primary transition-colors" href="index.html#institutions">Partnerships</a></li>
+          <li><a class="hover:text-primary transition-colors" href="mailto:partnerships@wehere.app">Contact Us</a></li>
+        </ul>
+      </div>
+
+      <div>
+        <h4 class="font-display font-bold text-primary mb-3">Legal & Safety</h4>
+        <ul class="space-y-2 text-on-surface-variant">
+          <li><a class="hover:text-primary transition-colors" href="policies.html">Safety Center</a></li>
+          <li><a class="hover:text-primary transition-colors" href="policies.html">Privacy Policy</a></li>
+          <li><a class="hover:text-primary transition-colors" href="policies.html">Terms of Service</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="pt-8 border-t border-surface-container-high flex flex-col md:flex-row items-center justify-between text-xs text-secondary gap-2">
+      <span>© 2026 Wehere. All rights reserved.</span>
+      <span class="flex items-center gap-1.5">
+        <i data-lucide="heart" class="lucide-icon text-sm fill-current text-tertiary-container"></i>
+        Built with care for vulnerable hearts.
+      </span>
+    </div>
+  </div>
+</footer>
+
+<script>
+  document.getElementById('mobile-menu-btn')?.addEventListener('click', () => {
+    document.getElementById('mobile-menu')?.classList.toggle('hidden');
+  });
+</script>
+
+  <script>lucide.createIcons();</script>
+</body>
+</html>

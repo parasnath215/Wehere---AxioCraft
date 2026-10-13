@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../core/theme/app_colors.dart';
 import '../../core/routing/app_routes.dart';
+import '../../widgets/common/animated_pulse.dart';
 import '../../state/auth_notifier.dart';
 import '../../state/app_state.dart';
 
@@ -79,25 +79,30 @@ class _SplashScreenState extends State<SplashScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     // Brand Heart Sprout Emblem
-                    Container(
-                      width: 120,
-                      height: 120,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.12),
-                            blurRadius: 24,
-                            offset: const Offset(0, 8),
+                    AnimatedPulse(
+                      duration: const Duration(milliseconds: 1500),
+                      minScale: 0.95,
+                      maxScale: 1.05,
+                      child: Container(
+                        width: 120,
+                        height: 120,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.12),
+                              blurRadius: 24,
+                              offset: const Offset(0, 8),
+                            ),
+                          ],
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Image.asset(
+                            'assets/Wehere_Logo_Assets/2_icon_mark_alone_transparent.png',
+                            fit: BoxFit.contain,
                           ),
-                        ],
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Image.asset(
-                          'assets/Wehere_Logo_Assets/2_icon_mark_alone_transparent.png',
-                          fit: BoxFit.contain,
                         ),
                       ),
                     ),
@@ -153,37 +158,11 @@ class _SplashScreenState extends State<SplashScreen> {
                   ],
                 ),
 
-                Column(
-                  children: [
-                    const SizedBox(height: 16),
-                    // Dot Indicators
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        _buildDot(isActive: true),
-                        _buildDot(isActive: false),
-                        _buildDot(isActive: false),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                  ],
-                ),
+                const SizedBox(height: 16),
               ],
             ),
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildDot({required bool isActive}) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 4),
-      width: isActive ? 10 : 8,
-      height: isActive ? 10 : 8,
-      decoration: BoxDecoration(
-        color: isActive ? Colors.white : Colors.white38,
-        shape: BoxShape.circle,
       ),
     );
   }

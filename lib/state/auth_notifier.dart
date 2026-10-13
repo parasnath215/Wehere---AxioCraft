@@ -17,8 +17,7 @@ class AuthNotifier extends ChangeNotifier {
   String? _authError;
   bool _isLoading = false;
 
-  final 
-  late StreamSubscription _authSubscription;
+  late final StreamSubscription _authSubscription;
 
   AuthNotifier() {
     _authSubscription = apiClientInstance.authEventStream.listen((event) {
@@ -117,7 +116,24 @@ class AuthNotifier extends ChangeNotifier {
       notifyListeners();
       return true;
     } on DioException catch (e) {
-      _authError = e.response?.data?['error'] ?? 'Login failed';
+      if (e.response?.data?['error'] == 'EMAIL_NOT_VERIFIED') {
+        final data = e.response?.data;
+        if (data != null && data['token'] != null) {
+          await StorageHelper.write(key: 'jwt_token', value: data['token']);
+          if (data['user'] != null && data['user']['id'] != null) {
+            await StorageHelper.write(key: 'user_id', value: data['user']['id']);
+            _userId = data['user']['id'];
+          }
+          await StorageHelper.write(key: 'user_email', value: data['email'] ?? email);
+        }
+        _registeredEmail = data?['email'] ?? email;
+        _status = AuthStatus.unverified;
+        _authError = e.response?.data?['message'] ?? 'Please verify your email before logging in.';
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
+      _authError = e.response?.data?['error'] ?? 'Login failed. Please check credentials.';
       _isLoading = false;
       notifyListeners();
       return false;

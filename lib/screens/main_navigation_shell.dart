@@ -85,7 +85,7 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
         ),
         child: SafeArea(
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
@@ -153,8 +153,8 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
         duration: const Duration(milliseconds: 220),
         curve: Curves.easeOutCubic,
         padding: EdgeInsets.symmetric(
-          horizontal: isSelected ? 12 : 8,
-          vertical: 6,
+          horizontal: isSelected ? 14 : 10,
+          vertical: 8,
         ),
         decoration: BoxDecoration(
           color: isSelected ? AppColors.primarySoft : Colors.transparent,
@@ -166,15 +166,20 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
             Stack(
               clipBehavior: Clip.none,
               children: [
-                Icon(
-                  icon,
-                  size: 22,
-                  color: isSelected ? AppColors.primary : AppColors.textMuted,
+                AnimatedScale(
+                  scale: isSelected ? 1.12 : 1.0,
+                  duration: const Duration(milliseconds: 220),
+                  curve: Curves.easeOutBack,
+                  child: Icon(
+                    icon,
+                    size: 26,
+                    color: isSelected ? AppColors.primary : AppColors.textMuted,
+                  ),
                 ),
                 if (badgeCount > 0)
                   Positioned(
-                    top: -4,
-                    right: -6,
+                    top: -5,
+                    right: -7,
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1.5),
                       decoration: BoxDecoration(
@@ -194,18 +199,24 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
                   ),
               ],
             ),
-            if (isSelected) ...[
-              const SizedBox(width: 6),
-              Text(
-                label,
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.primary,
-                  letterSpacing: 0.2,
-                ),
-              ),
-            ],
+            AnimatedSize(
+              duration: const Duration(milliseconds: 220),
+              curve: Curves.easeOutCubic,
+              child: isSelected
+                  ? Padding(
+                      padding: const EdgeInsets.only(left: 6),
+                      child: Text(
+                        label,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.primary,
+                          letterSpacing: 0.2,
+                        ),
+                      ),
+                    )
+                  : const SizedBox.shrink(),
+            ),
           ],
         ),
       ),
