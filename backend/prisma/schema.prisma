@@ -21,6 +21,7 @@ model User {
   bio       String?
   images    String[] // Added for minimum 2 image upload
   location  String?
+  profession String?
   lookingFor String?
   interests String[]
   feelings  String[]

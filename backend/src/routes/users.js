@@ -19,6 +19,7 @@ const updateProfileSchema = z.object({
   pseudonym: z.string().max(50).optional(),
   bio: z.string().max(500).optional(),
   location: z.string().max(100).optional(),
+  profession: z.string().max(100).optional(),
   interests: z.array(z.string()).max(10).optional(),
   feelings: z.array(z.string()).max(10).optional(),
   supportTypes: z.array(z.string()).max(5).optional(),
@@ -32,7 +33,7 @@ router.get('/me', authenticateToken, async (req, res, next) => {
       where: { id: req.user.id },
       select: {
         id: true, email: true, pseudonym: true, images: true, xp: true, isAnonymous: true,
-        bio: true, location: true, interests: true, feelings: true, supportTypes: true, emailVerified: true
+        bio: true, location: true, profession: true, interests: true, feelings: true, supportTypes: true, emailVerified: true
       }
     });
     if (!user) return res.status(401).json({ error: 'User not found (Session invalid)' });
@@ -54,7 +55,7 @@ router.put('/me', authenticateToken, requireVerified, async (req, res, next) => 
       where: { id: req.user.id },
       data,
       select: {
-        id: true, pseudonym: true, images: true, bio: true, location: true,
+        id: true, pseudonym: true, images: true, bio: true, location: true, profession: true,
         interests: true, feelings: true, supportTypes: true, isAnonymous: true
       }
     });

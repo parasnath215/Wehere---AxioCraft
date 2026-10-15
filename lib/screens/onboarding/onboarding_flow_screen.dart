@@ -23,12 +23,27 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
   final TextEditingController _locationController = TextEditingController();
   final TextEditingController _stateMenuController = TextEditingController();
   final TextEditingController _cityMenuController = TextEditingController();
+  final TextEditingController _professionMenuController = TextEditingController();
   String? _locationError;
+  String? _professionError;
   String? _nameError;
 
   // Using IndianLocations.stateCityMap
   String? _selectedState;
   String? _selectedCity;
+  String? _selectedProfession;
+
+  static const List<String> professionOptions = [
+    'Working Professional',
+    'College / University Student',
+    'Freelancer / Creator',
+    'Business Owner / Entrepreneur',
+    'Looking for Work',
+    'Taking a Break',
+    'Homemaker / Caregiver',
+    'Preparing for Exams / Further Studies',
+    'Others',
+  ];
 
   void _updateLocationController() {
     if (_selectedState != null && _selectedCity != null) {
@@ -62,15 +77,15 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
       final savedName = prefs.getString('onboarding_draft_name');
       final savedState = prefs.getString('onboarding_draft_state');
       final savedCity = prefs.getString('onboarding_draft_city');
+      final savedProfession = prefs.getString('onboarding_draft_profession');
       final savedInterests = prefs.getStringList('onboarding_draft_interests');
       final savedFeelings = prefs.getStringList('onboarding_draft_feelings');
       final savedLookingFor = prefs.getStringList('onboarding_draft_looking_for');
       final savedStep = prefs.getInt('onboarding_draft_step');
-
+      if (!mounted) return;
       final appState = Provider.of<AppState>(context, listen: false);
 
-      if (mounted) {
-        setState(() {
+      setState(() {
           if (savedName != null && savedName.isNotEmpty) {
             _nameController.text = savedName;
           } else if (appState.onboardingName.isNotEmpty) {
@@ -78,14 +93,23 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
           }
 
           if (savedState != null && savedState.isNotEmpty) {
-            _selectedState = savedState;
-            _stateMenuController.text = savedState;
+            String resolvedState = savedState;
+            if (!IndianLocations.stateCityMap.containsKey(resolvedState) && (resolvedState == 'Delhi (National Capital Territory)' || resolvedState == 'Delhi (NCT)')) {
+              resolvedState = 'Delhi';
+            }
+            _selectedState = resolvedState;
+            _stateMenuController.text = resolvedState;
           }
           if (savedCity != null && savedCity.isNotEmpty) {
             _selectedCity = savedCity;
             _cityMenuController.text = savedCity;
           }
           _updateLocationController();
+
+          if (savedProfession != null && savedProfession.isNotEmpty) {
+            _selectedProfession = savedProfession;
+            _professionMenuController.text = savedProfession;
+          }
 
           if (savedInterests != null && savedInterests.isNotEmpty) {
             _selectedInterests.clear();
@@ -104,7 +128,6 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
             _currentStep = savedStep;
           }
         });
-      }
     } catch (_) {}
   }
 
@@ -122,6 +145,11 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
       } else {
         await prefs.remove('onboarding_draft_city');
       }
+      if (_selectedProfession != null) {
+        await prefs.setString('onboarding_draft_profession', _selectedProfession!);
+      } else {
+        await prefs.remove('onboarding_draft_profession');
+      }
       await prefs.setStringList('onboarding_draft_interests', _selectedInterests.toList());
       await prefs.setStringList('onboarding_draft_feelings', _selectedFeelings.toList());
       await prefs.setStringList('onboarding_draft_looking_for', _selectedLookingFor.toList());
@@ -135,6 +163,7 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
       await prefs.remove('onboarding_draft_name');
       await prefs.remove('onboarding_draft_state');
       await prefs.remove('onboarding_draft_city');
+      await prefs.remove('onboarding_draft_profession');
       await prefs.remove('onboarding_draft_interests');
       await prefs.remove('onboarding_draft_feelings');
       await prefs.remove('onboarding_draft_looking_for');
@@ -149,6 +178,7 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
     _locationController.dispose();
     _stateMenuController.dispose();
     _cityMenuController.dispose();
+    _professionMenuController.dispose();
     super.dispose();
   }
 
@@ -269,6 +299,12 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
         });
         return;
       }
+      if (_selectedProfession == null) {
+        setState(() {
+          _professionError = 'Please select your profession';
+        });
+        return;
+      }
     }
     if (_currentStep == 2 && _selectedInterests.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select at least one interest.')));
@@ -289,22 +325,23 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
       });
       _saveDraft();
     } else {
-      // Complete Onboarding with real user details on backend
-      await context.read<AuthNotifier>().completeOnboarding(
+      final auth = context.read<AuthNotifier>();
+      await auth.completeOnboarding(
         name: _nameController.text.trim(),
         location: _locationController.text.trim(),
+        profession: _selectedProfession,
         interests: _selectedInterests.toList(),
         feelings: _selectedFeelings.toList(),
         supportTypes: _selectedLookingFor.toList(),
         isAnonymous: false,
       );
 
-      if (!context.read<AuthNotifier>().hasCompletedOnboarding) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(context.read<AuthNotifier>().authError ?? 'Failed to complete onboarding')),
-          );
-        }
+      if (!mounted) return;
+
+      if (!auth.hasCompletedOnboarding) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(auth.authError ?? 'Failed to complete onboarding')),
+        );
         return;
       }
 
@@ -312,6 +349,7 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
       appState.completeOnboarding(
         name: _nameController.text.trim(),
         location: _locationController.text.trim(),
+        profession: _selectedProfession,
         interests: _selectedInterests.toList(),
         feelings: _selectedFeelings.toList(),
         supportTypes: _selectedLookingFor.toList(),
@@ -327,6 +365,61 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
           (route) => false,
         );
       }
+    }
+  }
+
+  IconData _getInterestIcon(String name) {
+    switch(name) {
+      case 'Mental Health': return Icons.favorite_outline;
+      case 'Personal Growth': return Icons.eco_outlined;
+      case 'Relationships': return Icons.people_outline;
+      case 'Education': return Icons.menu_book_outlined;
+      case 'Career': return Icons.work_outline;
+      case 'Mindfulness': return Icons.spa_outlined;
+      case 'Health & Fitness': return Icons.fitness_center_outlined;
+      case 'Hobbies': return Icons.palette_outlined;
+      case 'Others':
+      case 'Other': return Icons.more_horiz_rounded;
+      default: return Icons.more_horiz_rounded;
+    }
+  }
+
+  String _getFeelingEmoji(String name) {
+    switch(name) {
+      case 'Just Need Someone to Talk To': return '💬';
+      case 'Relationship Issues': return '💔';
+      case 'Friendship Issues': return '🤝';
+      case 'Study Pressure': return '📚';
+      case 'Financial Stress': return '💸';
+      case 'Feeling Down': return '😔';
+      case 'Low Confidence': return '🥺';
+      case 'Major Life Changes': return '🎒';
+      case 'Grief / Loss': return '🕊️';
+      case 'Frustrated / Angry': return '😤';
+      case 'Feeling Lost': return '🧭';
+      case 'Looking for Motivation': return '🔥';
+      // Fallbacks
+      case 'Lonely': return '😔';
+      case 'Anxious': return '😟';
+      case 'Stressed': return '😫';
+      case 'Heartbroken': return '💔';
+      case 'Career Pressure': return '🎓';
+      case 'Family Issues': return '👥';
+      case 'Overwhelmed': return '🌧️';
+      case 'Burnout': return '🪫';
+      case 'Self Growth': return '🌱';
+      default: return '🙂';
+    }
+  }
+
+  Map<String, dynamic> _getSupportDetails(String title) {
+    switch(title) {
+      case 'Someone to Talk To': return {'desc': 'I want someone to listen and talk to me.', 'icon': Icons.chat_bubble_outline};
+      case 'New Friends': return {'desc': 'I want to make new friends and build meaningful bonds.', 'icon': Icons.people_outline};
+      case 'Emotional Support': return {'desc': 'I need support and guidance through tough times.', 'icon': Icons.favorite_border};
+      case 'Accountability Partner': return {'desc': 'I want someone to stay motivated and achieve goals together.', 'icon': Icons.track_changes_outlined};
+      case 'Motivation & Positivity': return {'desc': 'I want positive vibes and daily motivation.', 'icon': Icons.wb_sunny_outlined};
+      default: return {'desc': 'Support from the community.', 'icon': Icons.handshake_outlined};
     }
   }
 
@@ -490,6 +583,57 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
             ),
           ),
         ],
+        const SizedBox(height: 14),
+        DropdownMenu<String>(
+          controller: _professionMenuController,
+          menuHeight: 240,
+          menuStyle: const MenuStyle(
+            maximumSize: WidgetStatePropertyAll<Size>(Size(320, 240)),
+          ),
+          initialSelection: _selectedProfession,
+          enableFilter: true,
+          enableSearch: true,
+          expandedInsets: EdgeInsets.zero,
+          leadingIcon: const Icon(Icons.work_outline_rounded, color: AppColors.primary),
+          label: const Text('Profession *'),
+          onSelected: (val) {
+            setState(() {
+              _selectedProfession = val;
+              _professionError = null;
+            });
+            _saveDraft();
+          },
+          dropdownMenuEntries: professionOptions.map((String prof) {
+            return DropdownMenuEntry<String>(value: prof, label: prof);
+          }).toList(),
+        ),
+        if (_professionError != null) ...[
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: AppColors.sosRed.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.sosRed.withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.error_outline_rounded, size: 18, color: AppColors.sosRed),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    _professionError!,
+                    style: const TextStyle(
+                      color: AppColors.sosRed,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
         const SizedBox(height: 24),
         _buildPrivacyBadge('Your information is safe with us. We respect your privacy and never share your data.'),
       ],
@@ -500,22 +644,8 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
   Widget _buildStep2Interests() {
     final appState = Provider.of<AppState>(context);
     final interestsList = appState.availableInterests.isNotEmpty ? appState.availableInterests.map((e) => e.label).toList() : [
-      'Mental Health', 'Personal Growth', 'Relationships', 'Education', 'Career', 'Mindfulness', 'Health & Fitness', 'Hobbies', 'Other'
+      'Mental Health', 'Personal Growth', 'Relationships', 'Education', 'Career', 'Mindfulness', 'Health & Fitness', 'Hobbies', 'Others'
     ];
-
-    IconData _getInterestIcon(String name) {
-      switch(name) {
-        case 'Mental Health': return Icons.favorite_outline;
-        case 'Personal Growth': return Icons.eco_outlined;
-        case 'Relationships': return Icons.people_outline;
-        case 'Education': return Icons.menu_book_outlined;
-        case 'Career': return Icons.work_outline;
-        case 'Mindfulness': return Icons.spa_outlined;
-        case 'Health & Fitness': return Icons.fitness_center_outlined;
-        case 'Hobbies': return Icons.palette_outlined;
-        default: return Icons.more_horiz_rounded;
-      }
-    }
 
     return Column(
       children: [
@@ -607,23 +737,19 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
   Widget _buildStep3Feelings() {
     final appState = Provider.of<AppState>(context);
     final feelings = appState.availableFeelings.isNotEmpty ? appState.availableFeelings.map((e) => e.label).toList() : [
-      'Lonely', 'Anxious', 'Stressed', 'Heartbroken', 'Career Pressure', 'Family Issues', 'Overwhelmed', 'Burnout', 'Self Growth'
+      'Just Need Someone to Talk To',
+      'Relationship Issues',
+      'Friendship Issues',
+      'Study Pressure',
+      'Financial Stress',
+      'Feeling Down',
+      'Low Confidence',
+      'Major Life Changes',
+      'Grief / Loss',
+      'Frustrated / Angry',
+      'Feeling Lost',
+      'Looking for Motivation',
     ];
-
-    String _getFeelingEmoji(String name) {
-      switch(name) {
-        case 'Lonely': return '😔';
-        case 'Anxious': return '😟';
-        case 'Stressed': return '😫';
-        case 'Heartbroken': return '💔';
-        case 'Career Pressure': return '🎓';
-        case 'Family Issues': return '👥';
-        case 'Overwhelmed': return '🌧️';
-        case 'Burnout': return '🪫';
-        case 'Self Growth': return '🌱';
-        default: return '🙂';
-      }
-    }
 
     return Column(
       children: [
@@ -642,10 +768,10 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 3,
-            mainAxisSpacing: 12,
-            crossAxisSpacing: 12,
-            childAspectRatio: 0.95,
+            crossAxisCount: 2,
+            mainAxisSpacing: 10,
+            crossAxisSpacing: 10,
+            childAspectRatio: 2.3,
           ),
           itemCount: feelings.length,
           itemBuilder: (context, index) {
@@ -670,33 +796,36 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
               },
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 180),
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                 decoration: BoxDecoration(
                   color: isSelected ? const Color(0xFFF1EFFF) : Colors.white,
-                  borderRadius: BorderRadius.circular(18),
+                  borderRadius: BorderRadius.circular(16),
                   border: Border.all(
                     color: isSelected ? AppColors.primary : AppColors.cardBorder,
                     width: isSelected ? 2 : 1,
                   ),
                 ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                child: Row(
                   children: [
-                    Text(emoji, style: const TextStyle(fontSize: 26)),
-                    const SizedBox(height: 6),
-                    Text(
-                      name,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                        color: isSelected ? AppColors.primary : AppColors.textPrimary,
+                    Text(emoji, style: const TextStyle(fontSize: 22)),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        name,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                          color: isSelected ? AppColors.primary : AppColors.textPrimary,
+                          height: 1.2,
+                        ),
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(width: 4),
                     Icon(
                       isSelected ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
-                      size: 14,
+                      size: 16,
                       color: isSelected ? AppColors.primary : AppColors.cardBorder,
                     ),
                   ],
@@ -718,17 +847,6 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
       'Someone to Talk To', 'New Friends', 'Emotional Support', 'Accountability Partner', 'Motivation & Positivity'
     ];
 
-    Map<String, dynamic> _getSupportDetails(String title) {
-      switch(title) {
-        case 'Someone to Talk To': return {'desc': 'I want someone to listen and talk to me.', 'icon': Icons.chat_bubble_outline};
-        case 'New Friends': return {'desc': 'I want to make new friends and build meaningful bonds.', 'icon': Icons.people_outline};
-        case 'Emotional Support': return {'desc': 'I need support and guidance through tough times.', 'icon': Icons.favorite_border};
-        case 'Accountability Partner': return {'desc': 'I want someone to stay motivated and achieve goals together.', 'icon': Icons.track_changes_outlined};
-        case 'Motivation & Positivity': return {'desc': 'I want positive vibes and daily motivation.', 'icon': Icons.wb_sunny_outlined};
-        default: return {'desc': 'Support from the community.', 'icon': Icons.handshake_outlined};
-      }
-    }
-
     return Column(
       children: [
         Container(
@@ -740,7 +858,7 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
         const SizedBox(height: 20),
         Text('What are you\nlooking for?', textAlign: TextAlign.center, style: AppTextStyles.h1),
         const SizedBox(height: 8),
-        Text('Choose what best describes you. You can select multiple options.', textAlign: TextAlign.center, style: AppTextStyles.bodyMedium),
+        Text('You can select upto two options.', textAlign: TextAlign.center, style: AppTextStyles.bodyMedium),
         const SizedBox(height: 20),
         ...supportOptions.map((title) {
           final details = _getSupportDetails(title);
@@ -862,7 +980,7 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
               _buildSummaryRow(
                 Icons.person_rounded,
                 'About You',
-                '${_nameController.text}, ${_locationController.text}',
+                '${_nameController.text}, ${_locationController.text}${_selectedProfession != null ? ' • $_selectedProfession' : ''}',
               ),
             ],
           ),

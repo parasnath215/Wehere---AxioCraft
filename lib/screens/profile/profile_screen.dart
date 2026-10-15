@@ -72,6 +72,24 @@ class ProfileScreen extends StatelessWidget {
                 '${( _calculateCompletionScore(user) * 100).toInt()}% COMPLETED',
                 style: const TextStyle(fontSize: 12, color: AppColors.primary, fontWeight: FontWeight.bold),
               ),
+              if (user.profession != null && user.profession!.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Text(
+                  user.profession!,
+                  style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textSecondary, fontWeight: FontWeight.w600),
+                ),
+              ],
+              if (user.location.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.location_on_outlined, size: 14, color: AppColors.textMuted),
+                    const SizedBox(width: 4),
+                    Text(user.location, style: AppTextStyles.caption),
+                  ],
+                ),
+              ],
               const SizedBox(height: 16),
               if (user.bio.isNotEmpty)
                 Text(

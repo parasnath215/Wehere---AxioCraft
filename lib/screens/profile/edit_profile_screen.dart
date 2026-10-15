@@ -23,6 +23,19 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   String? _selectedState;
   String? _selectedCity;
+  String? _selectedProfession;
+
+  static const List<String> professionOptions = [
+    'Working Professional',
+    'College / University Student',
+    'Freelancer / Creator',
+    'Business Owner / Entrepreneur',
+    'Looking for Work',
+    'Taking a Break',
+    'Homemaker / Caregiver',
+    'Preparing for Exams / Further Studies',
+    'Others',
+  ];
 
   void _updateLocationController() {
     if (_selectedState != null && _selectedCity != null) {
@@ -46,10 +59,16 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     final user = context.read<AppState>().currentUser;
     _bioController = TextEditingController(text: user.bio);
     _locationController = TextEditingController(text: user.location);
+    _selectedProfession = user.profession;
     if (user.location.isNotEmpty) {
       final parts = user.location.split(', ');
       if (parts.length == 2 && IndianLocations.stateCityMap.containsKey(parts[1])) {
         _selectedState = parts[1];
+        if (IndianLocations.stateCityMap[_selectedState]!.contains(parts[0])) {
+          _selectedCity = parts[0];
+        }
+      } else if (parts.length == 2 && (parts[1] == 'Delhi (National Capital Territory)' || parts[1] == 'Delhi (NCT)')) {
+        _selectedState = 'Delhi';
         if (IndianLocations.stateCityMap[_selectedState]!.contains(parts[0])) {
           _selectedCity = parts[0];
         }
@@ -95,6 +114,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         'pseudonym': _pseudonymController.text,
         'bio': _bioController.text,
         'location': _locationController.text,
+        'profession': _selectedProfession,
         'interests': _selectedInterests,
         'feelings': _selectedFeelings,
         'supportTypes': _selectedSupportTypes,
@@ -107,6 +127,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           name: _pseudonymController.text,
           bio: _bioController.text,
           location: _locationController.text,
+          profession: _selectedProfession,
           interests: _selectedInterests,
           feelings: _selectedFeelings,
           supportTypes: _selectedSupportTypes,
@@ -205,6 +226,23 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             },
             dropdownMenuEntries: (_selectedState == null ? <String>[] : IndianLocations.stateCityMap[_selectedState]!).map((String city) {
               return DropdownMenuEntry<String>(value: city, label: city);
+            }).toList(),
+          ),
+          const SizedBox(height: 12),
+          DropdownMenu<String>(
+            initialSelection: _selectedProfession,
+            enableFilter: true,
+            enableSearch: true,
+            expandedInsets: EdgeInsets.zero,
+            leadingIcon: const Icon(Icons.work_outline_rounded, color: AppColors.primary),
+            label: const Text('Profession'),
+            onSelected: (val) {
+              setState(() {
+                _selectedProfession = val;
+              });
+            },
+            dropdownMenuEntries: professionOptions.map((String prof) {
+              return DropdownMenuEntry<String>(value: prof, label: prof);
             }).toList(),
           ),
           const SizedBox(height: 16),

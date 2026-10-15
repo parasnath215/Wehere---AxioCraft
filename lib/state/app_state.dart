@@ -64,6 +64,7 @@ class AppState extends ChangeNotifier {
           name: data['pseudonym'] ?? 'Anonymous',
           age: 18, // Backend doesn't store age yet, mock it
           location: data['location'] ?? '',
+          profession: data['profession'],
           bio: data['bio'] ?? '',
           avatarUrl: parsedAvatarUrl,
           images: List<String>.from(data['images'] ?? []),
@@ -123,6 +124,7 @@ class AppState extends ChangeNotifier {
   String onboardingName = '';
   String onboardingDob = '14 / 08 / 1999';
   String onboardingLocation = 'Mumbai, India';
+  String onboardingProfession = '';
   List<String> selectedInterests = ['Mental Health', 'Personal Growth', 'Relationships'];
   List<String> selectedFeelings = ['Lonely', 'Burnout'];
   List<String> selectedSupportTypes = ['Someone to Talk To', 'Emotional Support'];
@@ -1403,6 +1405,7 @@ class AppState extends ChangeNotifier {
   void completeOnboarding({
     String? name,
     String? location,
+    String? profession,
     int? age,
     List<String>? interests,
     List<String>? feelings,
@@ -1412,6 +1415,7 @@ class AppState extends ChangeNotifier {
   }) {
     if (name != null && name.trim().isNotEmpty) onboardingName = name.trim();
     if (location != null && location.trim().isNotEmpty) onboardingLocation = location.trim();
+    if (profession != null && profession.trim().isNotEmpty) onboardingProfession = profession.trim();
     if (interests != null && interests.isNotEmpty) selectedInterests = interests;
     if (feelings != null && feelings.isNotEmpty) selectedFeelings = feelings;
     if (supportTypes != null && supportTypes.isNotEmpty) selectedSupportTypes = supportTypes;
@@ -1427,6 +1431,7 @@ class AppState extends ChangeNotifier {
       name: isAnonymousMode ? 'Kind Peer' : (onboardingName.isNotEmpty ? onboardingName : 'User'),
       age: age ?? _currentUser.age,
       location: onboardingLocation.isNotEmpty ? onboardingLocation : 'Mumbai, India',
+      profession: onboardingProfession.isNotEmpty ? onboardingProfession : null,
       interests: selectedInterests,
       feelings: selectedFeelings,
       supportTypes: selectedSupportTypes,

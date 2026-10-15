@@ -70,8 +70,12 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> with Widg
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _timer?.cancel();
-    for (var c in _controllers) c.dispose();
-    for (var f in _focusNodes) f.dispose();
+    for (var c in _controllers) {
+      c.dispose();
+    }
+    for (var f in _focusNodes) {
+      f.dispose();
+    }
     super.dispose();
   }
 
@@ -80,18 +84,23 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> with Widg
 
     setState(() => _isResending = true);
     try {
+      final auth = context.read<AuthNotifier>();
       final res = await apiClient.post('/auth/otp/request', data: {
         'email': widget.email,
         'purpose': 'verify_email',
+        if (auth.pendingSignupToken != null) 'signupToken': auth.pendingSignupToken,
       });
-      if (context.mounted) {
+      if (res.data['signupToken'] != null) {
+        auth.updatePendingSignupToken(res.data['signupToken']);
+      }
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('A new code has been sent.'), backgroundColor: AppColors.onlineGreen),
         );
         _startTimer(res.data['cooldown'] ?? 60);
       }
     } on DioException catch (e) {
-      if (context.mounted) {
+      if (mounted) {
         final errorMsg = e.response?.data?['error'] ?? 'Failed to resend code';
         final cooldown = e.response?.data?['cooldown'];
         if (cooldown != null && cooldown is int) {
@@ -102,7 +111,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> with Widg
         );
       }
     } finally {
-      if (context.mounted) setState(() => _isResending = false);
+      if (mounted) setState(() => _isResending = false);
     }
   }
 
@@ -110,15 +119,37 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> with Widg
   Widget build(BuildContext context) {
     final auth = context.watch<AuthNotifier>();
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              const SizedBox(height: 20),
+    return PopScope(
+      canPop: true,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) {
+          auth.cancelPendingSignup();
+        }
+      },
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
+            onPressed: () {
+              auth.cancelPendingSignup();
+              if (Navigator.canPop(context)) {
+                Navigator.pop(context);
+              } else {
+                Navigator.pushReplacementNamed(context, AppRoutes.signup);
+              }
+            },
+          ),
+        ),
+        body: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                const SizedBox(height: 10),
               Container(
                 width: 90,
                 height: 90,
@@ -300,6 +331,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> with Widg
 
               TextButton(
                 onPressed: () {
+                  auth.cancelPendingSignup();
                   if (Navigator.canPop(context)) {
                     Navigator.pop(context);
                   } else {
@@ -318,6 +350,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> with Widg
           ),
         ),
       ),
+    ),
     );
   }
 

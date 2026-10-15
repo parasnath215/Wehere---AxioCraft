@@ -89,15 +89,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
     } catch (_) {}
   }
 
-  Future<void> _clearDraft() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove('signup_draft_handle');
-      await prefs.remove('signup_draft_name');
-      await prefs.remove('signup_draft_email');
-    } catch (_) {}
-  }
-
   @override
   void dispose() {
     _passwordController.removeListener(_onPasswordChanged);
@@ -434,7 +425,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           );
 
                           if (success) {
-                            await _clearDraft();
                             appState.onboardingName = name;
                             if (context.mounted) {
                               Navigator.pushNamed(

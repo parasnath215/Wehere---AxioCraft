@@ -28,15 +28,18 @@ class AppConstants {
 
   // Feelings / Struggles from Onboarding Screen 3/5
   static const List<String> feelingOptions = [
-    'Lonely',
-    'Anxious',
-    'Stressed',
-    'Heartbroken',
-    'Career Pressure',
-    'Family Issues',
-    'Overwhelmed',
-    'Burnout',
-    'Self Growth',
+    'Just Need Someone to Talk To',
+    'Relationship Issues',
+    'Friendship Issues',
+    'Study Pressure',
+    'Financial Stress',
+    'Feeling Down',
+    'Low Confidence',
+    'Major Life Changes',
+    'Grief / Loss',
+    'Frustrated / Angry',
+    'Feeling Lost',
+    'Looking for Motivation',
   ];
 
   // Support Types from Onboarding Screen 4/5

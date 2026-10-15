@@ -148,6 +148,24 @@ class AuthNotifier extends ChangeNotifier {
   String _userHandle = '';
   String get userHandle => _userHandle;
 
+  String? _pendingSignupToken;
+  String? get pendingSignupToken => _pendingSignupToken;
+
+  void updatePendingSignupToken(String token) {
+    _pendingSignupToken = token;
+    notifyListeners();
+  }
+
+  void cancelPendingSignup() {
+    _pendingSignupToken = null;
+    _registeredEmail = '';
+    _registeredName = '';
+    _userHandle = '';
+    _status = AuthStatus.unauthenticated;
+    _authError = null;
+    notifyListeners();
+  }
+
   Future<bool> register(String name, String email, String password, {String? customHandle, List<String>? imagePaths}) async {
     _isLoading = true;
     _authError = null;
@@ -178,26 +196,20 @@ class AuthNotifier extends ChangeNotifier {
         options: Options(headers: {'Content-Type': 'multipart/form-data'}),
       );
 
-      final token = response.data['token'];
-      final user = response.data['user'];
-
-      await StorageHelper.write(key: 'jwt_token', value: token);
-      await StorageHelper.write(key: 'user_id', value: user['id']);
-      await StorageHelper.write(key: 'user_email', value: user['email']);
-
-      _userId = user['id'];
-      _registeredEmail = user['email'];
+      _pendingSignupToken = response.data['signupToken'];
+      _registeredEmail = email;
       _registeredName = name;
-      _userHandle = customHandle ?? '@user_${user['id'].substring(0,5)}';
-      
-      final isVerified = user['emailVerified'] == true;
-      _status = isVerified ? AuthStatus.authenticated : AuthStatus.unverified;
-      
+      _userHandle = customHandle ?? name;
+      _status = AuthStatus.unverified;
+
+      // Notice: Do NOT write jwt_token or user_id yet!
+      // The user record in DB will only be created once email OTP is verified.
+
       _isLoading = false;
       notifyListeners();
       return true;
     } on DioException catch (e) {
-      _authError = e.response?.data?['error'] ?? 'Registration failed: ${e.message}';
+      _authError = e.response?.data?['error'] ?? e.response?.data?['message'] ?? 'Registration failed: ${e.message}';
       _isLoading = false;
       notifyListeners();
       return false;
@@ -214,27 +226,56 @@ class AuthNotifier extends ChangeNotifier {
 
   Future<bool> verifyOtp(String pin) async {
     _isLoading = true;
+    _authError = null;
     notifyListeners();
 
     try {
-      final res = await apiClient.post('/auth/otp/verify', data: {
-        'otp': pin,
-      });
+      final res = await apiClient.post(
+        '/auth/otp/verify',
+        data: {
+          'otp': pin,
+          if (_pendingSignupToken != null) 'signupToken': _pendingSignupToken,
+        },
+        options: _pendingSignupToken != null
+            ? Options(headers: {'Authorization': 'Bearer $_pendingSignupToken'})
+            : null,
+      );
 
       if (res.data['success'] == true) {
+        final token = res.data['token'];
+        final user = res.data['user'];
+
+        if (token != null) {
+          await StorageHelper.write(key: 'jwt_token', value: token);
+        }
+        if (user != null) {
+          if (user['id'] != null) {
+            await StorageHelper.write(key: 'user_id', value: user['id']);
+            _userId = user['id'];
+          }
+          if (user['email'] != null) {
+            await StorageHelper.write(key: 'user_email', value: user['email']);
+            _registeredEmail = user['email'];
+          }
+          if (user['pseudonym'] != null) {
+            _userHandle = user['pseudonym'];
+          }
+        }
+
+        _pendingSignupToken = null;
         _status = AuthStatus.authenticated;
         _hasCompletedOnboarding = false; // Need to do onboarding after verify
         _isLoading = false;
         notifyListeners();
         return true;
       } else {
-        _authError = 'Invalid verification code.';
+        _authError = res.data['error'] ?? res.data['message'] ?? 'Invalid verification code.';
         _isLoading = false;
         notifyListeners();
         return false;
       }
     } on DioException catch (e) {
-      _authError = e.response?.data?['error'] ?? 'Failed to verify OTP.';
+      _authError = e.response?.data?['error'] ?? e.response?.data?['message'] ?? 'Failed to verify OTP.';
       _isLoading = false;
       notifyListeners();
       return false;
@@ -255,6 +296,7 @@ class AuthNotifier extends ChangeNotifier {
   Future<void> completeOnboarding({
     required String name,
     required String location,
+    String? profession,
     required List<String> interests,
     required List<String> feelings,
     required List<String> supportTypes,
@@ -267,6 +309,7 @@ class AuthNotifier extends ChangeNotifier {
       await apiClient.put('/auth/onboarding', data: {
         'name': name,
         'location': location,
+        if (profession != null && profession.isNotEmpty) 'profession': profession,
         'interests': interests,
         'feelings': feelings,
         'supportTypes': supportTypes,

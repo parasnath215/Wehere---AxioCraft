@@ -11,19 +11,22 @@ async function main() {
     'Mindfulness',
     'Health & Fitness',
     'Hobbies',
-    'Other'
+    'Others'
   ];
 
   const feelings = [
-    'Lonely',
-    'Anxious',
-    'Stressed',
-    'Heartbroken',
-    'Career Pressure',
-    'Family Issues',
-    'Overwhelmed',
-    'Burnout',
-    'Self Growth'
+    'Just Need Someone to Talk To',
+    'Relationship Issues',
+    'Friendship Issues',
+    'Study Pressure',
+    'Financial Stress',
+    'Feeling Down',
+    'Low Confidence',
+    'Major Life Changes',
+    'Grief / Loss',
+    'Frustrated / Angry',
+    'Feeling Lost',
+    'Looking for Motivation'
   ];
 
   const supportTypes = [

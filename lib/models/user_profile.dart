@@ -3,6 +3,7 @@ class UserProfile {
   final String name;
   final int age;
   final String location;
+  final String? profession;
   final String bio;
   final String avatarUrl;
   final List<String> images;
@@ -24,6 +25,7 @@ class UserProfile {
     required this.name,
     required this.age,
     required this.location,
+    this.profession,
     required this.bio,
     required this.avatarUrl,
     this.images = const [],
@@ -46,6 +48,7 @@ class UserProfile {
     String? name,
     int? age,
     String? location,
+    String? profession,
     String? bio,
     String? avatarUrl,
     List<String>? images,
@@ -67,6 +70,7 @@ class UserProfile {
       name: name ?? this.name,
       age: age ?? this.age,
       location: location ?? this.location,
+      profession: profession ?? this.profession,
       bio: bio ?? this.bio,
       avatarUrl: avatarUrl ?? this.avatarUrl,
       images: images ?? this.images,
