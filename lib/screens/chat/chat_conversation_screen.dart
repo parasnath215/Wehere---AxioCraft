@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../models/user_profile.dart';
@@ -106,23 +107,46 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
                 children: [
                   Row(
                     children: [
-                      Text(widget.peer.name, style: AppTextStyles.h3.copyWith(fontSize: 16)),
-                      const SizedBox(width: 4),
+                      Text(
+                        widget.peer.name,
+                        style: GoogleFonts.newsreader(
+                          fontSize: 19,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(width: 5),
                       if (widget.peer.isVerified)
-                        const Icon(Icons.verified_rounded, size: 16, color: AppColors.primary),
+                        const Icon(
+                          Icons.check_circle_rounded,
+                          size: 16,
+                          color: Color(0xFF4F46E5),
+                        ),
                     ],
                   ),
                   Row(
                     children: [
-                      const Icon(Icons.circle, size: 6, color: AppColors.onlineGreen),
-                      const SizedBox(width: 4),
-                      Text('Online • ', style: AppTextStyles.caption.copyWith(color: AppColors.onlineGreen, fontWeight: FontWeight.bold)),
+                      const Icon(Icons.circle, size: 7, color: AppColors.onlineGreen),
+                      const SizedBox(width: 5),
+                      Text(
+                        'Online • ',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 11,
+                          color: AppColors.onlineGreen,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                       Expanded(
                         child: Text(
-                          widget.peer.moodStatus,
+                          widget.peer.moodStatus.isNotEmpty
+                              ? widget.peer.moodStatus
+                              : 'Happy to listen or sit in quiet',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: AppTextStyles.caption.copyWith(color: AppColors.primary),
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 11,
+                            color: AppColors.textSecondary,
+                          ),
                         ),
                       ),
                     ],
@@ -163,20 +187,91 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
               child: const Text('Today', style: TextStyle(fontSize: 11, color: AppColors.textMuted, fontWeight: FontWeight.bold)),
             ),
 
-            // Messages Stream
+            // Messages Stream or Warm Welcome Empty State
             Expanded(
-              child: ListView.builder(
-                controller: _scrollController,
-                padding: const EdgeInsets.only(top: 8, bottom: 8),
-                itemCount: messages.length,
-                itemBuilder: (context, index) {
-                  final msg = messages[index];
-                  return ChatBubble(
-                    message: msg,
-                    peerAvatar: widget.peer.avatarUrl,
-                  );
-                },
-              ),
+              child: messages.isNotEmpty
+                  ? ListView.builder(
+                      controller: _scrollController,
+                      padding: const EdgeInsets.only(top: 8, bottom: 8),
+                      itemCount: messages.length,
+                      itemBuilder: (context, index) {
+                        final msg = messages[index];
+                        return ChatBubble(
+                          message: msg,
+                          peerAvatar: widget.peer.avatarUrl,
+                        );
+                      },
+                    )
+                  : Center(
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.symmetric(horizontal: 32),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            AvatarWidget(
+                              imageUrl: widget.peer.avatarUrl.isNotEmpty
+                                  ? widget.peer.avatarUrl
+                                  : 'assets/images/peer_test.jpg',
+                              radius: 36,
+                            ),
+                            const SizedBox(height: 14),
+                            Text(
+                              'You and ${widget.peer.name} connected!',
+                              textAlign: TextAlign.center,
+                              style: GoogleFonts.newsreader(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              'You both share common wellness interests. Break the ice with a gentle question below.',
+                              textAlign: TextAlign.center,
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 13,
+                                color: AppColors.textSecondary,
+                                height: 1.4,
+                              ),
+                            ),
+                            const SizedBox(height: 18),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              alignment: WrapAlignment.center,
+                              children: [
+                                "What's one gentle win from your day? ✨",
+                                "How are you taking care of yourself today? 🌿",
+                                "Happy to listen or just sit in quiet. 💜",
+                              ].map((prompt) {
+                                return GestureDetector(
+                                  onTap: () {
+                                    _textController.text = prompt;
+                                    _handleSendMessage();
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFEEEDFC),
+                                      borderRadius: BorderRadius.circular(18),
+                                      border: Border.all(color: const Color(0xFFDDD6FE)),
+                                    ),
+                                    child: Text(
+                                      prompt,
+                                      style: GoogleFonts.plusJakartaSans(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        color: const Color(0xFF4F46E5),
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              }).toList(),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
             ),
 
             // Peer typing indicator

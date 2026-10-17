@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../models/chat_message.dart';
+import '../shared/avatar_widget.dart';
 
 class ChatBubble extends StatefulWidget {
   final ChatMessage message;
@@ -27,7 +29,7 @@ class _ChatBubbleState extends State<ChatBubble> {
     final timeStr = DateFormat('hh:mm a').format(message.timestamp);
 
     if (message.isMine) {
-      // Outgoing bubble (soft lavender/purple)
+      // Outgoing bubble (vibrant purple)
       return Padding(
         padding: const EdgeInsets.only(bottom: 12, left: 60, right: 16),
         child: Column(
@@ -36,7 +38,7 @@ class _ChatBubbleState extends State<ChatBubble> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: const BoxDecoration(
-                color: Color(0xFFEEEAFE),
+                color: Color(0xFF4F46E5),
                 borderRadius: BorderRadius.only(
                   topLeft: Radius.circular(20),
                   topRight: Radius.circular(20),
@@ -48,34 +50,43 @@ class _ChatBubbleState extends State<ChatBubble> {
                   ? _buildVoicePlayer(isMine: true)
                   : Text(
                       message.text,
-                      style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textPrimary),
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 14,
+                        color: Colors.white,
+                        height: 1.4,
+                      ),
                     ),
             ),
             const SizedBox(height: 4),
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(timeStr, style: AppTextStyles.caption.copyWith(fontSize: 10)),
+                Text(
+                  timeStr,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 10,
+                    color: AppColors.textMuted,
+                  ),
+                ),
                 const SizedBox(width: 4),
-                const Icon(Icons.done_all_rounded, size: 14, color: AppColors.primary),
+                const Icon(Icons.done_all_rounded, size: 14, color: Color(0xFF4F46E5)),
               ],
             ),
           ],
         ),
       );
     } else {
-      // Incoming bubble (white with peer avatar)
+      // Incoming bubble (crisp white with peer avatar)
       return Padding(
         padding: const EdgeInsets.only(bottom: 12, left: 16, right: 60),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            CircleAvatar(
+            AvatarWidget(
+              imageUrl: widget.peerAvatar.isNotEmpty
+                  ? widget.peerAvatar
+                  : 'assets/images/peer_test.jpg',
               radius: 16,
-              backgroundImage: AssetImage(widget.peerAvatar),
-              onBackgroundImageError: (_, __) {},
-              backgroundColor: AppColors.primarySoft,
-              child: const Icon(Icons.person, size: 18, color: AppColors.primary),
             ),
             const SizedBox(width: 10),
             Expanded(
@@ -105,11 +116,21 @@ class _ChatBubbleState extends State<ChatBubble> {
                         ? _buildVoicePlayer(isMine: false)
                         : Text(
                             message.text,
-                            style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textPrimary),
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 14,
+                              color: AppColors.textPrimary,
+                              height: 1.4,
+                            ),
                           ),
                   ),
                   const SizedBox(height: 4),
-                  Text(timeStr, style: AppTextStyles.caption.copyWith(fontSize: 10)),
+                  Text(
+                    timeStr,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 10,
+                      color: AppColors.textMuted,
+                    ),
+                  ),
                 ],
               ),
             ),

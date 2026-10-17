@@ -3,22 +3,44 @@ import 'package:google_fonts/google_fonts.dart';
 import 'app_colors.dart';
 
 class AppTextStyles {
-  static TextStyle get h1 => GoogleFonts.plusJakartaSans(
-    fontSize: 26,
-    fontWeight: FontWeight.w700,
+  // Editorial Serif Headers (Good morning, Find your people, For you today)
+  static TextStyle get serifHeading => GoogleFonts.newsreader(
+    fontSize: 28,
+    fontWeight: FontWeight.w600,
+    color: AppColors.textPrimary,
+    letterSpacing: -0.3,
+  );
+
+  static TextStyle get serifTitle => GoogleFonts.newsreader(
+    fontSize: 22,
+    fontWeight: FontWeight.w600,
+    color: AppColors.textPrimary,
+    letterSpacing: -0.2,
+  );
+
+  static TextStyle get serifCardTitle => GoogleFonts.newsreader(
+    fontSize: 19,
+    fontWeight: FontWeight.w600,
+    color: Colors.white,
+    letterSpacing: -0.2,
+  );
+
+  static TextStyle get h1 => GoogleFonts.newsreader(
+    fontSize: 28,
+    fontWeight: FontWeight.w600,
     color: AppColors.textPrimary,
     letterSpacing: -0.4,
   );
 
-  static TextStyle get h2 => GoogleFonts.plusJakartaSans(
-    fontSize: 20,
-    fontWeight: FontWeight.w700,
+  static TextStyle get h2 => GoogleFonts.newsreader(
+    fontSize: 22,
+    fontWeight: FontWeight.w600,
     color: AppColors.textPrimary,
     letterSpacing: -0.2,
   );
 
   static TextStyle get h3 => GoogleFonts.plusJakartaSans(
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: FontWeight.w600,
     color: AppColors.textPrimary,
   );

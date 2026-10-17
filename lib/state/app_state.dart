@@ -18,22 +18,24 @@ import 'package:shared_preferences/shared_preferences.dart';
 class AppState extends ChangeNotifier {
   // Current Logged-in User
   UserProfile _currentUser = UserProfile(
-    id: '',
-    name: 'Loading...',
-    age: 18,
-    location: '',
-    bio: '',
-    avatarUrl: '',
-    isVerified: false,
+    id: 'user_paras_01',
+    name: 'Paras',
+    age: 29,
+    location: 'Mumbai, India',
+    profession: 'Product Designer',
+    bio: 'Here to grow, one day at a time.',
+    avatarUrl: 'assets/images/paras_avatar.jpg',
+    images: ['assets/images/paras_avatar.jpg'],
+    isVerified: true,
     isOnline: true,
-    moodStatus: '',
-    matchPercentage: 0,
-    interests: [],
-    feelings: [],
-    supportTypes: [],
-    values: [],
+    moodStatus: 'Peaceful',
+    matchPercentage: 100,
+    interests: ['Career', 'Mindfulness', 'Relationships'],
+    feelings: ['Family issues', 'Career pressure'],
+    supportTypes: ['Emotional support', 'Accountability partner'],
+    values: ['Empathy', 'Authenticity'],
     isAnonymous: false,
-    trustLevel: 1,
+    trustLevel: 5,
   );
 
   UserProfile get currentUser => _currentUser;
@@ -170,9 +172,9 @@ class AppState extends ChangeNotifier {
   String? get todayMood => _todayMood;
 
   // Day streak & Weekly progress
-  int _dayStreak = 0;
+  int _dayStreak = 4;
   int get dayStreak => _dayStreak;
-  int _weeklyProgress = 0;
+  int _weeklyProgress = 4;
   int get weeklyProgress => _weeklyProgress;
 
   List<bool> get weekDaysCheckIn {
@@ -326,8 +328,105 @@ class AppState extends ChangeNotifier {
   }
 
   void _initMockData() {
-    // All mock data has been removed.
-    // The app will now rely purely on live data fetched from the backend.
+    if (_cards.isEmpty) {
+      _cards = [
+        MatchCard(
+          profile: UserProfile(
+            id: 'peer_test_01',
+            name: 'Test',
+            age: 24,
+            location: 'Mumbai, India',
+            bio: 'Learning to slow down. Happy to listen or just sit in the quiet together.',
+            avatarUrl: 'assets/images/peer_test.jpg',
+            images: ['assets/images/peer_test.jpg'],
+            isVerified: true,
+            isOnline: true,
+            moodStatus: 'Peaceful',
+            matchPercentage: 90,
+            interests: ['Relationships', 'Career', 'Mindfulness'],
+            feelings: ['Calm', 'Reflective'],
+            supportTypes: ['Emotional support'],
+            values: ['Listening', 'Patience'],
+          ),
+          isNewHere: true,
+          commonInterests: ['Relationships', 'Career'],
+        ),
+        MatchCard(
+          profile: UserProfile(
+            id: 'peer_ananya_02',
+            name: 'Ananya',
+            age: 26,
+            location: 'Bengaluru, India',
+            bio: 'Lover of tea, long evening walks, and honest conversations. Big believer that healing is not linear.',
+            avatarUrl: 'assets/images/peer_test.jpg',
+            images: ['assets/images/peer_test.jpg'],
+            isVerified: true,
+            isOnline: true,
+            moodStatus: 'Optimistic',
+            matchPercentage: 85,
+            interests: ['Mindfulness', 'Creativity', 'Reading'],
+            feelings: ['Hopeful'],
+            supportTypes: ['Someone to Talk To', 'New Friends'],
+            values: ['Empathy', 'Kindness'],
+          ),
+          isNewHere: false,
+          commonInterests: ['Mindfulness'],
+        ),
+        MatchCard(
+          profile: UserProfile(
+            id: 'peer_rohan_03',
+            name: 'Rohan',
+            age: 27,
+            location: 'Delhi, India',
+            bio: 'Navigating career pressures and learning to practice gratitude every single day.',
+            avatarUrl: 'assets/images/paras_avatar.jpg',
+            images: ['assets/images/paras_avatar.jpg'],
+            isVerified: true,
+            isOnline: false,
+            moodStatus: 'Focused',
+            matchPercentage: 78,
+            interests: ['Career', 'Personal Growth'],
+            feelings: ['Career pressure'],
+            supportTypes: ['Accountability partner'],
+            values: ['Growth', 'Support'],
+          ),
+          isNewHere: true,
+          commonInterests: ['Career'],
+        ),
+      ];
+    }
+
+    if (_journalEntries.isEmpty) {
+      _journalEntries.addAll([
+        JournalEntry(
+          id: 'journal_01',
+          date: DateTime(2026, 10, 13, 9, 44),
+          mood: 'Peaceful',
+          thought: 'Learning to slow down and give myself permission to just be. Morning stillness has brought so much clarity today.',
+          gratitude: 'A warm cup of coffee and gentle autumn breeze.',
+          category: 'Reflection',
+          isPrivate: true,
+        ),
+        JournalEntry(
+          id: 'journal_02',
+          date: DateTime(2026, 10, 11, 20, 15),
+          mood: 'Reflective',
+          thought: 'Navigated a stressful conversation with calm and boundaries. Proud of taking small steps every single day.',
+          gratitude: 'Supportive friends who hold space.',
+          category: 'Growth',
+          isPrivate: true,
+        ),
+        JournalEntry(
+          id: 'journal_03',
+          date: DateTime(2026, 10, 9, 14, 30),
+          mood: 'Hopeful',
+          thought: 'Starting this mental wellness journey. Looking forward to connecting with empathetic peers who understand.',
+          gratitude: 'Courage to prioritize my mental health.',
+          category: 'Mindfulness',
+          isPrivate: true,
+        ),
+      ]);
+    }
   }
 
   // --- MILESTONES SYSTEM ---

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../core/theme/app_colors.dart';
 
 class CardActionButtons extends StatelessWidget {
   final VoidCallback onPass;
@@ -20,49 +19,39 @@ class CardActionButtons extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        // Rewind Button
-        if (onRewind != null) ...[
-          _buildCircleButton(
-            size: 46,
-            icon: Icons.replay_rounded,
-            iconColor: const Color(0xFFF59E0B),
-            bgColor: Colors.white,
-            onTap: onRewind!,
-            boxShadowColor: Colors.black.withValues(alpha: 0.06),
-          ),
-          const SizedBox(width: 14),
-        ],
-
         // Pass Button (X)
         _buildCircleButton(
-          size: 58,
+          size: 56,
           icon: Icons.close_rounded,
-          iconColor: const Color(0xFF8E8EA9),
+          iconColor: const Color(0xFF64748B),
           bgColor: Colors.white,
           onTap: onPass,
-          boxShadowColor: Colors.black.withValues(alpha: 0.06),
+          boxShadowColor: Colors.black.withValues(alpha: 0.05),
+          hasBorder: true,
         ),
-        const SizedBox(width: 18),
+        const SizedBox(width: 22),
 
         // Connect / Like Button (Large Glowing Heart)
         _buildCircleButton(
-          size: 72,
+          size: 70,
           icon: Icons.favorite_rounded,
           iconColor: Colors.white,
-          bgColor: AppColors.primary,
+          bgColor: const Color(0xFF4F46E5),
           onTap: onConnect,
-          boxShadowColor: AppColors.primary.withValues(alpha: 0.4),
+          boxShadowColor: const Color(0xFF4F46E5).withValues(alpha: 0.38),
+          hasBorder: false,
         ),
-        const SizedBox(width: 18),
+        const SizedBox(width: 22),
 
-        // Super Like / Star Button
+        // Super Like / Star Button (Star Outline)
         _buildCircleButton(
-          size: 58,
-          icon: Icons.star_rounded,
-          iconColor: const Color(0xFFFF5277),
+          size: 56,
+          icon: Icons.star_outline_rounded,
+          iconColor: const Color(0xFF7C3AED),
           bgColor: Colors.white,
           onTap: onSuperLike,
-          boxShadowColor: Colors.black.withValues(alpha: 0.06),
+          boxShadowColor: Colors.black.withValues(alpha: 0.05),
+          hasBorder: true,
         ),
       ],
     );
@@ -75,24 +64,29 @@ class CardActionButtons extends StatelessWidget {
     required Color bgColor,
     required VoidCallback onTap,
     required Color boxShadowColor,
+    required bool hasBorder,
   }) {
     return GestureDetector(
       onTap: onTap,
+      behavior: HitTestBehavior.opaque,
       child: Container(
         width: size,
         height: size,
         decoration: BoxDecoration(
           color: bgColor,
           shape: BoxShape.circle,
+          border: hasBorder
+              ? Border.all(color: const Color(0xFFEFF1F7), width: 1.5)
+              : null,
           boxShadow: [
             BoxShadow(
               color: boxShadowColor,
-              blurRadius: 18,
+              blurRadius: hasBorder ? 12 : 20,
               offset: const Offset(0, 6),
             ),
           ],
         ),
-        child: Icon(icon, size: size * 0.48, color: iconColor),
+        child: Icon(icon, size: size * 0.46, color: iconColor),
       ),
     );
   }

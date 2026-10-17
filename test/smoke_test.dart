@@ -1,8 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:wehere/main.dart';
-import 'package:wehere/state/app_state.dart';
-import 'package:wehere/state/auth_notifier.dart';
-import 'package:provider/provider.dart';
 import 'package:flutter/material.dart';
 
 void main() {
@@ -12,8 +9,8 @@ void main() {
       const WehereApp(),
     );
 
-    // Give time for initial futures to settle
-    await tester.pumpAndSettle();
+    // Give time for initial futures and splash timer to settle
+    await tester.pump(const Duration(seconds: 3));
 
     // After booting, we expect to be on either the splash screen or the login screen.
     // The presence of any scaffold means the app rendered.

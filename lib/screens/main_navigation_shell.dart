@@ -93,28 +93,28 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
                   index: 0,
                   activeIndex: activeIndex,
                   appState: appState,
-                  icon: Icons.home_rounded,
+                  icon: Icons.home_outlined,
                   label: 'Home',
                 ),
                 _buildNavItem(
                   index: 1,
                   activeIndex: activeIndex,
                   appState: appState,
-                  icon: Icons.explore_rounded,
+                  icon: Icons.explore_outlined,
                   label: 'Explore',
                 ),
                 _buildNavItem(
                   index: 2,
                   activeIndex: activeIndex,
                   appState: appState,
-                  icon: Icons.menu_book_rounded,
+                  icon: Icons.menu_book_outlined,
                   label: 'Journal',
                 ),
                 _buildNavItem(
                   index: 3,
                   activeIndex: activeIndex,
                   appState: appState,
-                  icon: Icons.chat_bubble_rounded,
+                  icon: Icons.chat_bubble_outline_rounded,
                   label: 'Chat',
                   badgeCount: unreadCount,
                 ),
@@ -122,7 +122,7 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
                   index: 4,
                   activeIndex: activeIndex,
                   appState: appState,
-                  icon: Icons.person_rounded,
+                  icon: Icons.person_outline_rounded,
                   label: 'Profile',
                 ),
               ],
@@ -144,78 +144,67 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
   }) {
     final isSelected = activeIndex == index;
 
-    return GestureDetector(
-      onTap: () {
-        appState.setTabIndex(index);
-      },
-      behavior: HitTestBehavior.opaque,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 220),
-        curve: Curves.easeOutCubic,
-        padding: EdgeInsets.symmetric(
-          horizontal: isSelected ? 14 : 10,
-          vertical: 8,
-        ),
-        decoration: BoxDecoration(
-          color: isSelected ? AppColors.primarySoft : Colors.transparent,
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Row(
+    return Expanded(
+      child: GestureDetector(
+        onTap: () {
+          appState.setTabIndex(index);
+        },
+        behavior: HitTestBehavior.opaque,
+        child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Stack(
-              clipBehavior: Clip.none,
-              children: [
-                AnimatedScale(
-                  scale: isSelected ? 1.12 : 1.0,
-                  duration: const Duration(milliseconds: 220),
-                  curve: Curves.easeOutBack,
-                  child: Icon(
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeOutCubic,
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 6,
+              ),
+              decoration: BoxDecoration(
+                color: isSelected ? const Color(0xFFEEEDFB) : Colors.transparent,
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Icon(
                     icon,
-                    size: 26,
-                    color: isSelected ? AppColors.primary : AppColors.textMuted,
+                    size: 24,
+                    color: isSelected ? const Color(0xFF4F46E5) : const Color(0xFF64748B),
                   ),
-                ),
-                if (badgeCount > 0)
-                  Positioned(
-                    top: -5,
-                    right: -7,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1.5),
-                      decoration: BoxDecoration(
-                        color: AppColors.sosRed,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: Colors.white, width: 1.5),
-                      ),
-                      child: Text(
-                        '$badgeCount',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 9,
-                          fontWeight: FontWeight.bold,
+                  if (badgeCount > 0)
+                    Positioned(
+                      top: -4,
+                      right: -8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1.5),
+                        decoration: BoxDecoration(
+                          color: AppColors.sosRed,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: Colors.white, width: 1.5),
+                        ),
+                        child: Text(
+                          '$badgeCount',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-              ],
+                ],
+              ),
             ),
-            AnimatedSize(
-              duration: const Duration(milliseconds: 220),
-              curve: Curves.easeOutCubic,
-              child: isSelected
-                  ? Padding(
-                      padding: const EdgeInsets.only(left: 6),
-                      child: Text(
-                        label,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.primary,
-                          letterSpacing: 0.2,
-                        ),
-                      ),
-                    )
-                  : const SizedBox.shrink(),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                color: isSelected ? const Color(0xFF4F46E5) : const Color(0xFF64748B),
+                letterSpacing: 0.1,
+              ),
             ),
           ],
         ),

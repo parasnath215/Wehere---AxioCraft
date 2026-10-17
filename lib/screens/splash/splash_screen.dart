@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/routing/app_routes.dart';
@@ -13,6 +14,8 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen> {
+  Timer? _navTimer;
+
   @override
   void initState() {
     super.initState();
@@ -21,16 +24,23 @@ class _SplashScreenState extends State<SplashScreen> {
     });
   }
 
+  @override
+  void dispose() {
+    _navTimer?.cancel();
+    super.dispose();
+  }
+
   void _checkAuthAndNavigate() {
     final auth = context.read<AuthNotifier>();
     
     // We delay slightly for branding/splash to show
-    Future.delayed(const Duration(seconds: 2), () {
+    _navTimer?.cancel();
+    _navTimer = Timer(const Duration(seconds: 2), () {
       if (!mounted) return;
       
       if (auth.status == AuthStatus.initializing) {
         // Wait longer if still initializing
-        Future.delayed(const Duration(milliseconds: 500), _checkAuthAndNavigate);
+        _navTimer = Timer(const Duration(milliseconds: 500), _checkAuthAndNavigate);
         return;
       }
 

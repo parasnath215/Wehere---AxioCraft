@@ -2,23 +2,51 @@ import 'package:flutter/material.dart';
 
 class AppColors {
   // Brand Primary & Accents
-  static const Color primary = Color(0xFF5E4BEE);
-  static const Color primaryLight = Color(0xFF8B7CF8);
-  static const Color primaryDark = Color(0xFF4534C7);
-  static const Color primarySoft = Color(0xFFF0EEFF);
+  static const Color primary = Color(0xFF4F46E5);
+  static const Color primaryLight = Color(0xFF818CF8);
+  static const Color primaryDark = Color(0xFF3730A3);
+  static const Color primarySoft = Color(0xFFEEEDFB);
   static const Color primaryBorder = Color(0xFFDDD6FE);
 
   // Background & Surfaces
-  static const Color background = Color(0xFFF8F8FD);
+  static const Color background = Color(0xFFF8F9FE);
   static const Color surface = Color(0xFFFFFFFF);
-  static const Color surfaceSubtle = Color(0xFFF3F3FA);
-  static const Color cardBorder = Color(0xFFECEBF7);
+  static const Color surfaceSubtle = Color(0xFFF3F4FA);
+  static const Color cardBorder = Color(0xFFEFF1F7);
 
   // Text Colors
-  static const Color textPrimary = Color(0xFF191632);
-  static const Color textSecondary = Color(0xFF6B6984);
-  static const Color textMuted = Color(0xFF9E9DB5);
+  static const Color textPrimary = Color(0xFF141838);
+  static const Color textSecondary = Color(0xFF64748B);
+  static const Color textMuted = Color(0xFF94A3B8);
   static const Color textWhite = Color(0xFFFFFFFF);
+
+  // Deep Navy Breathing Card
+  static const Color deepNavyCard = Color(0xFF1B2252);
+  static const Color deepNavyGlow = Color(0xFF283375);
+
+  // Streak tracker
+  static const Color streakFilled = Color(0xFF4338CA);
+  static const Color streakEmpty = Color(0xFFECEEF5);
+
+  // Mood Tracker Colors
+  static const Color moodGreatBg = Color(0xFFEBE8FC);
+  static const Color moodGreat = Color(0xFF5B41E1);
+  static const Color moodGoodBg = Color(0xFFE8F1FC);
+  static const Color moodGood = Color(0xFF3B82F6);
+  static const Color moodOkayBg = Color(0xFFFCE8F0);
+  static const Color moodOkay = Color(0xFFD94680);
+  static const Color moodLowBg = Color(0xFFE0F4FB);
+  static const Color moodLow = Color(0xFF0284C7);
+  static const Color moodStrugglingBg = Color(0xFFE2F4F2);
+  static const Color moodStruggling = Color(0xFF0D9488);
+
+  // Action Items Colors
+  static const Color actionPinkBg = Color(0xFFFDE8F1);
+  static const Color actionPink = Color(0xFFBE185D);
+  static const Color actionPurpleBg = Color(0xFFEEEDFC);
+  static const Color actionPurple = Color(0xFF4338CA);
+  static const Color actionBlueBg = Color(0xFFE0F2FE);
+  static const Color actionBlue = Color(0xFF0284C7);
 
   // Status & Semantic Colors
   static const Color onlineGreen = Color(0xFF22C55E);
@@ -41,7 +69,7 @@ class AppColors {
 
   // Gradients
   static const LinearGradient primaryGradient = LinearGradient(
-    colors: [Color(0xFF6D54FF), Color(0xFF533FEB)],
+    colors: [Color(0xFF6366F1), Color(0xFF4F46E5)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );

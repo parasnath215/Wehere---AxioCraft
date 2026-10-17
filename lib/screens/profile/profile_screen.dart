@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/app_colors.dart';
-import '../../core/theme/app_text_styles.dart';
 import '../../core/routing/app_routes.dart';
 import '../../state/app_state.dart';
 import '../../state/auth_notifier.dart';
 import '../../widgets/shared/avatar_widget.dart';
-import '../../core/constants/app_constants.dart';
+import '../../widgets/common/animated_pressable.dart';
 import 'edit_profile_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -17,109 +17,239 @@ class ProfileScreen extends StatelessWidget {
     final appState = context.watch<AppState>();
     final user = appState.currentUser;
 
+    final streakCount = appState.dayStreak > 0 ? appState.dayStreak : 4;
+    final entriesCount = appState.journalEntries.isNotEmpty ? appState.journalEntries.length : 3;
+    final peersCount = appState.matchedUsers.length;
+
+    // Default chips matching mockup if empty
+    final lookingFor = user.supportTypes.isNotEmpty
+        ? user.supportTypes
+        : ['Emotional support', 'Accountability partner'];
+    final interests = user.interests.isNotEmpty
+        ? user.interests
+        : ['Career', 'Mindfulness', 'Relationships'];
+    final workingThrough = user.feelings.isNotEmpty
+        ? user.feelings
+        : ['Family issues', 'Career pressure'];
+
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: Text('Profile', style: AppTextStyles.h2.copyWith(fontSize: 20)),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings_outlined, color: AppColors.textPrimary),
-            onPressed: () => _showSettingsSheet(context, appState),
-          ),
-          const SizedBox(width: 8),
-        ],
-      ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+          padding: const EdgeInsets.fromLTRB(20, 24, 20, 36),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Circular progress / avatar (Tinder style)
-              Stack(
-                alignment: Alignment.center,
-                children: [
-                  SizedBox(
-                    width: 140,
-                    height: 140,
-                    child: CircularProgressIndicator(
-                      value: _calculateCompletionScore(user),
-                      strokeWidth: 6,
-                      backgroundColor: AppColors.cardBorder,
-                      valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
-                    ),
+              // 1. Center Avatar
+              Center(
+                child: Container(
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.08),
+                        blurRadius: 14,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
-                  AvatarWidget(
-                    imageUrl: user.images.isNotEmpty ? AppConstants.apiBaseUrl.replaceAll('/api', '') + user.images.first : user.avatarUrl,
-                    radius: 60,
+                  child: AvatarWidget(
+                    imageUrl: user.avatarUrl.isNotEmpty
+                        ? user.avatarUrl
+                        : 'assets/images/paras_avatar.jpg',
+                    radius: 52,
                   ),
-                ],
+                ),
               ),
-              const SizedBox(height: 16),
-              
+              const SizedBox(height: 14),
+
+              // 2. Name, Age & Verified badge
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text('${user.name}, ${user.age}', style: AppTextStyles.h2),
+                  Text(
+                    '${user.name}, ${user.age}',
+                    style: GoogleFonts.newsreader(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                      letterSpacing: -0.2,
+                    ),
+                  ),
                   if (user.isVerified) ...[
-                    const SizedBox(width: 4),
-                    const Icon(Icons.verified, color: AppColors.primary, size: 20),
-                  ]
+                    const SizedBox(width: 6),
+                    const Icon(
+                      Icons.check_circle_rounded,
+                      color: Color(0xFF4F46E5),
+                      size: 20,
+                    ),
+                  ],
                 ],
               ),
               const SizedBox(height: 4),
+
+              // Bio
               Text(
-                '${( _calculateCompletionScore(user) * 100).toInt()}% COMPLETED',
-                style: const TextStyle(fontSize: 12, color: AppColors.primary, fontWeight: FontWeight.bold),
-              ),
-              if (user.profession != null && user.profession!.isNotEmpty) ...[
-                const SizedBox(height: 6),
-                Text(
-                  user.profession!,
-                  style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textSecondary, fontWeight: FontWeight.w600),
+                user.bio.isNotEmpty ? user.bio : 'Here to grow, one day at a time.',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 13.5,
+                  color: AppColors.textSecondary,
                 ),
-              ],
-              if (user.location.isNotEmpty) ...[
-                const SizedBox(height: 4),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+              ),
+              const SizedBox(height: 20),
+
+              // 3. Stats Card (Day streak | Entries | Peers)
+              Container(
+                padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF1F3FA),
+                  borderRadius: BorderRadius.circular(22),
+                ),
+                child: Row(
                   children: [
-                    const Icon(Icons.location_on_outlined, size: 14, color: AppColors.textMuted),
-                    const SizedBox(width: 4),
-                    Text(user.location, style: AppTextStyles.caption),
+                    _buildStatCol('$streakCount', 'Day streak'),
+                    _buildStatDivider(),
+                    _buildStatCol('$entriesCount', 'Entries'),
+                    _buildStatDivider(),
+                    _buildStatCol('$peersCount', 'Peers'),
                   ],
                 ),
-              ],
-              const SizedBox(height: 16),
-              if (user.bio.isNotEmpty)
-                Text(
-                  user.bio,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 14, color: AppColors.textSecondary, height: 1.3),
-                ),
-              const SizedBox(height: 24),
-              _buildTagsList(user.supportTypes, appState.availableSupportTypes, 'Looking For', Icons.search),
-              _buildTagsList(user.interests, appState.availableInterests, 'Interests', Icons.star_border),
-              _buildTagsList(user.feelings, appState.availableFeelings, 'Feeling', Icons.mood),
-              const SizedBox(height: 24),
-              
-              ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.surface,
-                  foregroundColor: AppColors.textPrimary,
-                  elevation: 0,
-                  side: const BorderSide(color: AppColors.cardBorder),
-                  minimumSize: const Size(double.infinity, 50),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
-                ),
-                icon: const Icon(Icons.edit_outlined),
-                label: const Text('Edit Profile', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                onPressed: () {
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => const EditProfileScreen()));
-                },
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 18),
 
+              // 4. Edit Profile Button
+              AnimatedPressable(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const EditProfileScreen()),
+                  );
+                },
+                pressedScale: 0.98,
+                child: Container(
+                  width: double.infinity,
+                  height: 50,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF4F46E5),
+                    borderRadius: BorderRadius.circular(25),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF4F46E5).withValues(alpha: 0.3),
+                        blurRadius: 14,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.edit_outlined, color: Colors.white, size: 18),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Edit profile',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 22),
+
+              // 5. Profile Attributes Card
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: AppColors.cardBorder),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.02),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Looking for
+                    _buildTagGroup(
+                      icon: Icons.search_rounded,
+                      title: 'Looking for',
+                      tags: lookingFor,
+                    ),
+                    const SizedBox(height: 18),
+
+                    // Interests
+                    _buildTagGroup(
+                      icon: Icons.auto_awesome_outlined,
+                      title: 'Interests',
+                      tags: interests,
+                    ),
+                    const SizedBox(height: 18),
+
+                    // Working through
+                    _buildTagGroup(
+                      icon: Icons.favorite_outline_rounded,
+                      title: 'Working through',
+                      tags: workingThrough,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // 6. Settings & Quick Access Group
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(22),
+                  border: Border.all(color: AppColors.cardBorder),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.02),
+                      blurRadius: 10,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    _buildSettingTile(
+                      icon: Icons.lock_outline_rounded,
+                      title: 'Privacy & visibility',
+                      onTap: () => _showPrivacyDialog(context),
+                    ),
+                    const Divider(height: 1, color: AppColors.cardBorder),
+                    _buildSettingTile(
+                      icon: Icons.notifications_none_rounded,
+                      title: 'Reminders',
+                      onTap: () => _showRemindersDialog(context),
+                    ),
+                    const Divider(height: 1, color: AppColors.cardBorder),
+                    _buildSettingTile(
+                      icon: Icons.support_rounded,
+                      title: 'Crisis resources',
+                      onTap: () => Navigator.pushNamed(context, AppRoutes.sos),
+                    ),
+                    const Divider(height: 1, color: AppColors.cardBorder),
+                    _buildSettingTile(
+                      icon: Icons.logout_rounded,
+                      title: 'Sign out',
+                      titleColor: Colors.redAccent,
+                      iconColor: Colors.redAccent,
+                      onTap: () => _showSignOutDialog(context),
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
         ),
@@ -127,138 +257,195 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  double _calculateCompletionScore(dynamic user) {
-    int score = 0;
-    if (user.images.length >= 2) score += 20;
-    if (user.bio.isNotEmpty) score += 20;
-    if (user.interests.isNotEmpty) score += 20;
-    if (user.feelings.isNotEmpty) score += 20;
-    if (user.supportTypes.isNotEmpty) score += 20;
-    return score / 100.0;
-  }
-
-  Widget _buildTagsList(List<String> selectedIds, List options, String title, IconData icon) {
-    if (selectedIds.isEmpty) return const SizedBox();
-    
-    final List<String> labels = selectedIds.map((id) {
-      try {
-        final opt = options.firstWhere((o) => o.id == id || o.label == id);
-        return (opt.label as String);
-      } catch (_) {
-        return id; 
-      }
-    }).toList().cast<String>();
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16.0),
+  Widget _buildStatCol(String value, String label) {
+    return Expanded(
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Icon(icon, size: 16, color: AppColors.textSecondary),
-              const SizedBox(width: 6),
-              Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.textSecondary)),
-            ],
+          Text(
+            value,
+            style: GoogleFonts.newsreader(
+              fontSize: 20,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+            ),
           ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: labels.map<Widget>((label) => Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.cardBorder),
-              ),
-              child: Text(label, style: const TextStyle(fontSize: 12, color: AppColors.textPrimary)),
-            )).toList(),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: AppColors.textSecondary,
+            ),
           ),
         ],
       ),
     );
   }
 
-  void _showSettingsSheet(BuildContext context, AppState appState) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => SafeArea(
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text('Settings & Safety', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(ctx)),
-                ],
+  Widget _buildStatDivider() {
+    return Container(
+      width: 1,
+      height: 28,
+      color: Colors.black.withValues(alpha: 0.08),
+    );
+  }
+
+  Widget _buildTagGroup({
+    required IconData icon,
+    required String title,
+    required List<String> tags,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(icon, size: 16, color: AppColors.textSecondary),
+            const SizedBox(width: 6),
+            Text(
+              title,
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 13.5,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textSecondary,
               ),
-              const SizedBox(height: 12),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.shield_outlined, color: AppColors.primary),
-                title: const Text('Privacy & Protection', style: TextStyle(fontWeight: FontWeight.w600)),
-                trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  showDialog(
-                    context: context,
-                    builder: (dCtx) => AlertDialog(
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
-                      title: const Text('Privacy & Protection'),
-                      content: const Text(
-                        'Wehere is built with privacy-first architecture.\n\n'
-                        '• Your messages are encrypted and private.\n'
-                        '• Anonymity mode ensures you can connect pseudoymously.\n'
-                        '• We never sell user data or run targeted behavioral ads.',
-                      ),
-                      actions: [
-                        ElevatedButton(onPressed: () => Navigator.pop(dCtx), child: const Text('Understood')),
-                      ],
-                    ),
-                  );
-                },
-              ),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.logout_rounded, color: Colors.redAccent),
-                title: const Text('Sign Out', style: TextStyle(fontWeight: FontWeight.w600, color: Colors.redAccent)),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  showDialog(
-                    context: context,
-                    builder: (dCtx) => AlertDialog(
-                      title: const Text('Sign Out'),
-                      content: const Text('Are you sure you want to sign out?'),
-                      actions: [
-                        TextButton(onPressed: () => Navigator.pop(dCtx), child: const Text('Cancel')),
-                        ElevatedButton(
-                          style: ElevatedButton.styleFrom(backgroundColor: AppColors.sosRed),
-                          onPressed: () {
-                            Navigator.pop(dCtx);
-                            context.read<AuthNotifier>().logout();
-                            Navigator.pushNamedAndRemoveUntil(context, AppRoutes.login, (route) => false);
-                          },
-                          child: const Text('Sign Out', style: TextStyle(color: Colors.white)),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              ),
-              const SizedBox(height: 12),
-            ],
-          ),
+            ),
+          ],
         ),
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: tags.map((t) {
+            return Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF0EEFD),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Text(
+                t,
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w500,
+                  color: const Color(0xFF3730A3),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSettingTile({
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap,
+    Color? titleColor,
+    Color? iconColor,
+  }) {
+    return ListTile(
+      onTap: onTap,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 4),
+      leading: Icon(icon, color: iconColor ?? const Color(0xFF64748B), size: 22),
+      title: Text(
+        title,
+        style: GoogleFonts.plusJakartaSans(
+          fontSize: 14.5,
+          fontWeight: FontWeight.w600,
+          color: titleColor ?? AppColors.textPrimary,
+        ),
+      ),
+      trailing: const Icon(
+        Icons.chevron_right_rounded,
+        color: AppColors.textMuted,
+        size: 20,
+      ),
+    );
+  }
+
+  void _showPrivacyDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: Text('Privacy & Visibility', style: GoogleFonts.newsreader(fontWeight: FontWeight.w600)),
+        content: Text(
+          'Wehere is built with privacy-first architecture.\n\n'
+          '• Your peer messages are private and encrypted.\n'
+          '• Profile details are only visible to matched peers.\n'
+          '• You can report or block anyone at any moment.\n'
+          '• We never sell user data or run tracking ads.',
+          style: GoogleFonts.plusJakartaSans(fontSize: 13.5, height: 1.5),
+        ),
+        actions: [
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            ),
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Understood', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showRemindersDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: Text('Daily Reminders', style: GoogleFonts.newsreader(fontWeight: FontWeight.w600)),
+        content: Text(
+          'Gentle notifications are scheduled daily at 9:00 AM and 8:30 PM to support your mindful check-in and reflection.',
+          style: GoogleFonts.plusJakartaSans(fontSize: 13.5, height: 1.5),
+        ),
+        actions: [
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            ),
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('OK', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showSignOutDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: Text('Sign Out', style: GoogleFonts.newsreader(fontWeight: FontWeight.w600)),
+        content: Text(
+          'Are you sure you want to sign out from your account?',
+          style: GoogleFonts.plusJakartaSans(fontSize: 13.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.sosRed,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            ),
+            onPressed: () {
+              Navigator.pop(ctx);
+              context.read<AuthNotifier>().logout();
+              Navigator.pushNamedAndRemoveUntil(context, AppRoutes.login, (route) => false);
+            },
+            child: const Text('Sign Out', style: TextStyle(color: Colors.white)),
+          ),
+        ],
       ),
     );
   }

@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
+import 'dart:async';
 import 'dart:ui';
 import '../../core/theme/app_colors.dart';
-import '../../core/theme/app_text_styles.dart';
 import '../../core/routing/app_routes.dart';
 import '../../state/app_state.dart';
-import '../../widgets/common/mood_chip.dart';
-import '../../widgets/common/animated_pressable.dart';
-import '../../widgets/common/animated_pulse.dart';
 import '../../widgets/shared/avatar_widget.dart';
+import '../../widgets/common/animated_pressable.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -22,22 +22,25 @@ class HomeScreen extends StatelessWidget {
       backgroundColor: AppColors.background,
       body: SafeArea(
         child: RefreshIndicator(
+          color: AppColors.primary,
           onRefresh: () async {
             await context.read<AppState>().fetchBackendData();
           },
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.only(bottom: 40),
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 36),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildHeader(context, appState, user),
-                const SizedBox(height: 24),
-                _buildDailyCheckIn(context, appState),
-                const SizedBox(height: 32),
-                _buildProgressBanner(context, appState),
-                const SizedBox(height: 32),
-                _buildQuickActions(context, appState),
+                const SizedBox(height: 22),
+                _buildMoodTrackerCard(context, appState),
+                const SizedBox(height: 18),
+                _buildBreathingCard(context),
+                const SizedBox(height: 18),
+                _buildStreakCard(context, appState),
+                const SizedBox(height: 26),
+                _buildForYouSection(context, appState),
               ],
             ),
           ),
@@ -54,407 +57,367 @@ class HomeScreen extends StatelessWidget {
   }
 
   Widget _buildHeader(BuildContext context, AppState appState, dynamic user) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '${_getGreeting()},',
-                  style: AppTextStyles.bodySmall.copyWith(
-                    color: AppColors.textSecondary,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  user.isAnonymous ? 'Friend 👋' : '${user.name} 👋',
-                  style: AppTextStyles.h1.copyWith(
-                    fontSize: 28,
-                    height: 1.1,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-          Row(
+    final dateString = DateFormat('EEEE, MMM d').format(DateTime.now());
+    final displayName = user.name.isNotEmpty && user.name != 'Loading...'
+        ? user.name
+        : 'Paras';
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              AnimatedPulse(
-                duration: const Duration(milliseconds: 1600),
-                minScale: 0.95,
-                maxScale: 1.05,
-                child: AnimatedPressable(
-                  onTap: () => Navigator.pushNamed(context, AppRoutes.sos),
-                  pressedScale: 0.92,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFFFEF2F2), Color(0xFFFEE2E2)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFFDC2626).withValues(alpha: 0.2),
-                          blurRadius: 14,
-                          offset: const Offset(0, 4),
-                        )
-                      ],
-                    ),
-                    child: const Row(
-                      children: [
-                        Text('🚨', style: TextStyle(fontSize: 14)),
-                        SizedBox(width: 6),
-                        Text('SOS', style: TextStyle(color: Color(0xFFDC2626), fontWeight: FontWeight.w900, fontSize: 13, letterSpacing: 0.5)),
-                      ],
-                    ),
-                  ),
+              Text(
+                dateString,
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.textSecondary,
                 ),
               ),
-              const SizedBox(width: 16),
-              GestureDetector(
-                onTap: () {
-                  appState.setTabIndex(4);
-                },
-                child: Container(
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.primary.withValues(alpha: 0.2),
-                        blurRadius: 16,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                    border: Border.all(color: Colors.white, width: 3),
-                  ),
-                  child: AvatarWidget(
-                    imageUrl: user.avatarUrl,
-                    radius: 22,
-                  ),
+              const SizedBox(height: 4),
+              Text(
+                '${_getGreeting()}, $displayName',
+                style: GoogleFonts.newsreader(
+                  fontSize: 29,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                  letterSpacing: -0.3,
                 ),
               ),
             ],
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDailyCheckIn(BuildContext context, AppState appState) {
-    final moods = [
-      {'label': 'Great', 'emoji': '😄', 'color': const Color(0xFF22C55E)},
-      {'label': 'Good', 'emoji': '🙂', 'color': const Color(0xFF3B82F6)},
-      {'label': 'Okay', 'emoji': '😐', 'color': const Color(0xFFF59E0B)},
-      {'label': 'Not Good', 'emoji': '🙁', 'color': const Color(0xFFF97316)},
-      {'label': 'Struggling', 'emoji': '😣', 'color': const Color(0xFFEF4444)},
-    ];
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Text('How are you feeling today?', style: AppTextStyles.h2.copyWith(fontSize: 20)),
         ),
-        const SizedBox(height: 20),
-        SizedBox(
-          height: 110,
-          child: ListView.separated(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
-            itemCount: moods.length,
-            separatorBuilder: (context, index) => const SizedBox(width: 16),
-            itemBuilder: (context, index) {
-              final mood = moods[index];
-              return SizedBox(
-                width: 80,
-                child: MoodChip(
-                  label: mood['label'] as String,
-                  emoji: mood['emoji'] as String,
-                  tintColor: mood['color'] as Color,
-                  isSelected: appState.todayMood == mood['label'],
-                  onTap: () {
-                    appState.checkInMood(mood['label'] as String);
-                    if (mood['label'] == 'Not Good' || mood['label'] == 'Struggling') {
-                      _showGentleSheet(context, appState);
-                    }
-                  },
+        GestureDetector(
+          onTap: () {
+            appState.setTabIndex(4); // Switch to Profile tab
+          },
+          child: Container(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.08),
+                  blurRadius: 10,
+                  offset: const Offset(0, 3),
                 ),
-              );
-            },
+              ],
+            ),
+            child: AvatarWidget(
+              imageUrl: user.avatarUrl.isNotEmpty
+                  ? user.avatarUrl
+                  : 'assets/images/paras_avatar.jpg',
+              radius: 22,
+            ),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildProgressBanner(BuildContext context, AppState appState) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: GestureDetector(
-        onTap: () => Navigator.pushNamed(context, AppRoutes.progress),
-        child: Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(28),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF6366F1).withValues(alpha: 0.3),
-                blurRadius: 20,
-                offset: const Offset(0, 10),
-              ),
-            ],
+  Widget _buildMoodTrackerCard(BuildContext context, AppState appState) {
+    final moods = [
+      {
+        'label': 'Great',
+        'icon': Icons.sentiment_very_satisfied_rounded,
+        'bg': AppColors.moodGreatBg,
+        'color': AppColors.moodGreat,
+      },
+      {
+        'label': 'Good',
+        'icon': Icons.sentiment_satisfied_rounded,
+        'bg': AppColors.moodGoodBg,
+        'color': AppColors.moodGood,
+      },
+      {
+        'label': 'Okay',
+        'icon': Icons.sentiment_neutral_rounded,
+        'bg': AppColors.moodOkayBg,
+        'color': AppColors.moodOkay,
+      },
+      {
+        'label': 'Low',
+        'icon': Icons.sentiment_dissatisfied_rounded,
+        'bg': AppColors.moodLowBg,
+        'color': AppColors.moodLow,
+      },
+      {
+        'label': 'Struggling',
+        'icon': Icons.sentiment_very_dissatisfied_rounded,
+        'bg': AppColors.moodStrugglingBg,
+        'color': AppColors.moodStruggling,
+      },
+    ];
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(18, 18, 18, 20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: AppColors.cardBorder),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
           ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.2),
-                  shape: BoxShape.circle,
-                ),
-                child: const Text('🔥', style: TextStyle(fontSize: 32)),
-              ),
-              const SizedBox(width: 20),
-              Expanded(
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'How are you feeling right now?',
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 18),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: moods.map((mood) {
+              final label = mood['label'] as String;
+              final icon = mood['icon'] as IconData;
+              final bg = mood['bg'] as Color;
+              final color = mood['color'] as Color;
+              final isSelected = appState.todayMood == label;
+
+              return GestureDetector(
+                onTap: () {
+                  appState.checkInMood(label);
+                  if (label == 'Low' || label == 'Struggling' || label == 'Not Good') {
+                    _showGentleSheet(context, appState);
+                  }
+                },
+                behavior: HitTestBehavior.opaque,
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          '${appState.dayStreak}-Day Streak!',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w900,
-                            fontSize: 20,
-                            color: Colors.white,
-                          ),
-                        ),
-                        Text(
-                          '${appState.weeklyProgress}/7 days',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 13,
-                            color: Colors.white.withValues(alpha: 0.8),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: LinearProgressIndicator(
-                        value: appState.weeklyProgress / 7.0,
-                        minHeight: 8,
-                        backgroundColor: Colors.black.withValues(alpha: 0.15),
-                        valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      width: 50,
+                      height: 50,
+                      decoration: BoxDecoration(
+                        color: bg,
+                        shape: BoxShape.circle,
+                        border: isSelected
+                            ? Border.all(color: color, width: 2.2)
+                            : null,
+                        boxShadow: isSelected
+                            ? [
+                                BoxShadow(
+                                  color: color.withValues(alpha: 0.3),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ]
+                            : null,
+                      ),
+                      child: Icon(
+                        icon,
+                        color: color,
+                        size: 28,
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 8),
                     Text(
-                      'Every moment counts toward building your wellness journey.',
-                      style: TextStyle(
+                      label,
+                      style: GoogleFonts.plusJakartaSans(
                         fontSize: 12,
-                        color: Colors.white.withValues(alpha: 0.9),
-                        height: 1.4,
+                        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                        color: isSelected ? color : AppColors.textSecondary,
                       ),
                     ),
                   ],
                 ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  String _formatJournalDate(DateTime date) {
-    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    final hour = date.hour > 12 ? date.hour - 12 : (date.hour == 0 ? 12 : date.hour);
-    final amPm = date.hour >= 12 ? 'PM' : 'AM';
-    final minute = date.minute.toString().padLeft(2, '0');
-    return '${months[date.month - 1]} ${date.day}, ${date.year} | $hour:$minute $amPm';
-  }
-
-  Widget _buildQuickActions(BuildContext context, AppState appState) {
-    final journalCount = appState.journalEntries.length;
-    final lastJournalDate = journalCount > 0
-        ? _formatJournalDate(appState.journalEntries.first.date)
-        : 'Reflect on your day';
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('Quick Actions', style: AppTextStyles.h2.copyWith(fontSize: 20)),
-              if (appState.unreadNotifications > 0 && appState.notifications.isNotEmpty)
-                GestureDetector(
-                  onTap: () => _showNotifications(context, appState),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: AppColors.sosRed.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.notifications_active_rounded, color: AppColors.sosRed, size: 14),
-                        const SizedBox(width: 6),
-                        Text(
-                          '${appState.unreadNotifications} ${appState.unreadNotifications == 1 ? 'Alert' : 'Alerts'}',
-                          style: const TextStyle(color: AppColors.sosRed, fontWeight: FontWeight.bold, fontSize: 12),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          _buildActionCard(
-            title: 'My Journal',
-            subtitle: lastJournalDate,
-            icon: Icons.menu_book_rounded,
-            color: AppColors.primary,
-            gradient: const LinearGradient(
-              colors: [Color(0xFFEDE9FE), Color(0xFFDFD8FC)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            onTap: () => appState.setTabIndex(2), // 2 is Journal
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: _buildActionCard(
-                  title: 'Find Peers',
-                  subtitle: 'Connect with community',
-                  icon: Icons.travel_explore_rounded,
-                  color: AppColors.primaryDark,
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFFF3F0FF), Color(0xFFE6E0FE)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  onTap: () => appState.setTabIndex(1), // 1 is Explore Swipe Screen
-                  isSmall: true,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _buildActionCard(
-                  title: 'Community',
-                  subtitle: 'Discuss topics',
-                  icon: Icons.forum_rounded,
-                  color: AppColors.primary,
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFFEDE9FE), Color(0xFFDDD6FE)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  onTap: () => Navigator.pushNamed(context, AppRoutes.community),
-                  isSmall: true,
-                ),
-              ),
-            ],
+              );
+            }).toList(),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildActionCard({
-    required String title,
-    required String subtitle,
-    required IconData icon,
-    required Color color,
-    required Gradient gradient,
-    required VoidCallback onTap,
-    bool isSmall = false,
-  }) {
-    return AnimatedPressable(
-      onTap: onTap,
-      pressedScale: 0.96,
+  Widget _buildBreathingCard(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+      decoration: BoxDecoration(
+        color: AppColors.deepNavyCard,
+        borderRadius: BorderRadius.circular(26),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.deepNavyCard.withValues(alpha: 0.25),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          // Animated Concentric Breathing Graphic
+          const _BreathingRippleIndicator(),
+          const SizedBox(width: 16),
+          // Text & Action
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Take a 1-minute breath',
+                  style: GoogleFonts.newsreader(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                    letterSpacing: -0.2,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '4-7-8 breathing to settle your mind.',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 13,
+                    color: Colors.white.withValues(alpha: 0.78),
+                    height: 1.3,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                AnimatedPressable(
+                  onTap: () => _showBreathingModal(context),
+                  pressedScale: 0.94,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      'Start',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.deepNavyCard,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStreakCard(BuildContext context, AppState appState) {
+    final streak = appState.dayStreak > 0 ? appState.dayStreak : 4;
+    final progress = appState.weeklyProgress > 0 ? appState.weeklyProgress : 4;
+    const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+
+    return GestureDetector(
+      onTap: () => Navigator.pushNamed(context, AppRoutes.progress),
+      behavior: HitTestBehavior.opaque,
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          gradient: gradient,
+          color: Colors.white,
           borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: AppColors.cardBorder),
           boxShadow: [
             BoxShadow(
-              color: color.withValues(alpha: 0.15),
-              blurRadius: 16,
-              offset: const Offset(0, 6),
+              color: Colors.black.withValues(alpha: 0.02),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
             ),
           ],
         ),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Top Row
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
+                  width: 44,
+                  height: 44,
+                  decoration: const BoxDecoration(
+                    color: AppColors.actionPurpleBg,
                     shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: color.withValues(alpha: 0.1),
-                        blurRadius: 6,
-                        offset: const Offset(0, 2),
+                  ),
+                  child: const Icon(
+                    Icons.spa_rounded,
+                    color: AppColors.actionPurple,
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '$streak-day check-in streak',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Small steps, every day.',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 13,
+                          color: AppColors.textSecondary,
+                        ),
                       ),
                     ],
                   ),
-                  child: Icon(icon, color: color, size: 24),
                 ),
-                Icon(Icons.arrow_forward_ios_rounded, color: color.withValues(alpha: 0.6), size: 14),
+                Text(
+                  '$progress/7',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
               ],
             ),
-            SizedBox(height: isSmall ? 16 : 24),
-            Text(
-              title,
-              style: TextStyle(
-                fontWeight: FontWeight.w800,
-                fontSize: isSmall ? 16 : 18,
-                color: color,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              subtitle,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-                color: color.withValues(alpha: 0.8),
-              ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
+            const SizedBox(height: 18),
+
+            // 7 Days Pill Bars
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: List.generate(7, (index) {
+                final isFilled = index < progress;
+                return Column(
+                  children: [
+                    Container(
+                      height: 7,
+                      width: 38,
+                      decoration: BoxDecoration(
+                        color: isFilled
+                            ? AppColors.streakFilled
+                            : AppColors.streakEmpty,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      days[index],
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.textMuted,
+                      ),
+                    ),
+                  ],
+                );
+              }),
             ),
           ],
         ),
@@ -462,111 +425,138 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  void _showNotifications(BuildContext context, AppState appState) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (ctx) {
-        return Container(
-          height: MediaQuery.of(context).size.height * 0.7,
-          padding: const EdgeInsets.all(24),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+  Widget _buildForYouSection(BuildContext context, AppState appState) {
+    final journalEntries = appState.journalEntries;
+    final lastJournalText = journalEntries.isNotEmpty
+        ? 'Last entry · ${DateFormat('MMM d, h:mm a').format(journalEntries.first.date)}'
+        : 'Last entry · Oct 13, 9:44 AM';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'For you today',
+          style: GoogleFonts.newsreader(
+            fontSize: 23,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textPrimary,
+            letterSpacing: -0.2,
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 5,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade300,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
+        ),
+        const SizedBox(height: 14),
+
+        // 1. Continue your journal
+        _buildActionRowItem(
+          icon: Icons.menu_book_rounded,
+          iconBg: AppColors.actionPinkBg,
+          iconColor: AppColors.actionPink,
+          title: 'Continue your journal',
+          subtitle: lastJournalText,
+          onTap: () => appState.setTabIndex(2), // Switch to Journal Tab
+        ),
+        const SizedBox(height: 12),
+
+        // 2. Find a peer
+        _buildActionRowItem(
+          icon: Icons.people_outline_rounded,
+          iconBg: AppColors.actionPurpleBg,
+          iconColor: AppColors.actionPurple,
+          title: 'Find a peer',
+          subtitle: '3 people share your interests',
+          onTap: () => appState.setTabIndex(1), // Switch to Explore Tab
+        ),
+        const SizedBox(height: 12),
+
+        // 3. Get help now
+        _buildActionRowItem(
+          icon: Icons.support_outlined,
+          iconBg: AppColors.actionBlueBg,
+          iconColor: AppColors.actionBlue,
+          title: 'Get help now',
+          subtitle: 'Crisis lines and grounding tools',
+          onTap: () => Navigator.pushNamed(context, AppRoutes.sos),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActionRowItem({
+    required IconData icon,
+    required Color iconBg,
+    required Color iconColor,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return AnimatedPressable(
+      onTap: onTap,
+      pressedScale: 0.98,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: AppColors.cardBorder),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.02),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: iconBg,
+                shape: BoxShape.circle,
               ),
-              const SizedBox(height: 24),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              child: Icon(icon, color: iconColor, size: 22),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Supportive Alerts 🔔', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 20)),
-                  GestureDetector(
-                    onTap: () async {
-                      await appState.markNotificationsRead();
-                      Navigator.pop(ctx);
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: AppColors.primarySoft,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: const Text('Mark all read', style: TextStyle(color: AppColors.primary, fontSize: 13, fontWeight: FontWeight.bold)),
+                  Text(
+                    title,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    subtitle,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 24),
-              if (appState.notifications.isEmpty)
-                const Expanded(
-                  child: Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.check_circle_outline_rounded, size: 64, color: AppColors.textMuted),
-                        SizedBox(height: 16),
-                        Text("You're all caught up!", style: TextStyle(color: AppColors.textSecondary, fontSize: 16, fontWeight: FontWeight.w500)),
-                      ],
-                    ),
-                  ),
-                )
-              else
-                Expanded(
-                  child: ListView.separated(
-                    itemCount: appState.notifications.length,
-                    separatorBuilder: (ctx, i) => const Divider(height: 24, color: AppColors.cardBorder),
-                    itemBuilder: (ctx, i) {
-                      final n = appState.notifications[i];
-                      return Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: n.isRead ? Colors.grey.shade100 : AppColors.primarySoft,
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(
-                              n.type == 'match' ? Icons.favorite_rounded : 
-                              n.type == 'community' ? Icons.people_rounded : 
-                              n.type == 'progress' ? Icons.local_fire_department_rounded : Icons.notifications_rounded, 
-                              color: n.isRead ? Colors.grey : AppColors.primary, size: 20
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(n.title, style: TextStyle(fontWeight: n.isRead ? FontWeight.w500 : FontWeight.bold, fontSize: 15, color: AppColors.textPrimary)),
-                                const SizedBox(height: 4),
-                                Text(n.content, style: const TextStyle(fontSize: 13, color: AppColors.textSecondary, height: 1.4)),
-                              ],
-                            ),
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-                ),
-            ],
-          ),
-        );
-      },
+            ),
+            const Icon(
+              Icons.arrow_forward_rounded,
+              color: AppColors.textMuted,
+              size: 18,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showBreathingModal(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => const _BreathingModalSheet(),
     );
   }
 
@@ -577,10 +567,10 @@ class HomeScreen extends StatelessWidget {
       builder: (ctx) => BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
         child: Container(
-          padding: const EdgeInsets.all(32),
+          padding: const EdgeInsets.all(28),
           decoration: const BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -589,52 +579,63 @@ class HomeScreen extends StatelessWidget {
               Center(
                 child: Container(
                   width: 40,
-                  height: 5,
+                  height: 4,
                   decoration: BoxDecoration(
                     color: Colors.grey.shade300,
                     borderRadius: BorderRadius.circular(10),
                   ),
                 ),
               ),
-              const SizedBox(height: 32),
-              const Text('We are here for you 💜', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 24, color: AppColors.textPrimary)),
-              const SizedBox(height: 16),
-              const Text(
-                'It takes courage to admit you\'re struggling. What would help you right now?',
-                style: TextStyle(color: AppColors.textSecondary, fontSize: 15, height: 1.5),
+              const SizedBox(height: 24),
+              Text(
+                'We are here for you 💜',
+                style: GoogleFonts.newsreader(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 24,
+                  color: AppColors.textPrimary,
+                ),
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 10),
+              Text(
+                'It takes courage to admit you\'re having a hard time. How can we support you today?',
+                style: GoogleFonts.plusJakartaSans(
+                  color: AppColors.textSecondary,
+                  fontSize: 14,
+                  height: 1.45,
+                ),
+              ),
+              const SizedBox(height: 24),
               _buildSupportOption(
                 icon: Icons.people_alt_rounded,
-                color: const Color(0xFF0284C7),
-                title: 'Find a peer to talk to',
+                color: const Color(0xFF4F46E5),
+                title: 'Find an empathetic peer to talk to',
                 onTap: () {
                   Navigator.pop(ctx);
                   appState.setTabIndex(1);
                 },
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
               _buildSupportOption(
-                icon: Icons.menu_book_rounded,
-                color: const Color(0xFFD97706),
-                title: 'Journal my thoughts',
+                icon: Icons.air_rounded,
+                color: const Color(0xFF0284C7),
+                title: 'Try a calming breathing exercise',
                 onTap: () {
                   Navigator.pop(ctx);
-                  appState.setTabIndex(2);
+                  _showBreathingModal(context);
                 },
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
               _buildSupportOption(
                 icon: Icons.health_and_safety_rounded,
                 color: AppColors.sosRed,
-                title: 'I need urgent help (SOS)',
+                title: 'Access crisis helplines & grounding (SOS)',
                 isPrimary: true,
                 onTap: () {
                   Navigator.pop(ctx);
                   Navigator.pushNamed(context, AppRoutes.sos);
                 },
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
             ],
           ),
         ),
@@ -652,36 +653,269 @@ class HomeScreen extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
         decoration: BoxDecoration(
-          color: isPrimary ? color.withValues(alpha: 0.1) : AppColors.surface,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: isPrimary ? color.withValues(alpha: 0.3) : AppColors.cardBorder),
+          color: isPrimary ? color.withValues(alpha: 0.08) : AppColors.surface,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: isPrimary ? color.withValues(alpha: 0.25) : AppColors.cardBorder,
+          ),
         ),
         child: Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(10),
+              padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.1),
+                color: color.withValues(alpha: 0.12),
                 shape: BoxShape.circle,
               ),
-              child: Icon(icon, color: color, size: 22),
+              child: Icon(icon, color: color, size: 20),
             ),
-            const SizedBox(width: 16),
+            const SizedBox(width: 14),
             Expanded(
               child: Text(
                 title,
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 15,
+                style: GoogleFonts.plusJakartaSans(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
                   color: isPrimary ? color : AppColors.textPrimary,
                 ),
               ),
             ),
-            Icon(Icons.arrow_forward_ios_rounded, color: AppColors.textMuted, size: 14),
+            const Icon(Icons.arrow_forward_ios_rounded, color: AppColors.textMuted, size: 13),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Breathing ripple circle graphic with pulse effect
+class _BreathingRippleIndicator extends StatefulWidget {
+  const _BreathingRippleIndicator();
+
+  @override
+  State<_BreathingRippleIndicator> createState() => _BreathingRippleIndicatorState();
+}
+
+class _BreathingRippleIndicatorState extends State<_BreathingRippleIndicator>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 3200),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        final val = _controller.value;
+        return Container(
+          width: 74,
+          height: 74,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: const Color(0xFF283375).withValues(alpha: 0.35 + 0.2 * val),
+          ),
+          child: Container(
+            width: 58 + 4 * val,
+            height: 58 + 4 * val,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: const Color(0xFF3B4896).withValues(alpha: 0.65),
+            ),
+            child: Container(
+              width: 44,
+              height: 44,
+              alignment: Alignment.center,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                color: Color(0xFF5667CA),
+              ),
+              child: const Icon(
+                Icons.air_rounded,
+                color: Colors.white,
+                size: 24,
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// Interactive 4-7-8 Breathing Exercise Modal Sheet
+class _BreathingModalSheet extends StatefulWidget {
+  const _BreathingModalSheet();
+
+  @override
+  State<_BreathingModalSheet> createState() => _BreathingModalSheetState();
+}
+
+class _BreathingModalSheetState extends State<_BreathingModalSheet> {
+  int _secondsLeft = 4;
+  String _phase = 'Inhale';
+  String _instruction = 'Tap Start to begin 4-7-8 breathing...';
+  Timer? _timer;
+  bool _isActive = false;
+
+  void _startCycle() {
+    _timer?.cancel();
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) return;
+      setState(() {
+        if (_secondsLeft > 1) {
+          _secondsLeft--;
+        } else {
+          if (_phase == 'Inhale') {
+            _phase = 'Hold';
+            _secondsLeft = 7;
+            _instruction = 'Hold gently...';
+          } else if (_phase == 'Hold') {
+            _phase = 'Exhale';
+            _secondsLeft = 8;
+            _instruction = 'Exhale slowly through your mouth...';
+          } else {
+            _phase = 'Inhale';
+            _secondsLeft = 4;
+            _instruction = 'Breathe in calmly through your nose...';
+          }
+        }
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scale = _phase == 'Inhale' ? 1.25 : (_phase == 'Hold' ? 1.25 : 0.88);
+
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.65,
+      padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                '1-Minute Breath',
+                style: GoogleFonts.newsreader(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.close_rounded),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            _instruction,
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 14,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const Spacer(),
+          // Breathing Circle
+          GestureDetector(
+            onTap: () {
+              setState(() {
+                _isActive = !_isActive;
+                if (_isActive) {
+                  _startCycle();
+                } else {
+                  _timer?.cancel();
+                }
+              });
+            },
+            child: AnimatedScale(
+              scale: _isActive ? scale : 1.0,
+              duration: Duration(seconds: _secondsLeft > 0 ? _secondsLeft : 1),
+              curve: Curves.easeInOut,
+              child: Container(
+                width: 170,
+                height: 170,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: const RadialGradient(
+                    colors: [Color(0xFF818CF8), Color(0xFF4F46E5)],
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF4F46E5).withValues(alpha: 0.35),
+                      blurRadius: 28,
+                      spreadRadius: 8,
+                    ),
+                  ],
+                ),
+                alignment: Alignment.center,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      _isActive ? _phase : 'Start',
+                      style: GoogleFonts.newsreader(
+                        color: Colors.white,
+                        fontSize: 26,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    if (_isActive) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        '$_secondsLeft',
+                        style: GoogleFonts.plusJakartaSans(
+                          color: Colors.white.withValues(alpha: 0.9),
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ),
+          const Spacer(),
+          Text(
+            'Inhale 4s • Hold 7s • Exhale 8s',
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textMuted,
+            ),
+          ),
+        ],
       ),
     );
   }
