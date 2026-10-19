@@ -26,9 +26,9 @@ class SosHelpScreen extends StatelessWidget {
         title: const Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('SOS Help', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-            SizedBox(width: 6),
-            Text('🚨', style: TextStyle(fontSize: 18)),
+            Icon(Icons.shield_outlined, size: 20, color: AppColors.primary),
+            SizedBox(width: 8),
+            Text('Crisis Resources', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
           ],
         ),
         actions: [
@@ -70,7 +70,7 @@ class SosHelpScreen extends StatelessWidget {
 
               const SizedBox(height: 28),
 
-              // Animated Pulsing Red "I Need Help Now" Trigger
+              // Animated Pulsing Trigger
               SosPulsingButton(
                 onTap: () {
                   _triggerImmediateEmergencyHelp(context);
@@ -79,7 +79,7 @@ class SosHelpScreen extends StatelessWidget {
 
               const SizedBox(height: 32),
 
-              // "Talk to Someone Now" Card (Mockup 1.17.17 AM)
+              // "Talk to Someone Now" Card
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(18),
@@ -100,38 +100,50 @@ class SosHelpScreen extends StatelessWidget {
                   children: [
                     const Row(
                       children: [
-                        Icon(Icons.chat_outlined, color: AppColors.primary, size: 18),
+                        Icon(Icons.headset_mic_rounded, color: AppColors.primary, size: 18),
                         SizedBox(width: 8),
                         Text('Talk to Someone Now', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                       ],
                     ),
                     const SizedBox(height: 4),
                     const Text(
-                      'Connect with a mental health professional',
+                      'Connect with verified national mental health helplines across India',
                       style: TextStyle(fontSize: 11, color: AppColors.textMuted),
                     ),
                     const SizedBox(height: 16),
 
-                    // 1. 24/7 Helpline
+                    // 1. Tele-MANAS (National Govt of India 24/7)
                     _buildHelplineRow(
                       context: context,
-                      icon: Icons.headset_mic_rounded,
-                      title: '24/7 Helpline: 988 / 14416',
-                      subtitle: 'US/Intl: 988 • India: 14416 (Tele-MANAS)',
+                      icon: Icons.support_agent_rounded,
+                      title: 'Tele-MANAS: 14416',
+                      subtitle: '24/7 Toll-Free • 1800 891 4416 (20+ Indian Languages)',
                       actionLabel: 'Call Now',
                       isCall: true,
                     ),
 
                     const Divider(height: 20, color: AppColors.cardBorder),
 
-                    // 2. Chat Support
+                    // 2. Vandrevala Foundation (Call & WhatsApp)
                     _buildHelplineRow(
                       context: context,
                       icon: Icons.chat_bubble_rounded,
-                      title: 'Crisis Chat: 741741',
-                      subtitle: 'SMS "HOME" to 741741 • Vandrevala: +91 9999 666 555',
-                      actionLabel: 'Chat Now',
+                      title: 'Vandrevala Foundation',
+                      subtitle: '+91 9999 666 555 • 24/7 Free Counselors (Call & WhatsApp)',
+                      actionLabel: 'Connect',
                       isCall: false,
+                    ),
+
+                    const Divider(height: 20, color: AppColors.cardBorder),
+
+                    // 3. National Emergency Services
+                    _buildHelplineRow(
+                      context: context,
+                      icon: Icons.emergency_rounded,
+                      title: 'Emergency Services: 112',
+                      subtitle: 'National emergency helpline for police, medical & rescue',
+                      actionLabel: 'Call 112',
+                      isCall: true,
                     ),
                   ],
                 ),
@@ -248,11 +260,33 @@ class SosHelpScreen extends StatelessWidget {
 
               const SizedBox(height: 16),
 
-              // Disclaimer
-              Text(
-                AppConstants.therapyDisclaimer,
-                textAlign: TextAlign.center,
-                style: AppTextStyles.caption.copyWith(fontSize: 10, height: 1.35),
+              // Prominent Disclaimer Card
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFEF3C7).withValues(alpha: 0.6),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: const Color(0xFFFDE68A)),
+                ),
+                child: const Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.info_outline_rounded, color: Color(0xFFB45309), size: 20),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        AppConstants.therapyDisclaimer,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Color(0xFF92400E),
+                          height: 1.4,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
 
               const SizedBox(height: 24),
@@ -416,9 +450,9 @@ class SosHelpScreen extends StatelessWidget {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         title: const Row(
           children: [
-            Icon(Icons.emergency_rounded, color: AppColors.sosRed, size: 28),
+            Icon(Icons.shield_rounded, color: AppColors.primary, size: 26),
             SizedBox(width: 8),
-            Text('Immediate Support 🚨'),
+            Text('Immediate Crisis Support', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
           ],
         ),
         content: const Column(
@@ -426,15 +460,21 @@ class SosHelpScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Reach a confidential, free 24/7 crisis counselor right now:',
+              'Confidential, free 24/7 crisis support lines in India:',
               style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
             ),
             SizedBox(height: 12),
-            Text('• 988: Suicide & Crisis Lifeline (US & International)\n'
-                '• 14416: Tele-MANAS (Govt of India Toll-Free 24/7)\n'
-                '• +91 9999 666 555: Vandrevala Foundation\n'
-                '• SMS 741741: Crisis Text Line',
+            Text('• 14416 / 1800 891 4416: Tele-MANAS (Govt of India 24/7 Toll-Free)\n'
+                '• 1800-599-0019: KIRAN Mental Health Helpline\n'
+                '• +91 9999 666 555: Vandrevala Foundation (Call & WhatsApp)\n'
+                '• 112: Emergency Services (Police, Medical, Fire)\n'
+                '• +91 98204 66726: AASRA Suicide Prevention',
                 style: TextStyle(fontSize: 12, height: 1.5, color: AppColors.textSecondary)),
+            SizedBox(height: 14),
+            Text(
+              AppConstants.therapyDisclaimer,
+              style: TextStyle(fontSize: 10, color: Color(0xFF92400E), height: 1.3),
+            ),
           ],
         ),
         actions: [
@@ -450,12 +490,12 @@ class SosHelpScreen extends StatelessWidget {
             child: const Text('Call 14416 (India)'),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.sosRed),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
             onPressed: () {
               Navigator.pop(ctx);
-              _simulateCallOrChat(context, 'Calling 24/7 Lifeline (988)... Free & Confidential.');
+              _simulateCallOrChat(context, 'Connecting to Vandrevala Foundation (+91 9999 666 555)...');
             },
-            child: const Text('Call 988 (Intl)'),
+            child: const Text('Vandrevala (+91)'),
           ),
         ],
       ),
@@ -481,48 +521,76 @@ class SosHelpScreen extends StatelessWidget {
   void _showCrisisResourcesSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        padding: const EdgeInsets.all(24),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text('Crisis Resources & Helplines 🛡️', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                IconButton(icon: const Icon(Icons.close, size: 20), onPressed: () => Navigator.pop(ctx)),
-              ],
-            ),
-            const SizedBox(height: 8),
-            const Text('Free, confidential support available 24/7 for you or loved ones.', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-            const SizedBox(height: 16),
-            ...AppConstants.crisisHelplines.map((item) {
-              return ListTile(
-                leading: const CircleAvatar(backgroundColor: AppColors.primarySoft, child: Icon(Icons.support_agent_rounded, color: AppColors.primary)),
-                title: Text(item['name']!, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                subtitle: Text('${item['number']} • ${item['hours']}'),
-                trailing: ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    minimumSize: const Size(80, 32),
-                    padding: const EdgeInsets.symmetric(horizontal: 10),
+      builder: (ctx) => DraggableScrollableSheet(
+        initialChildSize: 0.75,
+        maxChildSize: 0.9,
+        minChildSize: 0.5,
+        builder: (context, scrollController) => Container(
+          padding: const EdgeInsets.all(24),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          child: ListView(
+            controller: scrollController,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Crisis Resources & Helplines', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  IconButton(icon: const Icon(Icons.close, size: 20), onPressed: () => Navigator.pop(ctx)),
+                ],
+              ),
+              const SizedBox(height: 6),
+              const Text('Free, confidential support available 24/7 across India.', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+              const SizedBox(height: 16),
+              ...AppConstants.crisisHelplines.map((item) {
+                return ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const CircleAvatar(backgroundColor: AppColors.primarySoft, child: Icon(Icons.support_agent_rounded, color: AppColors.primary)),
+                  title: Text(item['name']!, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  subtitle: Text('${item['number']} • ${item['hours']}'),
+                  trailing: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      minimumSize: const Size(76, 32),
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                    ),
+                    icon: const Icon(Icons.call, size: 14),
+                    label: const Text('Call', style: TextStyle(fontSize: 11)),
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      _simulateCallOrChat(context, 'Dialing ${item['name']} (${item['number']})...');
+                    },
                   ),
-                  icon: const Icon(Icons.call, size: 14),
-                  label: const Text('Call', style: TextStyle(fontSize: 11)),
-                  onPressed: () {
-                    Navigator.pop(ctx);
-                    _simulateCallOrChat(context, 'Dialing ${item['name']} (${item['number']})...');
-                  },
+                );
+              }),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFEF3C7).withValues(alpha: 0.6),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFFFDE68A)),
                 ),
-              );
-            }),
-          ],
+                child: const Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.info_outline_rounded, color: Color(0xFFB45309), size: 16),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        AppConstants.therapyDisclaimer,
+                        style: TextStyle(fontSize: 10, color: Color(0xFF92400E), height: 1.35),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -720,12 +788,12 @@ class SosHelpScreen extends StatelessWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
-        title: const Text('How SOS Help Works'),
+        title: const Text('How Crisis Resources Work'),
         content: const Text(
-          '1. Confidential: Your identity is 100% protected.\n\n'
-          '2. Immediate: Connect via direct call or instant private chat.\n\n'
-          '3. Free: Available round-the-clock at zero cost.\n\n'
-          '4. Always Accessible: Reachable from the home screen, chat room, or dedicated SOS tab.',
+          '1. 100% Confidential: Your identity and safety are protected.\n\n'
+          '2. Verified Helplines: One-tap connection to Tele-MANAS, KIRAN, Vandrevala, and emergency services.\n\n'
+          '3. Free of Cost: National toll-free numbers and non-profit psychological counseling.\n\n'
+          '4. Calming Grounding: Self-guided deep breathing and sensory exercises whenever you feel overwhelmed.',
         ),
         actions: [
           ElevatedButton(onPressed: () => Navigator.pop(ctx), child: const Text('Got it')),

@@ -627,8 +627,8 @@ class HomeScreen extends StatelessWidget {
               const SizedBox(height: 12),
               _buildSupportOption(
                 icon: Icons.health_and_safety_rounded,
-                color: AppColors.sosRed,
-                title: 'Access crisis helplines & grounding (SOS)',
+                color: AppColors.primary,
+                title: 'Access crisis helplines & grounding tools',
                 isPrimary: true,
                 onTap: () {
                   Navigator.pop(ctx);

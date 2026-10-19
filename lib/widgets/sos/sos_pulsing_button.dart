@@ -73,13 +73,13 @@ class _SosPulsingButtonState extends State<SosPulsingButton> with SingleTickerPr
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(
-                        Icons.emergency_outlined,
-                        size: 42,
+                        Icons.phone_in_talk_rounded,
+                        size: 40,
                         color: Colors.white,
                       ),
                       SizedBox(height: 8),
                       Text(
-                        'I Need Help\nNow',
+                        'Connect to\nHelpline',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           color: Colors.white,
@@ -97,7 +97,7 @@ class _SosPulsingButtonState extends State<SosPulsingButton> with SingleTickerPr
         ),
         const SizedBox(height: 20),
         Text(
-          'Tap the button above if you need\nimmediate support.',
+          'Tap above to connect directly with confidential\n24/7 crisis support.',
           textAlign: TextAlign.center,
           style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary, height: 1.3),
         ),

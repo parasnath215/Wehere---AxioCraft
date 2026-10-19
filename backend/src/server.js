@@ -17,6 +17,7 @@ app.set('io', io);
 const prisma = new PrismaClient();
 
 const { verifyMailConfig } = require('./services/email');
+const { deleteImage } = require('./services/storage');
 
 // Trust proxy for rate limiting behind Nginx
 const trustProxyHops = process.env.TRUST_PROXY_HOPS ? parseInt(process.env.TRUST_PROXY_HOPS, 10) : 0;
@@ -243,7 +244,14 @@ setInterval(async () => {
     });
 
     if (unverifiedUsers.length > 0) {
-      // In a real app we might want to clean up their uploaded files as well
+      // Clean up uploaded files as well
+      for (const u of unverifiedUsers) {
+        if (u.images && Array.isArray(u.images)) {
+          u.images.forEach(img => {
+            try { deleteImage(img); } catch (_) {}
+          });
+        }
+      }
       const result = await prisma.user.deleteMany({
         where: {
           id: { in: unverifiedUsers.map(u => u.id) }
@@ -255,6 +263,50 @@ setInterval(async () => {
     console.error('Cleanup Job Error:', error.message);
   }
 }, 12 * 60 * 60 * 1000); // Run every 12 hours
+
+// Automated Deletion Job for Accounts with scheduledDeletionDate <= now()
+async function processScheduledAccountDeletions() {
+  try {
+    const now = new Date();
+    const expiredUsers = await prisma.user.findMany({
+      where: {
+        scheduledDeletionDate: {
+          lte: now,
+        },
+      },
+      select: {
+        id: true,
+        images: true,
+        email: true,
+        pseudonym: true,
+        scheduledDeletionDate: true,
+      },
+    });
+
+    if (expiredUsers.length > 0) {
+      console.log(`🗑️ Auto-Delete Job: Found ${expiredUsers.length} accounts ready for permanent deletion.`);
+      for (const u of expiredUsers) {
+        try {
+          if (u.images && Array.isArray(u.images)) {
+            u.images.forEach(img => {
+              try { deleteImage(img); } catch (_) {}
+            });
+          }
+          await prisma.user.delete({ where: { id: u.id } });
+          console.log(`✅ Auto-Delete Job: Permanently deleted account ${u.id} (${u.email || u.pseudonym || 'No Email'}).`);
+        } catch (delErr) {
+          console.error(`❌ Auto-Delete error for user ${u.id}:`, delErr.message);
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Scheduled Deletion Job Error:', error.message);
+  }
+}
+
+// Run on startup, and check every 60 seconds
+processScheduledAccountDeletions();
+setInterval(processScheduledAccountDeletions, 60 * 1000);
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, async () => {

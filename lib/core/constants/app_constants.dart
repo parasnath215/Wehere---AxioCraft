@@ -5,7 +5,7 @@ class AppConstants {
   static const String safeSpaceNotice =
       'You are in a Safe Space. Be kind, respectful, and supportive. We are here for a positive conversation.';
   static const String therapyDisclaimer =
-      'Wehere provides peer-to-peer emotional support and is not a substitute for clinical therapy or medical diagnosis. In an emergency, please use our SOS help or contact local emergency services immediately.';
+      'Disclaimer: Wehere is a peer-to-peer emotional support community, not a crisis service or licensed medical provider. If you or someone you know is in immediate physical danger or experiencing a medical or psychological emergency, please contact your local emergency services (112 in India) or reach out to a trusted professional immediately.';
 
   // Default support topics / interests
   static const List<String> interests = [
@@ -75,43 +75,49 @@ class AppConstants {
     "What song or podcast has brought you peace recently? 🎵",
   ];
 
-  // Helplines (Global & India)
+  // Helplines - Focused on India (with International fallback)
   static const List<Map<String, String>> crisisHelplines = [
-    {
-      'name': '988 Suicide & Crisis Lifeline (US & Intl)',
-      'number': '988',
-      'hours': '24/7 • Free & Confidential',
-      'type': 'Call & Text'
-    },
     {
       'name': 'Tele-MANAS (Govt of India Mental Health)',
       'number': '14416 / 1800 891 4416',
-      'hours': '24/7 • Toll-Free • Multi-language',
-      'type': 'Call'
-    },
-    {
-      'name': 'Vandrevala Foundation Helpline',
-      'number': '+91 9999 666 555',
-      'hours': '24/7 • Free Trained Counselors',
-      'type': 'Call & WhatsApp'
-    },
-    {
-      'name': 'Crisis Text Line',
-      'number': 'Text HOME to 741741',
-      'hours': '24/7 • Free Crisis Texting',
-      'type': 'Text'
-    },
-    {
-      'name': 'AASRA 24-Hour Suicide Prevention',
-      'number': '+91 98204 66726',
-      'hours': '24/7 • Peer Crisis Assistance',
+      'hours': '24/7 • Toll-Free • 20+ Indian Languages',
       'type': 'Call'
     },
     {
       'name': 'KIRAN Mental Health Helpline',
       'number': '1800-599-0019',
-      'hours': '24/7 • Ministry of Social Justice',
+      'hours': '24/7 • Toll-Free • Ministry of Social Justice',
       'type': 'Call'
+    },
+    {
+      'name': 'Vandrevala Foundation Helpline',
+      'number': '+91 9999 666 555',
+      'hours': '24/7 • Free Trained Counselors • Call & WhatsApp',
+      'type': 'Call & WhatsApp'
+    },
+    {
+      'name': 'AASRA Suicide Prevention & Crisis',
+      'number': '+91 98204 66726',
+      'hours': '24/7 • Free & Confidential Emotional Support',
+      'type': 'Call'
+    },
+    {
+      'name': 'NIMHANS Psychosocial Helpline',
+      'number': '080-46110007',
+      'hours': '24/7 • National Institute of Mental Health',
+      'type': 'Call'
+    },
+    {
+      'name': 'National Emergency Services (India)',
+      'number': '112',
+      'hours': '24/7 • Police, Fire & Medical Emergencies',
+      'type': 'Emergency Call'
+    },
+    {
+      'name': '988 Suicide & Crisis Lifeline (US & Intl)',
+      'number': '988',
+      'hours': '24/7 • Free & Confidential International',
+      'type': 'Call & Text'
     },
   ];
 }

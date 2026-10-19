@@ -8,7 +8,6 @@ import '../../state/auth_notifier.dart';
 import '../../state/app_state.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
-import 'dart:math' as math;
 import 'package:flutter/gestures.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/utils/ui_utils.dart';
@@ -21,7 +20,6 @@ class SignUpScreen extends StatefulWidget {
 }
 
 class _SignUpScreenState extends State<SignUpScreen> {
-  final TextEditingController _handleController = TextEditingController();
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
@@ -69,7 +67,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
   @override
   void dispose() {
     _passwordController.removeListener(_onPasswordChanged);
-    _handleController.dispose();
     _nameController.dispose();
     _emailController.dispose();
     _phoneController.dispose();
@@ -98,28 +95,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
   void _removeImage(int index) {
     setState(() {
       _imagePaths.removeAt(index);
-    });
-  }
-
-  void _randomizeHandle() {
-    final adjectives = [
-      'gentle', 'calm', 'serene', 'mindful', 'hopeful', 'radiant', 'peaceful',
-      'bright', 'golden', 'kind', 'warm', 'brave', 'cozy', 'zen', 'vibrant',
-      'stellar', 'luminous', 'tender', 'tranquil', 'graceful', 'blissful', 'sunny'
-    ];
-    final nouns = [
-      'river', 'nebula', 'lotus', 'ember', 'compass', 'spirit', 'meadow',
-      'breeze', 'aurora', 'haven', 'echo', 'solace', 'horizon', 'spark',
-      'willow', 'ocean', 'cedar', 'starlight', 'voyager', 'oasis', 'bloom'
-    ];
-    final rng = math.Random();
-    final adj = adjectives[rng.nextInt(adjectives.length)];
-    final noun = nouns[rng.nextInt(nouns.length)];
-    // Random 4-digit number ensuring guaranteed unique handles across users
-    final numSuffix = 1000 + rng.nextInt(9000);
-    final uniqueId = '${adj}_${noun}_$numSuffix';
-    setState(() {
-      _handleController.text = uniqueId;
     });
   }
 
@@ -153,22 +128,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 style: AppTextStyles.bodyMedium,
               ),
 
-              const SizedBox(height: 20),
-
-              // Unique ID Handle Input
-              TextField(
-                controller: _handleController,
-                decoration: InputDecoration(
-                  prefixIcon: const Icon(Icons.tag_rounded, color: AppColors.primary),
-                  hintText: 'Unique Handle (e.g. johndoe94)',
-                  suffixIcon: TextButton.icon(
-                    onPressed: _randomizeHandle,
-                    icon: const Icon(Icons.shuffle_rounded, size: 14),
-                    label: const Text('Random ID', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
 
               // Image Picker Section
               Align(
@@ -374,9 +334,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           final phone = _phoneController.text.trim();
                           final pass = _passwordController.text.trim();
                           final confirmPass = _confirmPasswordController.text.trim();
-                          final handle = _handleController.text.trim();
 
-                          if (name.isEmpty || email.isEmpty || pass.isEmpty || handle.isEmpty) {
+                          if (name.isEmpty || email.isEmpty || pass.isEmpty) {
                             UiUtils.showTopSnackBar(context, 'Please fill all the required fields.');
                             return;
                           }
@@ -417,7 +376,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             name,
                             email,
                             pass,
-                            customHandle: handle,
                             phone: phone.isNotEmpty ? phone : null,
                             imagePaths: _imagePaths,
                           );

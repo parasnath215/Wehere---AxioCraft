@@ -4,6 +4,7 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const { authenticateAdmin } = require('../middleware/auth');
 const bcrypt = require('bcryptjs');
+const { deleteImage } = require('../services/storage');
 
 // Apply admin authentication to all routes in this router
 router.use(authenticateAdmin);
@@ -58,7 +59,16 @@ router.get('/users', async (req, res, next) => {
 router.put('/users/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { role, pseudonym, email } = req.body;
+    const { role, pseudonym, email, scheduledDeletionDate } = req.body;
+
+    let updateDeletionDate = undefined;
+    if (scheduledDeletionDate !== undefined) {
+      if (!scheduledDeletionDate || scheduledDeletionDate === '') {
+        updateDeletionDate = null;
+      } else {
+        updateDeletionDate = new Date(scheduledDeletionDate);
+      }
+    }
     
     const user = await prisma.user.update({
       where: { id },
@@ -66,9 +76,19 @@ router.put('/users/:id', async (req, res, next) => {
         ...(role && { role }),
         ...(pseudonym && { pseudonym }),
         ...(email && { email }),
+        ...(updateDeletionDate !== undefined && {
+          scheduledDeletionDate: updateDeletionDate,
+          deletionRequestedAt: updateDeletionDate ? new Date() : null,
+        }),
       },
       select: {
-        id: true, email: true, pseudonym: true, role: true
+        id: true,
+        email: true,
+        pseudonym: true,
+        role: true,
+        scheduledDeletionDate: true,
+        deletionRequestedAt: true,
+        createdAt: true,
       }
     });
     res.json(user);
@@ -155,6 +175,15 @@ router.get('/users/:id/analytics', async (req, res, next) => {
 router.delete('/users/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
+    const user = await prisma.user.findUnique({
+      where: { id },
+      select: { images: true }
+    });
+    if (user && user.images && Array.isArray(user.images)) {
+      user.images.forEach(img => {
+        try { deleteImage(img); } catch (_) {}
+      });
+    }
     await prisma.user.delete({ where: { id } });
     res.json({ message: 'User deleted successfully' });
   } catch (error) {

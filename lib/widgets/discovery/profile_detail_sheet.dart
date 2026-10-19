@@ -159,13 +159,6 @@ class ProfileDetailSheet extends StatelessWidget {
                               ),
                             ],
                           ),
-                          if (profile.handle != null && profile.handle!.isNotEmpty) ...[
-                            const SizedBox(height: 2),
-                            Text(
-                              '@${profile.handle}',
-                              style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
-                            ),
-                          ],
                           const SizedBox(height: 4),
                           Row(
                             children: [

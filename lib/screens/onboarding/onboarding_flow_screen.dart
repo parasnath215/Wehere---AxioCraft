@@ -21,14 +21,19 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
 
   // Form Controllers
   final TextEditingController _nameController = TextEditingController(); // App Display Name / Alias
-  final TextEditingController _firstNameController = TextEditingController(); // Optional Real First Name
+  final TextEditingController _firstNameController = TextEditingController(); // Mandatory Real Name
+  final TextEditingController _dobController = TextEditingController(); // Date of Birth
   final TextEditingController _locationController = TextEditingController();
   final TextEditingController _stateMenuController = TextEditingController();
   final TextEditingController _cityMenuController = TextEditingController();
   final TextEditingController _professionMenuController = TextEditingController();
+  
+  DateTime? _selectedDob;
   String? _locationError;
   String? _professionError;
   String? _nameError;
+  String? _realNameError;
+  String? _dobError;
 
   static final RegExp _blockedWords = RegExp(
     r'\b(suicide|kill\s*myself|self\s*harm|slit|die|cutter|worthless|hang\s*myself|murder|fuck|shit|bitch|asshole|bastard|dick|slut|whore|nigger|faggot)\b',
@@ -62,6 +67,54 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
     }
   }
 
+  String _formatDob(DateTime d) {
+    final day = d.day.toString().padLeft(2, '0');
+    final month = d.month.toString().padLeft(2, '0');
+    final year = d.year.toString();
+    int age = DateTime.now().year - d.year;
+    if (DateTime.now().month < d.month || (DateTime.now().month == d.month && DateTime.now().day < d.day)) {
+      age--;
+    }
+    return '$day/$month/$year ($age yrs)';
+  }
+
+  Future<void> _selectDob(BuildContext context) async {
+    final now = DateTime.now();
+    final initialDate = _selectedDob ?? DateTime(now.year - 20, now.month, now.day);
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: DateTime(1920),
+      lastDate: now,
+      helpText: 'Select Date of Birth',
+      fieldLabelText: 'Date of Birth',
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: AppColors.primary,
+              onPrimary: Colors.white,
+              onSurface: AppColors.textPrimary,
+            ),
+            textButtonTheme: TextButtonThemeData(
+              style: TextButton.styleFrom(foregroundColor: AppColors.primary),
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null) {
+      setState(() {
+        _selectedDob = picked;
+        _dobController.text = _formatDob(picked);
+        _dobError = null;
+      });
+      _saveDraft();
+    }
+  }
+
   // Step 2 Interests
   final Set<String> _selectedInterests = {};
 
@@ -84,6 +137,7 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
       final prefs = await SharedPreferences.getInstance();
       final savedName = prefs.getString('onboarding_draft_name');
       final savedFirstName = prefs.getString('onboarding_draft_first_name');
+      final savedDob = prefs.getString('onboarding_draft_dob');
       final savedState = prefs.getString('onboarding_draft_state');
       final savedCity = prefs.getString('onboarding_draft_city');
       final savedProfession = prefs.getString('onboarding_draft_profession');
@@ -95,14 +149,28 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
       final appState = Provider.of<AppState>(context, listen: false);
 
       setState(() {
+          // App Display Name must be empty by default unless user previously typed and drafted it
           if (savedName != null && savedName.isNotEmpty) {
             _nameController.text = savedName;
-          } else if (appState.onboardingName.isNotEmpty) {
-            _nameController.text = appState.onboardingName;
+          } else {
+            _nameController.text = '';
           }
 
+          // Real Name is automatically filled from previous screen data
           if (savedFirstName != null && savedFirstName.isNotEmpty) {
             _firstNameController.text = savedFirstName;
+          } else if (appState.onboardingName.isNotEmpty) {
+            _firstNameController.text = appState.onboardingName;
+          } else if (appState.currentUser.name.isNotEmpty) {
+            _firstNameController.text = appState.currentUser.name;
+          }
+
+          // Date of Birth
+          if (savedDob != null && savedDob.isNotEmpty) {
+            try {
+              _selectedDob = DateTime.parse(savedDob);
+              _dobController.text = _formatDob(_selectedDob!);
+            } catch (_) {}
           }
 
           if (savedState != null && savedState.isNotEmpty) {
@@ -149,6 +217,11 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('onboarding_draft_name', _nameController.text.trim());
       await prefs.setString('onboarding_draft_first_name', _firstNameController.text.trim());
+      if (_selectedDob != null) {
+        await prefs.setString('onboarding_draft_dob', _selectedDob!.toIso8601String());
+      } else {
+        await prefs.remove('onboarding_draft_dob');
+      }
       if (_selectedState != null) {
         await prefs.setString('onboarding_draft_state', _selectedState!);
       } else {
@@ -176,6 +249,7 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('onboarding_draft_name');
       await prefs.remove('onboarding_draft_first_name');
+      await prefs.remove('onboarding_draft_dob');
       await prefs.remove('onboarding_draft_state');
       await prefs.remove('onboarding_draft_city');
       await prefs.remove('onboarding_draft_profession');
@@ -192,6 +266,7 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
     _firstNameController.removeListener(_saveDraft);
     _nameController.dispose();
     _firstNameController.dispose();
+    _dobController.dispose();
     _locationController.dispose();
     _stateMenuController.dispose();
     _cityMenuController.dispose();
@@ -298,6 +373,39 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
     final appState = Provider.of<AppState>(context, listen: false);
 
     if (_currentStep == 1) {
+      final realName = _firstNameController.text.trim();
+      if (realName.isEmpty) {
+        setState(() {
+          _realNameError = 'Please enter your real name.';
+        });
+        return;
+      }
+      if (realName.length < 2) {
+        setState(() {
+          _realNameError = 'Real name must be at least 2 characters.';
+        });
+        return;
+      }
+
+      if (_selectedDob == null) {
+        setState(() {
+          _dobError = 'Please select your Date of Birth.';
+        });
+        return;
+      }
+
+      final now = DateTime.now();
+      int calculatedAge = now.year - _selectedDob!.year;
+      if (now.month < _selectedDob!.month || (now.month == _selectedDob!.month && now.day < _selectedDob!.day)) {
+        calculatedAge--;
+      }
+      if (calculatedAge < 13) {
+        setState(() {
+          _dobError = 'You must be at least 13 years old to join Wehere.';
+        });
+        return;
+      }
+
       final displayName = _nameController.text.trim();
       if (displayName.isEmpty) {
         setState(() {
@@ -358,12 +466,21 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
     } else {
       final auth = context.read<AuthNotifier>();
       final displayName = _nameController.text.trim();
-      final realFirstName = _firstNameController.text.trim().isNotEmpty ? _firstNameController.text.trim() : null;
+      final realFirstName = _firstNameController.text.trim();
+
+      int? userAge;
+      if (_selectedDob != null) {
+        final now = DateTime.now();
+        userAge = now.year - _selectedDob!.year;
+        if (now.month < _selectedDob!.month || (now.month == _selectedDob!.month && now.day < _selectedDob!.day)) {
+          userAge--;
+        }
+      }
 
       await auth.completeOnboarding(
         name: displayName,
         displayName: displayName,
-        realFirstName: realFirstName,
+        realFirstName: realFirstName.isNotEmpty ? realFirstName : null,
         nameDisplayPreference: 'DISPLAY_NAME_ONLY',
         location: _locationController.text.trim(),
         profession: _selectedProfession,
@@ -386,7 +503,8 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
       appState.completeOnboarding(
         name: displayName,
         displayName: displayName,
-        realFirstName: realFirstName,
+        realFirstName: realFirstName.isNotEmpty ? realFirstName : null,
+        age: userAge,
         nameDisplayPreference: 'DISPLAY_NAME_ONLY',
         location: _locationController.text.trim(),
         profession: _selectedProfession,
@@ -496,31 +614,77 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
         Text('This helps us personalize your experience for a better you.', textAlign: TextAlign.center, style: AppTextStyles.bodyMedium),
         const SizedBox(height: 16),
 
-        // Auto-fetch banner
-        Consumer<AppState>(
-          builder: (context, appState, _) => Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            decoration: BoxDecoration(
-              color: AppColors.primarySoft,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AppColors.primaryBorder),
+        // 1. Mandatory Real Name (auto-filled from signup)
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            TextField(
+              controller: _firstNameController,
+              onChanged: (_) {
+                if (_realNameError != null) setState(() => _realNameError = null);
+              },
+              decoration: InputDecoration(
+                prefixIcon: const Icon(Icons.person_outline_rounded, color: AppColors.primary),
+                labelText: 'Real Name *',
+                hintText: 'e.g. Rahul Sharma',
+                errorText: _realNameError,
+              ),
             ),
-            child: Row(
-              children: [
-                const Text('✨', style: TextStyle(fontSize: 18)),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Details auto-fetched from created ID ${appState.currentUser.id}. All responses customize your peer matches.',
-                    style: AppTextStyles.caption.copyWith(color: AppColors.primaryDark),
+            const SizedBox(height: 6),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Text(
+                'Your real name is kept private and only shared in chat when you both mutually agree.',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 12,
+                  color: AppColors.textSecondary,
+                  height: 1.3,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+
+        // 2. Date of Birth Section (below Real Name, chosen by calendar picker)
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            GestureDetector(
+              onTap: () => _selectDob(context),
+              child: AbsorbPointer(
+                child: TextField(
+                  controller: _dobController,
+                  decoration: InputDecoration(
+                    prefixIcon: const Icon(Icons.cake_outlined, color: AppColors.primary),
+                    labelText: 'Date of Birth *',
+                    hintText: 'Select Date of Birth (Calendar)',
+                    suffixIcon: IconButton(
+                      icon: const Icon(Icons.calendar_month_rounded, color: AppColors.primary),
+                      onPressed: () => _selectDob(context),
+                    ),
+                    errorText: _dobError,
                   ),
                 ),
-              ],
+              ),
             ),
-          ),
+            const SizedBox(height: 6),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Text(
+                'Tap to pick your date of birth from the calendar. Confirms you meet age guidelines.',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 12,
+                  color: AppColors.textSecondary,
+                  height: 1.3,
+                ),
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: 16),
-        // App Display Name / Alias
+        const SizedBox(height: 14),
+
+        // 3. App Display Name / Alias (empty by default)
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -540,34 +704,7 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 4),
               child: Text(
-                'This is the name potential matches see on your card. Pick an alias or preferred nickname that keeps you comfortable.',
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 12,
-                  color: AppColors.textSecondary,
-                  height: 1.3,
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 14),
-        // Optional Real First Name
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            TextField(
-              controller: _firstNameController,
-              decoration: const InputDecoration(
-                prefixIcon: Icon(Icons.lock_outline_rounded, color: AppColors.primary),
-                labelText: 'Real First Name (Optional)',
-                hintText: 'e.g. Sam, Priya, Alex',
-              ),
-            ),
-            const SizedBox(height: 6),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              child: Text(
-                'Only shared in chat when you both mutually agree.',
+                'This is the alias potential matches see on your card. Pick an alias or preferred nickname that keeps you comfortable.',
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 12,
                   color: AppColors.textSecondary,
@@ -1050,23 +1187,37 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text('Here’s a summary of your preferences', style: AppTextStyles.h3.copyWith(fontSize: 14)),
+              const SizedBox(height: 6),
+              Text('Tap any section to review or make changes.', style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary)),
               const SizedBox(height: 16),
               _buildSummaryRow(
                 Icons.favorite_rounded,
                 'Interests',
                 _selectedInterests.take(3).join(', '),
+                onTap: () {
+                  setState(() => _currentStep = 2);
+                  _saveDraft();
+                },
               ),
-              const Divider(height: 24),
+              const Divider(height: 20),
               _buildSummaryRow(
                 Icons.track_changes_rounded,
                 'Goals',
                 _selectedLookingFor.take(2).join(', '),
+                onTap: () {
+                  setState(() => _currentStep = 4);
+                  _saveDraft();
+                },
               ),
-              const Divider(height: 24),
+              const Divider(height: 20),
               _buildSummaryRow(
                 Icons.person_rounded,
                 'About You',
-                '${_nameController.text}, ${_locationController.text}${_selectedProfession != null ? ' • $_selectedProfession' : ''}',
+                '${_firstNameController.text.trim().isNotEmpty ? _firstNameController.text.trim() : _nameController.text}${_dobController.text.isNotEmpty ? ' • ${_dobController.text}' : ''}, ${_locationController.text}${_selectedProfession != null ? ' • $_selectedProfession' : ''}',
+                onTap: () {
+                  setState(() => _currentStep = 1);
+                  _saveDraft();
+                },
               ),
             ],
           ),
@@ -1077,27 +1228,40 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
     );
   }
 
-  Widget _buildSummaryRow(IconData icon, String title, String value) {
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(8),
-          decoration: const BoxDecoration(color: AppColors.primarySoft, shape: BoxShape.circle),
-          child: Icon(icon, size: 18, color: AppColors.primary),
+  Widget _buildSummaryRow(IconData icon, String title, String value, {VoidCallback? onTap}) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(14),
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: const BoxDecoration(color: AppColors.primarySoft, shape: BoxShape.circle),
+              child: Icon(icon, size: 18, color: AppColors.primary),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(title, style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+                      const SizedBox(width: 6),
+                      const Icon(Icons.edit_outlined, size: 12, color: AppColors.primary),
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Text(value.isEmpty ? 'Tap to choose' : value, style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary)),
+                ],
+              ),
+            ),
+            const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.textMuted),
+          ],
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(title, style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
-              const SizedBox(height: 2),
-              Text(value, style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary)),
-            ],
-          ),
-        ),
-        const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.textMuted),
-      ],
+      ),
     );
   }
 
