@@ -30,7 +30,7 @@ services:
       - db
     volumes:
       - uploads:/app/public/uploads
-    command: sh -c "npx prisma db push && npm start"
+    command: sh -c "npx prisma db push --accept-data-loss && npm start"
     restart: unless-stopped
 
   admin-panel:
