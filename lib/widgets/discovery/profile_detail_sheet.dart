@@ -147,7 +147,7 @@ class ProfileDetailSheet extends StatelessWidget {
                         children: [
                           Row(
                             children: [
-                              Text('${profile.name}, ${profile.age}', style: AppTextStyles.h2),
+                              Text('${profile.cardName}, ${profile.age}', style: AppTextStyles.h2),
                               const SizedBox(width: 6),
                               Container(
                                 padding: const EdgeInsets.all(2),
@@ -159,6 +159,13 @@ class ProfileDetailSheet extends StatelessWidget {
                               ),
                             ],
                           ),
+                          if (profile.handle != null && profile.handle!.isNotEmpty) ...[
+                            const SizedBox(height: 2),
+                            Text(
+                              '@${profile.handle}',
+                              style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
+                            ),
+                          ],
                           const SizedBox(height: 4),
                           Row(
                             children: [

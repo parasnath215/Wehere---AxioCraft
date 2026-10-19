@@ -24,20 +24,27 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isResetting = false;
 
   Future<void> _handleForgotPassword() async {
-    final email = _loginController.text.trim();
-    if (email.isEmpty) {
-      UiUtils.showTopSnackBar(context, 'Please enter your email first.');
-      return;
+    String input = _loginController.text.trim();
+    if (input.isEmpty) {
+      final result = await _showForgotPasswordDialog();
+      if (result == null || result.trim().isEmpty) return;
+      input = result.trim();
     }
 
+    await _sendPasswordResetOtp(input);
+  }
+
+  Future<void> _sendPasswordResetOtp(String identifier) async {
     setState(() => _isResetting = true);
     try {
-      await apiClient.post('/auth/otp/request', data: {
-        'email': email,
+      final res = await apiClient.post('/auth/otp/request', data: {
+        'email': identifier,
         'purpose': 'reset_password',
       });
       if (mounted) {
-        Navigator.pushNamed(context, AppRoutes.resetPassword, arguments: email);
+        final targetEmail = res.data?['email'] ?? identifier;
+        UiUtils.showTopSnackBar(context, 'Recovery code sent! Please check your email.', isError: false);
+        Navigator.pushNamed(context, AppRoutes.resetPassword, arguments: targetEmail);
       }
     } on DioException catch (e) {
       if (mounted) {
@@ -49,6 +56,52 @@ class _LoginScreenState extends State<LoginScreen> {
         setState(() => _isResetting = false);
       }
     }
+  }
+
+  Future<String?> _showForgotPasswordDialog() async {
+    final dialogController = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Reset Password 🔑', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Enter your registered email or phone number to receive a recovery code.',
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: dialogController,
+              autofocus: true,
+              decoration: const InputDecoration(
+                prefixIcon: Icon(Icons.account_circle_outlined, color: AppColors.primary),
+                hintText: 'Email or Phone Number',
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, null),
+            child: const Text('Cancel', style: TextStyle(color: AppColors.textMuted)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final val = dialogController.text.trim();
+              if (val.isNotEmpty) {
+                Navigator.pop(ctx, val);
+              }
+            },
+            child: const Text('Send Code'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -220,14 +273,20 @@ class _LoginScreenState extends State<LoginScreen> {
                     ],
                   ),
                   TextButton(
-                    onPressed: _handleForgotPassword,
-                    child: Text(
-                      'Forgot Password?',
-                      style: AppTextStyles.bodySmall.copyWith(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                    onPressed: _isResetting ? null : _handleForgotPassword,
+                    child: _isResetting
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+                          )
+                        : Text(
+                            'Forgot Password?',
+                            style: AppTextStyles.bodySmall.copyWith(
+                              color: AppColors.primary,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                   ),
                 ],
               ),
@@ -242,18 +301,25 @@ class _LoginScreenState extends State<LoginScreen> {
                   onPressed: auth.isLoading
                       ? null
                       : () async {
-                          if (_loginController.text.trim().isEmpty || _passwordController.text.trim().isEmpty) {
-                            UiUtils.showTopSnackBar(context, 'Please enter email and password');
+                          final identifier = _loginController.text.trim();
+                          final password = _passwordController.text.trim();
+                          if (identifier.isEmpty || password.isEmpty) {
+                            UiUtils.showTopSnackBar(context, 'Please enter email/phone and password');
                             return;
                           }
-                          // Email Validation
+                          // Email or Phone Validation
                           final emailRegExp = RegExp(r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+-/=?^_`{|}~]+@[a-zA-Z0-9]+\.[a-zA-Z]+");
-                          if (!emailRegExp.hasMatch(_loginController.text.trim())) {
-                            UiUtils.showTopSnackBar(context, 'Please enter a valid email address.');
+                          final phoneClean = identifier.replaceAll(RegExp(r'[\s-]'), '');
+                          final phoneRegExp = RegExp(r"^\+?[0-9]{7,15}$");
+                          final isEmail = emailRegExp.hasMatch(identifier);
+                          final isPhone = phoneRegExp.hasMatch(phoneClean);
+
+                          if (!isEmail && !isPhone) {
+                            UiUtils.showTopSnackBar(context, 'Please enter a valid email address or phone number.');
                             return;
                           }
 
-                          final success = await context.read<AuthNotifier>().login(_loginController.text.trim(), _passwordController.text.trim());
+                          final success = await context.read<AuthNotifier>().login(identifier, password);
                           if (context.mounted) {
                             final authNotifier = context.read<AuthNotifier>();
                             if (success && authNotifier.status == AuthStatus.authenticated) {

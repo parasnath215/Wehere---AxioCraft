@@ -9,7 +9,9 @@ const multer = require('multer');
 const rateLimit = require('express-rate-limit');
 const { authenticateToken, requireVerified } = require('../middleware/auth');
 const { sendEmail } = require('../services/email');
-const { processAndSaveImage } = require('../services/storage');
+const { processAndSaveImage, deleteImage } = require('../services/storage');
+const { evaluateStreak } = require('../services/streak');
+const { validateDisplayName, sanitizeHandle } = require('../services/identityFilter');
 
 const prisma = new PrismaClient();
 
@@ -23,6 +25,7 @@ const signupSchema = z.object({
   email: z.string().email('Invalid email address'),
   password: z.string().regex(passwordRegex, 'Password must be at least 8 characters, contain 1 uppercase, 1 lowercase, and 1 special character.'),
   pseudonym: z.string().optional(),
+  phone: z.string().optional(),
 });
 
 const loginSchema = z.object({
@@ -55,8 +58,13 @@ async function sendOtpEmail(email, code, purpose) {
 // Anonymous Signup
 router.post('/anonymous', async (req, res) => {
   try {
+    const now = new Date();
     const user = await prisma.user.create({
-      data: { isAnonymous: true },
+      data: {
+        isAnonymous: true,
+        currentStreak: 0,
+        lastLoginDate: now,
+      },
     });
     const token = jwt.sign({ id: user.id, role: user.role, tokenVersion: user.tokenVersion }, process.env.JWT_SECRET, { expiresIn: '7d' });
     res.json({ token, user });
@@ -72,8 +80,10 @@ router.post('/signup', upload.array('images', 6), async (req, res) => {
     if (!req.files || req.files.length < 2) {
       return res.status(400).json({ error: 'At least 2 profile images are required.' });
     }
-    const { email, password, pseudonym } = signupSchema.parse(req.body);
+    const { email, password, pseudonym, phone } = signupSchema.parse(req.body);
     const normalizedEmail = email.toLowerCase().trim();
+    const rawPhone = phone && phone.trim().length > 0 ? phone.trim() : null;
+    const normalizedPhone = rawPhone ? rawPhone.replace(/[^\d+]/g, '') : null;
 
     // Check if user already exists and is verified
     const existingUser = await prisma.user.findFirst({
@@ -82,6 +92,22 @@ router.post('/signup', upload.array('images', 6), async (req, res) => {
 
     if (existingUser && existingUser.emailVerified) {
       return res.status(400).json({ error: 'This email is already registered and verified. Please log in.' });
+    }
+
+    if (normalizedPhone) {
+      const existingPhoneUser = await prisma.user.findFirst({
+        where: {
+          phone: normalizedPhone,
+          emailVerified: true
+        }
+      });
+      if (existingPhoneUser) {
+        return res.status(400).json({ error: 'This phone number is already registered and verified. Please log in.' });
+      }
+      // Clean up any stale unverified record with this phone number
+      await prisma.user.deleteMany({
+        where: { phone: normalizedPhone, emailVerified: false }
+      });
     }
 
     // Clean up any stale unverified record for this email
@@ -129,6 +155,7 @@ router.post('/signup', upload.array('images', 6), async (req, res) => {
       {
         purpose: 'pending_signup',
         email: normalizedEmail,
+        phone: normalizedPhone || null,
         hashedPassword,
         pseudonym: uniqueHandle,
         images: imagePaths,
@@ -167,14 +194,17 @@ router.post('/signup', upload.array('images', 6), async (req, res) => {
 router.post('/login', rateLimit({ windowMs: 15*60*1000, max: 10 }), async (req, res) => {
   try {
     const { email, password } = loginSchema.parse(req.body);
-    const normalizedIdentifier = email.toLowerCase().trim();
+    const rawIdentifier = email.trim();
+    const normalizedIdentifier = rawIdentifier.toLowerCase();
+    const digitsOnly = rawIdentifier.replace(/[^\d+]/g, '');
 
     const user = await prisma.user.findFirst({ 
       where: {
         OR: [
           { email: normalizedIdentifier },
           { username: normalizedIdentifier },
-          { pseudonym: normalizedIdentifier }
+          { pseudonym: normalizedIdentifier },
+          ...(digitsOnly ? [{ phone: digitsOnly }, { phone: rawIdentifier }] : [{ phone: rawIdentifier }])
         ]
       } 
     });
@@ -214,8 +244,47 @@ router.post('/login', rateLimit({ windowMs: 15*60*1000, max: 10 }), async (req, 
       });
     }
 
+    // Check if account was scheduled for deletion
+    if (user.scheduledDeletionDate) {
+      const now = new Date();
+      if (now.getTime() >= new Date(user.scheduledDeletionDate).getTime()) {
+        // Grace period expired (30 days): permanently delete account
+        await prisma.user.delete({ where: { id: user.id } });
+        if (user.images) user.images.forEach(deleteImage);
+        return res.status(410).json({
+          error: 'ACCOUNT_DELETED',
+          message: 'This account was permanently deleted after the 30-day grace period.'
+        });
+      } else {
+        // User logged in before calculated date (+30 days): restore account!
+        await prisma.user.update({
+          where: { id: user.id },
+          data: {
+            scheduledDeletionDate: null,
+            deletionRequestedAt: null,
+          }
+        });
+        user.scheduledDeletionDate = null;
+        user.deletionRequestedAt = null;
+      }
+    }
+
+    // Evaluate streak on login
+    const streakResult = evaluateStreak(user);
+    if (streakResult.shouldUpdate) {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          currentStreak: streakResult.currentStreak,
+          lastLoginDate: streakResult.lastLoginDate,
+        }
+      });
+      user.currentStreak = streakResult.currentStreak;
+      user.lastLoginDate = streakResult.lastLoginDate;
+    }
+
     const token = jwt.sign({ id: user.id, role: user.role, tokenVersion: user.tokenVersion }, process.env.JWT_SECRET, { expiresIn: '7d' });
-    res.json({ token, user: { id: user.id, email: user.email, role: user.role, emailVerified: user.emailVerified } });
+    res.json({ token, user: { id: user.id, email: user.email, role: user.role, emailVerified: user.emailVerified, currentStreak: user.currentStreak } });
   } catch (error) {
     if (error instanceof z.ZodError) return res.status(400).json({ error: 'Validation failed', details: error.errors });
     res.status(500).json({ error: 'Internal Server Error' });
@@ -257,16 +326,35 @@ router.post('/otp/request', otpRequestLimiter, async (req, res) => {
       }
     }
 
-    if (!email) return res.status(400).json({ error: 'Email is required' });
+    if (!email) return res.status(400).json({ error: 'Email or phone number is required' });
     if (!['verify_email', 'reset_password'].includes(purpose)) {
       return res.status(400).json({ error: 'Invalid purpose' });
     }
 
-    const user = await prisma.user.findUnique({ where: { email } });
-    // Always return a success response to prevent email enumeration
-    const genericResponse = { message: 'If the email exists, a code was sent.', success: true, cooldown: 60 };
+    const rawInput = email.trim();
+    const normalizedInput = rawInput.toLowerCase();
+    const digitsOnly = rawInput.replace(/[^\d+]/g, '');
 
-    if (!user) return res.json(genericResponse);
+    const user = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { email: normalizedInput },
+          { username: normalizedInput },
+          { pseudonym: normalizedInput },
+          ...(digitsOnly ? [{ phone: digitsOnly }, { phone: rawInput }] : [{ phone: rawInput }])
+        ]
+      }
+    });
+
+    // Always return a success response to prevent enumeration, include user email if available
+    const genericResponse = { 
+      message: 'If the account exists, a code was sent to the registered email.', 
+      success: true, 
+      cooldown: 60,
+      email: user?.email || rawInput
+    };
+
+    if (!user || !user.email) return res.json(genericResponse);
 
     // Cooldown check (60s)
     const recentOtp = await prisma.otpRecord.findFirst({
@@ -296,7 +384,7 @@ router.post('/otp/request', otpRequestLimiter, async (req, res) => {
       }
     });
 
-    await sendOtpEmail(email, code, purpose);
+    await sendOtpEmail(user.email, code, purpose);
     res.json(genericResponse);
   } catch (error) {
     console.error('OTP Request Error:', error.message);
@@ -343,18 +431,26 @@ router.post('/otp/verify', async (req, res) => {
           await prisma.user.deleteMany({
             where: { email: decoded.email, emailVerified: false }
           });
+          if (decoded.phone) {
+            await prisma.user.deleteMany({
+              where: { phone: decoded.phone, emailVerified: false }
+            });
+          }
 
-          // CREATE THE USER ACCOUNT NOW IN THE DATABASE!
+          const now = new Date();
           const user = await prisma.user.create({
             data: {
               email: decoded.email,
+              phone: decoded.phone || null,
               password: decoded.hashedPassword,
               pseudonym: decoded.pseudonym,
               username: decoded.pseudonym,
               images: decoded.images || [],
               isAnonymous: false,
               emailVerified: true,
-              emailVerifiedAt: new Date(),
+              emailVerifiedAt: now,
+              currentStreak: 0,
+              lastLoginDate: now,
             }
           });
 
@@ -371,6 +467,7 @@ router.post('/otp/verify', async (req, res) => {
             user: {
               id: user.id,
               email: user.email,
+              phone: user.phone,
               pseudonym: user.pseudonym,
               images: user.images,
               role: user.role,
@@ -432,6 +529,7 @@ router.post('/otp/verify', async (req, res) => {
       user: {
         id: updatedUser.id,
         email: updatedUser.email,
+        phone: updatedUser.phone,
         pseudonym: updatedUser.pseudonym,
         role: updatedUser.role,
         emailVerified: true
@@ -448,10 +546,23 @@ router.post('/reset-password', async (req, res) => {
   try {
     const { email, otp, newPassword } = req.body;
     if (!email || !otp || !newPassword || newPassword.length < 6) {
-      return res.status(400).json({ error: 'Valid email, OTP, and new password (min 6 chars) required.' });
+      return res.status(400).json({ error: 'Valid email/phone, OTP, and new password (min 6 chars) required.' });
     }
 
-    const user = await prisma.user.findUnique({ where: { email } });
+    const rawInput = email.trim();
+    const normalizedInput = rawInput.toLowerCase();
+    const digitsOnly = rawInput.replace(/[^\d+]/g, '');
+
+    const user = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { email: normalizedInput },
+          { username: normalizedInput },
+          { pseudonym: normalizedInput },
+          ...(digitsOnly ? [{ phone: digitsOnly }, { phone: rawInput }] : [{ phone: rawInput }])
+        ]
+      }
+    });
     if (!user) return res.status(400).json({ error: 'Invalid request' });
 
     const record = await prisma.otpRecord.findFirst({
@@ -463,7 +574,7 @@ router.post('/reset-password', async (req, res) => {
     if (record.attempts >= 5) return res.status(400).json({ error: 'Too many failed attempts. Please request a new code.' });
     if (new Date() > record.expiresAt) return res.status(400).json({ error: 'Code expired. Please request a new one.' });
 
-    const codeHash = crypto.createHmac('sha256', process.env.JWT_SECRET).update(otp).digest('hex');
+    const codeHash = crypto.createHmac('sha256', process.env.JWT_SECRET).update(otp.trim()).digest('hex');
     
     if (record.codeHash !== codeHash) {
       await prisma.otpRecord.update({ where: { id: record.id }, data: { attempts: record.attempts + 1 } });
@@ -485,6 +596,11 @@ router.post('/reset-password', async (req, res) => {
 
 const onboardingSchema = z.object({
   name: z.string().max(50).optional(),
+  displayName: z.string().max(50).optional(),
+  realFirstName: z.string().max(50).optional().nullable(),
+  legalFullName: z.string().max(100).optional().nullable(),
+  handle: z.string().max(30).optional().nullable(),
+  nameDisplayPreference: z.enum(['DISPLAY_NAME_ONLY', 'FIRST_NAME_PUBLIC']).optional(),
   location: z.string().max(100).optional(),
   profession: z.string().max(100).optional(),
   interests: z.array(z.string()).max(10).optional(),
@@ -496,13 +612,35 @@ const onboardingSchema = z.object({
 // Complete Onboarding
 router.put('/onboarding', authenticateToken, requireVerified, async (req, res) => {
   try {
-    const { name, location, profession, interests, feelings, supportTypes, isAnonymous } = onboardingSchema.parse(req.body);
+    const { 
+      name, displayName, realFirstName, legalFullName, handle, nameDisplayPreference,
+      location, profession, interests, feelings, supportTypes, isAnonymous 
+    } = onboardingSchema.parse(req.body);
     const userId = req.user.id; 
+
+    const finalAlias = (displayName && displayName.trim().length > 0) 
+      ? displayName.trim() 
+      : ((name && name.trim().length > 0) ? name.trim() : 'Peer');
+
+    // Filter profanity / triggers
+    const aliasValidation = validateDisplayName(finalAlias);
+    if (!aliasValidation.isValid) {
+      return res.status(400).json({ error: aliasValidation.error });
+    }
+
+    const cleanHandle = handle ? sanitizeHandle(handle) : undefined;
+    const cleanRealFirstName = realFirstName ? realFirstName.trim() : undefined;
+    const cleanLegalFullName = legalFullName ? legalFullName.trim() : undefined;
 
     const updatedUser = await prisma.user.update({
       where: { id: userId },
       data: {
-        pseudonym: name,
+        pseudonym: finalAlias,
+        displayName: finalAlias,
+        realFirstName: cleanRealFirstName,
+        legalFullName: cleanLegalFullName,
+        handle: cleanHandle,
+        nameDisplayPreference: nameDisplayPreference || 'DISPLAY_NAME_ONLY',
         location: location,
         profession: profession || undefined,
         interests: interests || [],

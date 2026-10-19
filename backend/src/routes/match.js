@@ -10,7 +10,7 @@ const swipeSchema = z.object({
   action: z.enum(['connect', 'pass']),
 });
 
-router.get('/discover', authenticateToken, requireVerified, async (req, res, next) => {
+router.get(['/discover', '/feed'], authenticateToken, requireVerified, async (req, res, next) => {
   try {
     const userId = req.user.id;
     const cursor = req.query.cursor;
@@ -51,8 +51,9 @@ router.get('/discover', authenticateToken, requireVerified, async (req, res, nex
         isBanned: false
       },
       select: {
-        id: true, isAnonymous: true, pseudonym: true, bio: true, images: true, 
-        location: true, interests: true, supportTypes: true, xp: true, level: true, updatedAt: true
+        id: true, isAnonymous: true, pseudonym: true, displayName: true, realFirstName: true,
+        handle: true, username: true, nameDisplayPreference: true, bio: true, images: true, 
+        location: true, interests: true, feelings: true, supportTypes: true, xp: true, level: true, updatedAt: true
       }
     });
     
@@ -60,7 +61,6 @@ router.get('/discover', authenticateToken, requireVerified, async (req, res, nex
     let scoredMatches = [];
 
     for (const u of matches) {
-
       const sharedInterests = u.interests.filter(i => currentUser.interests.includes(i));
       const sharedSupport = u.supportTypes.filter(s => currentUser.supportTypes.includes(s));
       
@@ -90,17 +90,39 @@ router.get('/discover', authenticateToken, requireVerified, async (req, res, nex
     const nextCursor = paginated.length === 20 ? paginated[19].id : null;
 
     const formattedMatches = paginated.map(u => {
-      const { score, sharedInterests, updatedAt, ...rest } = u;
+      const { score, sharedInterests, updatedAt, realFirstName, nameDisplayPreference, ...rest } = u;
       
-      // Return only shared interests
-      rest.interests = sharedInterests;
-      
+      const safeAlias = rest.displayName || rest.pseudonym || 'Peer';
+      let cardName = (nameDisplayPreference === 'FIRST_NAME_PUBLIC' && realFirstName && realFirstName.trim().length > 0)
+        ? realFirstName.trim()
+        : safeAlias;
+
       if (rest.isAnonymous) {
-        rest.pseudonym = "Anonymous";
+        cardName = "Anonymous";
         rest.images = [];
         rest.location = null;
       }
-      return rest;
+
+      return {
+        id: rest.id,
+        name: cardName,
+        cardName: cardName,
+        card_name: cardName,
+        displayName: safeAlias,
+        display_name: safeAlias,
+        pseudonym: safeAlias,
+        handle: rest.handle || rest.username || null,
+        bio: rest.bio,
+        images: rest.images,
+        location: rest.location,
+        interests: sharedInterests,
+        feelings: rest.feelings || [],
+        supportTypes: rest.supportTypes || [],
+        isAnonymous: rest.isAnonymous,
+        xp: rest.xp,
+        level: rest.level
+        // Strictly zero data leak: realFirstName, legalFullName, email, phone are not serialized!
+      };
     });
 
     res.json({ matches: formattedMatches, nextCursor });

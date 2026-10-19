@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/routing/app_routes.dart';
@@ -19,7 +20,8 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
   int _currentStep = 1;
 
   // Form Controllers
-  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _nameController = TextEditingController(); // App Display Name / Alias
+  final TextEditingController _firstNameController = TextEditingController(); // Optional Real First Name
   final TextEditingController _locationController = TextEditingController();
   final TextEditingController _stateMenuController = TextEditingController();
   final TextEditingController _cityMenuController = TextEditingController();
@@ -27,6 +29,11 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
   String? _locationError;
   String? _professionError;
   String? _nameError;
+
+  static final RegExp _blockedWords = RegExp(
+    r'\b(suicide|kill\s*myself|self\s*harm|slit|die|cutter|worthless|hang\s*myself|murder|fuck|shit|bitch|asshole|bastard|dick|slut|whore|nigger|faggot)\b',
+    caseSensitive: false,
+  );
 
   // Using IndianLocations.stateCityMap
   String? _selectedState;
@@ -68,6 +75,7 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
   void initState() {
     super.initState();
     _nameController.addListener(_saveDraft);
+    _firstNameController.addListener(_saveDraft);
     _loadDraft();
   }
 
@@ -75,6 +83,7 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final savedName = prefs.getString('onboarding_draft_name');
+      final savedFirstName = prefs.getString('onboarding_draft_first_name');
       final savedState = prefs.getString('onboarding_draft_state');
       final savedCity = prefs.getString('onboarding_draft_city');
       final savedProfession = prefs.getString('onboarding_draft_profession');
@@ -90,6 +99,10 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
             _nameController.text = savedName;
           } else if (appState.onboardingName.isNotEmpty) {
             _nameController.text = appState.onboardingName;
+          }
+
+          if (savedFirstName != null && savedFirstName.isNotEmpty) {
+            _firstNameController.text = savedFirstName;
           }
 
           if (savedState != null && savedState.isNotEmpty) {
@@ -135,6 +148,7 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('onboarding_draft_name', _nameController.text.trim());
+      await prefs.setString('onboarding_draft_first_name', _firstNameController.text.trim());
       if (_selectedState != null) {
         await prefs.setString('onboarding_draft_state', _selectedState!);
       } else {
@@ -161,6 +175,7 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('onboarding_draft_name');
+      await prefs.remove('onboarding_draft_first_name');
       await prefs.remove('onboarding_draft_state');
       await prefs.remove('onboarding_draft_city');
       await prefs.remove('onboarding_draft_profession');
@@ -174,7 +189,9 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
   @override
   void dispose() {
     _nameController.removeListener(_saveDraft);
+    _firstNameController.removeListener(_saveDraft);
     _nameController.dispose();
+    _firstNameController.dispose();
     _locationController.dispose();
     _stateMenuController.dispose();
     _cityMenuController.dispose();
@@ -281,12 +298,26 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
     final appState = Provider.of<AppState>(context, listen: false);
 
     if (_currentStep == 1) {
-      if (_nameController.text.trim().isEmpty) {
+      final displayName = _nameController.text.trim();
+      if (displayName.isEmpty) {
         setState(() {
-          _nameError = 'Please enter your name.';
+          _nameError = 'Please choose an App Display Name / Alias.';
         });
         return;
       }
+      if (displayName.length < 2) {
+        setState(() {
+          _nameError = 'Display name must be at least 2 characters.';
+        });
+        return;
+      }
+      if (_blockedWords.hasMatch(displayName)) {
+        setState(() {
+          _nameError = 'Please choose a gentle, safe display name without triggering or offensive words.';
+        });
+        return;
+      }
+
       if (_selectedState == null || _selectedCity == null) {
         setState(() {
           if (_selectedState == null && _selectedCity == null) {
@@ -326,8 +357,14 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
       _saveDraft();
     } else {
       final auth = context.read<AuthNotifier>();
+      final displayName = _nameController.text.trim();
+      final realFirstName = _firstNameController.text.trim().isNotEmpty ? _firstNameController.text.trim() : null;
+
       await auth.completeOnboarding(
-        name: _nameController.text.trim(),
+        name: displayName,
+        displayName: displayName,
+        realFirstName: realFirstName,
+        nameDisplayPreference: 'DISPLAY_NAME_ONLY',
         location: _locationController.text.trim(),
         profession: _selectedProfession,
         interests: _selectedInterests.toList(),
@@ -347,7 +384,10 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
 
       // Also update local state so UI is reactive
       appState.completeOnboarding(
-        name: _nameController.text.trim(),
+        name: displayName,
+        displayName: displayName,
+        realFirstName: realFirstName,
+        nameDisplayPreference: 'DISPLAY_NAME_ONLY',
         location: _locationController.text.trim(),
         profession: _selectedProfession,
         interests: _selectedInterests.toList(),
@@ -480,16 +520,62 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
           ),
         ),
         const SizedBox(height: 16),
-        TextField(
-          controller: _nameController,
-          onChanged: (_) {
-            if (_nameError != null) setState(() => _nameError = null);
-          },
-          decoration: InputDecoration(
-            prefixIcon: const Icon(Icons.person_outline_rounded, color: AppColors.primary),
-            labelText: 'Full Name (Or Pseudonym)',
-            errorText: _nameError,
-          ),
+        // App Display Name / Alias
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            TextField(
+              controller: _nameController,
+              onChanged: (_) {
+                if (_nameError != null) setState(() => _nameError = null);
+              },
+              decoration: InputDecoration(
+                prefixIcon: const Icon(Icons.badge_outlined, color: AppColors.primary),
+                labelText: 'App Display Name / Alias *',
+                hintText: 'e.g. QuietRiver, MindfulSam',
+                errorText: _nameError,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Text(
+                'This is the name potential matches see on your card. Pick an alias or preferred nickname that keeps you comfortable.',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 12,
+                  color: AppColors.textSecondary,
+                  height: 1.3,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+        // Optional Real First Name
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            TextField(
+              controller: _firstNameController,
+              decoration: const InputDecoration(
+                prefixIcon: Icon(Icons.lock_outline_rounded, color: AppColors.primary),
+                labelText: 'Real First Name (Optional)',
+                hintText: 'e.g. Sam, Priya, Alex',
+              ),
+            ),
+            const SizedBox(height: 6),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Text(
+                'Only shared in chat when you both mutually agree.',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 12,
+                  color: AppColors.textSecondary,
+                  height: 1.3,
+                ),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 14),
         DropdownMenu<String>(

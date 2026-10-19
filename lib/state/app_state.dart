@@ -172,9 +172,9 @@ class AppState extends ChangeNotifier {
   String? get todayMood => _todayMood;
 
   // Day streak & Weekly progress
-  int _dayStreak = 4;
+  int _dayStreak = 0;
   int get dayStreak => _dayStreak;
-  int _weeklyProgress = 4;
+  int _weeklyProgress = 0;
   int get weeklyProgress => _weeklyProgress;
 
   List<bool> get weekDaysCheckIn {
@@ -196,9 +196,9 @@ class AppState extends ChangeNotifier {
   int get unreadMessages => _unreadMessages;
 
   // Gamification XP & Level
-  int _currentXp = 2350;
-  int _targetXp = 3000;
-  int _userLevel = 12;
+  int _currentXp = 0;
+  int _targetXp = 250;
+  int _userLevel = 1;
   int get currentXp => _currentXp;
   int get targetXp => _targetXp;
   int get userLevel => _userLevel;
@@ -303,20 +303,7 @@ class AppState extends ChangeNotifier {
   List<WellnessGoal> get goals => _goals;
 
   // Trusted Emergency Contacts
-  final List<EmergencyContact> _emergencyContacts = [
-    EmergencyContact(
-      id: 'ec1',
-      name: 'Neha Verma (Peer Supporter)',
-      phone: '+91 98200 12345',
-      relationship: 'Certified Peer Supporter',
-    ),
-    EmergencyContact(
-      id: 'ec2',
-      name: 'Priya (Sister)',
-      phone: '+91 98111 54321',
-      relationship: 'Family Member',
-    ),
-  ];
+  final List<EmergencyContact> _emergencyContacts = [];
   List<EmergencyContact> get emergencyContacts => _emergencyContacts;
   // Notifications
   final List<UserNotification> _notifications = [];
@@ -395,38 +382,6 @@ class AppState extends ChangeNotifier {
         ),
       ];
     }
-
-    if (_journalEntries.isEmpty) {
-      _journalEntries.addAll([
-        JournalEntry(
-          id: 'journal_01',
-          date: DateTime(2026, 10, 13, 9, 44),
-          mood: 'Peaceful',
-          thought: 'Learning to slow down and give myself permission to just be. Morning stillness has brought so much clarity today.',
-          gratitude: 'A warm cup of coffee and gentle autumn breeze.',
-          category: 'Reflection',
-          isPrivate: true,
-        ),
-        JournalEntry(
-          id: 'journal_02',
-          date: DateTime(2026, 10, 11, 20, 15),
-          mood: 'Reflective',
-          thought: 'Navigated a stressful conversation with calm and boundaries. Proud of taking small steps every single day.',
-          gratitude: 'Supportive friends who hold space.',
-          category: 'Growth',
-          isPrivate: true,
-        ),
-        JournalEntry(
-          id: 'journal_03',
-          date: DateTime(2026, 10, 9, 14, 30),
-          mood: 'Hopeful',
-          thought: 'Starting this mental wellness journey. Looking forward to connecting with empathetic peers who understand.',
-          gratitude: 'Courage to prioritize my mental health.',
-          category: 'Mindfulness',
-          isPrivate: true,
-        ),
-      ]);
-    }
   }
 
   // --- MILESTONES SYSTEM ---
@@ -437,10 +392,19 @@ class AppState extends ChangeNotifier {
   Future<void> _loadPersistedMilestones() async {
     try {
       final prefs = await SharedPreferences.getInstance();
+      _persistedUnlockedMilestoneIds.clear();
+      final userId = _currentUser.id.isNotEmpty
+          ? _currentUser.id
+          : (await StorageHelper.read(key: 'user_id'));
+      if (userId == null || userId.isEmpty) {
+        notifyListeners();
+        return;
+      }
+      final prefix = 'milestone_${userId}_unlocked_';
       final keys = prefs.getKeys();
       for (var k in keys) {
-        if (k.startsWith('milestone_unlocked_') && prefs.getBool(k) == true) {
-          _persistedUnlockedMilestoneIds.add(k.replaceFirst('milestone_unlocked_', ''));
+        if (k.startsWith(prefix) && prefs.getBool(k) == true) {
+          _persistedUnlockedMilestoneIds.add(k.replaceFirst(prefix, ''));
         }
       }
       notifyListeners();
@@ -466,7 +430,7 @@ class AppState extends ChangeNotifier {
         category: 'Journal',
         currentProgress: journalCount.clamp(0, 1),
         targetProgress: 1,
-        isUnlocked: journalCount >= 1 || _persistedUnlockedMilestoneIds.contains('first_journal'),
+        isUnlocked: journalCount >= 1,
       ),
       Milestone(
         id: 'dedicated_journal',
@@ -476,7 +440,7 @@ class AppState extends ChangeNotifier {
         category: 'Journal',
         currentProgress: journalCount.clamp(0, 3),
         targetProgress: 3,
-        isUnlocked: journalCount >= 3 || _persistedUnlockedMilestoneIds.contains('dedicated_journal'),
+        isUnlocked: journalCount >= 3,
       ),
       Milestone(
         id: 'journal_7',
@@ -486,7 +450,7 @@ class AppState extends ChangeNotifier {
         category: 'Journal',
         currentProgress: journalCount.clamp(0, 7),
         targetProgress: 7,
-        isUnlocked: journalCount >= 7 || _persistedUnlockedMilestoneIds.contains('journal_7'),
+        isUnlocked: journalCount >= 7,
       ),
       Milestone(
         id: 'streak_3',
@@ -496,7 +460,7 @@ class AppState extends ChangeNotifier {
         category: 'Streak',
         currentProgress: streak.clamp(0, 3),
         targetProgress: 3,
-        isUnlocked: streak >= 3 || _persistedUnlockedMilestoneIds.contains('streak_3'),
+        isUnlocked: streak >= 3,
       ),
       Milestone(
         id: 'streak_7',
@@ -506,7 +470,7 @@ class AppState extends ChangeNotifier {
         category: 'Streak',
         currentProgress: streak.clamp(0, 7),
         targetProgress: 7,
-        isUnlocked: streak >= 7 || _persistedUnlockedMilestoneIds.contains('streak_7'),
+        isUnlocked: streak >= 7,
       ),
       Milestone(
         id: 'first_goal',
@@ -516,7 +480,7 @@ class AppState extends ChangeNotifier {
         category: 'Goals',
         currentProgress: completedGoals.clamp(0, 1),
         targetProgress: 1,
-        isUnlocked: completedGoals >= 1 || _persistedUnlockedMilestoneIds.contains('first_goal'),
+        isUnlocked: completedGoals >= 1,
       ),
       Milestone(
         id: 'all_goals',
@@ -524,9 +488,9 @@ class AppState extends ChangeNotifier {
         description: 'Checked off all active wellness goals for the week',
         emoji: '🏆',
         category: 'Goals',
-        currentProgress: completedGoals.clamp(0, totalGoals),
-        targetProgress: totalGoals,
-        isUnlocked: (completedGoals >= totalGoals && _goals.isNotEmpty) || _persistedUnlockedMilestoneIds.contains('all_goals'),
+        currentProgress: _goals.isEmpty ? 0 : completedGoals.clamp(0, totalGoals),
+        targetProgress: _goals.isEmpty ? 1 : totalGoals,
+        isUnlocked: _goals.isNotEmpty && completedGoals >= totalGoals,
       ),
       Milestone(
         id: 'safety_guardian',
@@ -536,7 +500,7 @@ class AppState extends ChangeNotifier {
         category: 'Safety',
         currentProgress: contactsCount.clamp(0, 1),
         targetProgress: 1,
-        isUnlocked: contactsCount >= 1 || _persistedUnlockedMilestoneIds.contains('safety_guardian'),
+        isUnlocked: contactsCount >= 1,
       ),
       Milestone(
         id: 'peer_connector',
@@ -546,7 +510,7 @@ class AppState extends ChangeNotifier {
         category: 'Connection',
         currentProgress: chatsCount.clamp(0, 1),
         targetProgress: 1,
-        isUnlocked: chatsCount >= 1 || _persistedUnlockedMilestoneIds.contains('peer_connector'),
+        isUnlocked: chatsCount >= 1,
       ),
     ];
   }
@@ -554,15 +518,20 @@ class AppState extends ChangeNotifier {
   Future<void> checkMilestones() async {
     final list = _computeMilestones();
     Milestone? newlyUnlocked;
+    final userId = _currentUser.id.isNotEmpty
+        ? _currentUser.id
+        : (await StorageHelper.read(key: 'user_id'));
 
     for (final m in list) {
       if (m.isUnlocked && !_persistedUnlockedMilestoneIds.contains(m.id)) {
         _persistedUnlockedMilestoneIds.add(m.id);
         newlyUnlocked = m;
-        try {
-          final prefs = await SharedPreferences.getInstance();
-          await prefs.setBool('milestone_unlocked_${m.id}', true);
-        } catch (_) {}
+        if (userId != null && userId.isNotEmpty) {
+          try {
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.setBool('milestone_${userId}_unlocked_${m.id}', true);
+          } catch (_) {}
+        }
       }
     }
 
@@ -570,6 +539,39 @@ class AppState extends ChangeNotifier {
       _latestUnlockedMilestone = newlyUnlocked;
       notifyListeners();
     }
+  }
+
+  /// Resets all in-memory user-specific state when signing out or switching accounts.
+  void resetUserSession() {
+    _journalEntries.clear();
+    _emergencyContacts.clear();
+    _goals.clear();
+    _notifications.clear();
+    _messages.clear();
+    _conversationIds.clear();
+    _persistedUnlockedMilestoneIds.clear();
+    _latestUnlockedMilestone = null;
+    _dayStreak = 0;
+    _weeklyProgress = 0;
+    _currentXp = 0;
+    _targetXp = 250;
+    _userLevel = 1;
+    _unreadNotifications = 0;
+    _unreadMessages = 0;
+    _todayMood = null;
+    _currentUser = UserProfile(
+      id: '',
+      name: 'Anonymous',
+      age: 24,
+      location: '',
+      bio: '',
+      avatarUrl: '',
+      isVerified: false,
+      isOnline: true,
+      moodStatus: 'Peaceful',
+      matchPercentage: 0,
+    );
+    notifyListeners();
   }
 
   // --- ACTIONS ---
@@ -638,10 +640,16 @@ class AppState extends ChangeNotifier {
           
         _currentUser = _currentUser.copyWith(
           id: data['id'],
-          name: data['pseudonym'] ?? 'Anonymous',
+          name: data['name'] ?? data['displayName'] ?? data['pseudonym'] ?? 'Anonymous',
+          displayName: data['displayName'] ?? data['pseudonym'],
+          realFirstName: data['realFirstName'],
+          legalFullName: data['legalFullName'],
+          handle: data['handle'],
+          nameDisplayPreference: data['nameDisplayPreference'] ?? 'DISPLAY_NAME_ONLY',
           isAnonymous: data['isAnonymous'] ?? false,
           avatarUrl: avatar,
           bio: data['bio'] ?? '',
+          profession: data['profession'],
           location: data['location'] ?? '',
           images: List<String>.from(data['images'] ?? []),
           interests: List<String>.from(data['interests'] ?? []),
@@ -651,6 +659,7 @@ class AppState extends ChangeNotifier {
         _currentXp = data['xp'] ?? 0;
         _targetXp = _calculateTargetXp(_userLevel);
         notifyListeners();
+        await _loadPersistedMilestones();
       } catch (e) {
         if (_currentUser.name == 'Loading...') {
           _currentUser = _currentUser.copyWith(name: 'Guest (Offline)');
@@ -682,27 +691,38 @@ class AppState extends ChangeNotifier {
              _messages[c['peerId']] = chatMessages;
              
              // Also ensure matchedUsers has the peer
-             if (!_matchedUsers.any((u) => u.id == c['peerId'])) {
-               String pAvatar = c['peerAvatar'] ?? '';
-               if (pAvatar.isNotEmpty && !pAvatar.startsWith('http') && !pAvatar.startsWith('assets/')) {
-                 pAvatar = AppConstants.apiBaseUrl.replaceAll('/api', '') + pAvatar;
-               }
-               if (pAvatar.isEmpty) pAvatar = 'assets/mockups/discover_swipe.jpeg';
+             final existingIdx = _matchedUsers.indexWhere((u) => u.id == c['peerId']);
+             String pAvatar = c['peerAvatar'] ?? '';
+             if (pAvatar.isNotEmpty && !pAvatar.startsWith('http') && !pAvatar.startsWith('assets/')) {
+               pAvatar = AppConstants.apiBaseUrl.replaceAll('/api', '') + pAvatar;
+             }
+             if (pAvatar.isEmpty) pAvatar = 'assets/mockups/discover_swipe.jpeg';
 
-               _matchedUsers.add(UserProfile(
-                 id: c['peerId'],
-                 name: c['peerName'],
-                 age: 24,
-                 location: '',
-                 bio: '',
-                 avatarUrl: pAvatar,
-                 isVerified: true,
-                 isOnline: true,
-                 moodStatus: '',
-                 matchPercentage: 90,
-                 interests: [],
-                 values: [],
-               ));
+             final peerProfile = UserProfile(
+               id: c['peerId'],
+               name: c['peerName'] ?? 'Anonymous',
+               displayName: c['peerDisplayName'],
+               realFirstName: c['peerRealFirstName'],
+               handle: c['peerHandle'],
+               isMutuallyRevealed: c['isMutuallyRevealed'] ?? false,
+               myRevealed: c['myRevealed'] ?? false,
+               peerRevealed: c['peerRevealed'] ?? false,
+               age: 24,
+               location: '',
+               bio: '',
+               avatarUrl: pAvatar,
+               isVerified: true,
+               isOnline: true,
+               moodStatus: '',
+               matchPercentage: 90,
+               interests: [],
+               values: [],
+             );
+
+             if (existingIdx != -1) {
+               _matchedUsers[existingIdx] = peerProfile;
+             } else {
+               _matchedUsers.add(peerProfile);
              }
           } catch(e) {
           }
@@ -725,10 +745,15 @@ class AppState extends ChangeNotifier {
            }
            if (pAvatar.isEmpty) pAvatar = 'assets/mockups/discover_swipe.jpeg';
 
+           final cardName = peer['cardName'] ?? peer['card_name'] ?? peer['name'] ?? peer['displayName'] ?? peer['pseudonym'] ?? 'Anonymous';
+           final cardAlias = peer['displayName'] ?? peer['display_name'] ?? peer['pseudonym'];
+
            _cards.add(MatchCard(
               profile: UserProfile(
                 id: peer['id'],
-                name: peer['pseudonym'] ?? 'Anonymous',
+                name: cardName,
+                displayName: cardAlias,
+                handle: peer['handle'],
                 age: 24, // Not tracked on backend
                 location: peer['location'] ?? 'Remote',
                 bio: peer['bio'] ?? '',
@@ -739,6 +764,8 @@ class AppState extends ChangeNotifier {
                 moodStatus: '',
                 matchPercentage: peer['score'] != null ? (peer['score'] * 10).clamp(50, 99).toInt() : 90,
                 interests: peer['interests'] != null ? List<String>.from(peer['interests']) : [],
+                supportTypes: peer['supportTypes'] != null ? List<String>.from(peer['supportTypes']) : [],
+                feelings: peer['feelings'] != null ? List<String>.from(peer['feelings']) : [],
                 values: peer['supportTypes'] != null ? List<String>.from(peer['supportTypes']) : [],
               ),
               isNewHere: true,
@@ -960,6 +987,67 @@ class AppState extends ChangeNotifier {
         notifyListeners();
       }
     });
+
+    _socket?.on('identity_revealed', (data) {
+      final convId = data['conversationId'];
+      final userAFirstName = data['userAFirstName'] as String?;
+      final userBFirstName = data['userBFirstName'] as String?;
+      final userAId = data['userAId'] as String?;
+      final userBId = data['userBId'] as String?;
+
+      for (int i = 0; i < _matchedUsers.length; i++) {
+        final u = _matchedUsers[i];
+        final matchConvId = _conversationIds[u.id];
+        if (matchConvId == convId || u.id == userAId || u.id == userBId) {
+          String? peerName;
+          if (u.id == userAId) {
+            peerName = userAFirstName;
+          } else if (u.id == userBId) {
+            peerName = userBFirstName;
+          } else {
+            peerName = (_currentUser.id == userAId) ? userBFirstName : userAFirstName;
+          }
+
+          _matchedUsers[i] = u.copyWith(
+            isMutuallyRevealed: true,
+            myRevealed: true,
+            peerRevealed: true,
+            realFirstName: peerName ?? u.realFirstName,
+          );
+        }
+      }
+      notifyListeners();
+    });
+
+    _socket?.on('name_reveal_requested', (data) {
+      final convId = data['conversationId'];
+      final requesterId = data['requesterId'];
+
+      for (int i = 0; i < _matchedUsers.length; i++) {
+        final u = _matchedUsers[i];
+        if (_conversationIds[u.id] == convId || u.id == requesterId) {
+          if (requesterId == _currentUser.id) {
+            _matchedUsers[i] = u.copyWith(myRevealed: true);
+          } else {
+            _matchedUsers[i] = u.copyWith(peerRevealed: true);
+          }
+        }
+      }
+      notifyListeners();
+    });
+
+    _socket?.on('name_reveal_declined', (data) {
+      final convId = data['conversationId'];
+      final declinerId = data['declinerId'];
+
+      for (int i = 0; i < _matchedUsers.length; i++) {
+        final u = _matchedUsers[i];
+        if (_conversationIds[u.id] == convId || u.id == declinerId) {
+          _matchedUsers[i] = u.copyWith(peerRevealed: false);
+        }
+      }
+      notifyListeners();
+    });
   }
 
   void joinConversation(String conversationId) {
@@ -1046,6 +1134,109 @@ class AppState extends ChangeNotifier {
       });
     } catch (e) {
     }
+  }
+
+  // --- PROGRESSIVE IDENTITY DISCLOSURE ---
+  Future<void> fetchConversationDisclosure(String peerId) async {
+    final convId = _conversationIds[peerId];
+    if (convId == null) return;
+    try {
+      final res = await apiClient.get('/conversations/$convId/disclosure');
+      if (res.statusCode == 200) {
+        final data = res.data;
+        final isMutuallyRevealed = data['isMutuallyRevealed'] == true;
+        final myRevealed = data['myRevealed'] == true;
+        final peerRevealed = data['peerRevealed'] == true;
+        final peerRealFirstName = data['peerRealFirstName'] as String?;
+
+        for (int i = 0; i < _matchedUsers.length; i++) {
+          if (_matchedUsers[i].id == peerId) {
+            _matchedUsers[i] = _matchedUsers[i].copyWith(
+              isMutuallyRevealed: isMutuallyRevealed,
+              myRevealed: myRevealed,
+              peerRevealed: peerRevealed,
+              realFirstName: peerRealFirstName ?? _matchedUsers[i].realFirstName,
+            );
+            break;
+          }
+        }
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('Error fetching disclosure: $e');
+    }
+  }
+
+  Future<bool> revealName(String peerId, String conversationId, {String? realFirstName}) async {
+    try {
+      final res = await apiClient.post(
+        '/conversations/$conversationId/reveal-name',
+        data: {
+          if (realFirstName != null && realFirstName.trim().isNotEmpty)
+            'realFirstName': realFirstName.trim(),
+        },
+      );
+      if (res.statusCode == 200) {
+        final data = res.data;
+        final isMutuallyRevealed = data['isMutuallyRevealed'] == true;
+        final myRevealed = data['myRevealed'] == true;
+        final peerRevealed = data['peerRevealed'] == true;
+        final peerRealFirstName = data['peerRealFirstName'] as String?;
+
+        if (realFirstName != null && realFirstName.trim().isNotEmpty) {
+          _currentUser = _currentUser.copyWith(realFirstName: realFirstName.trim());
+        }
+
+        for (int i = 0; i < _matchedUsers.length; i++) {
+          if (_matchedUsers[i].id == peerId) {
+            _matchedUsers[i] = _matchedUsers[i].copyWith(
+              isMutuallyRevealed: isMutuallyRevealed,
+              myRevealed: myRevealed,
+              peerRevealed: peerRevealed,
+              realFirstName: peerRealFirstName ?? _matchedUsers[i].realFirstName,
+            );
+            break;
+          }
+        }
+        notifyListeners();
+        return true;
+      }
+    } catch (e) {
+      debugPrint('Error revealing name: $e');
+    }
+    return false;
+  }
+
+  Future<void> declineReveal(String peerId, String conversationId) async {
+    try {
+      await apiClient.post('/conversations/$conversationId/decline-reveal');
+      for (int i = 0; i < _matchedUsers.length; i++) {
+        if (_matchedUsers[i].id == peerId) {
+          _matchedUsers[i] = _matchedUsers[i].copyWith(peerRevealed: false);
+          break;
+        }
+      }
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error declining reveal: $e');
+    }
+  }
+
+  Future<bool> updateNameDisplayPreference(String preference) async {
+    try {
+      final res = await apiClient.put(
+        '/users/me',
+        data: {'nameDisplayPreference': preference},
+      );
+      if (res.statusCode == 200) {
+        _currentUser = _currentUser.copyWith(nameDisplayPreference: preference);
+        notifyListeners();
+        return true;
+      }
+    } catch (e) {
+      debugPrint('Error updating name display preference: $e');
+    }
+    return false;
   }
 
   static String mapScoreToMood(dynamic score) {
@@ -1503,6 +1694,10 @@ class AppState extends ChangeNotifier {
 
   void completeOnboarding({
     String? name,
+    String? displayName,
+    String? realFirstName,
+    String? handle,
+    String? nameDisplayPreference,
     String? location,
     String? profession,
     int? age,
@@ -1512,7 +1707,11 @@ class AppState extends ChangeNotifier {
     bool? isAnonymous,
     String? bio,
   }) {
-    if (name != null && name.trim().isNotEmpty) onboardingName = name.trim();
+    final effectiveDisplayName = (displayName != null && displayName.trim().isNotEmpty)
+        ? displayName.trim()
+        : (name != null && name.trim().isNotEmpty ? name.trim() : null);
+
+    if (effectiveDisplayName != null) onboardingName = effectiveDisplayName;
     if (location != null && location.trim().isNotEmpty) onboardingLocation = location.trim();
     if (profession != null && profession.trim().isNotEmpty) onboardingProfession = profession.trim();
     if (interests != null && interests.isNotEmpty) selectedInterests = interests;
@@ -1528,6 +1727,10 @@ class AppState extends ChangeNotifier {
 
     _currentUser = _currentUser.copyWith(
       name: isAnonymousMode ? 'Kind Peer' : (onboardingName.isNotEmpty ? onboardingName : 'User'),
+      displayName: effectiveDisplayName ?? _currentUser.displayName,
+      realFirstName: realFirstName != null && realFirstName.trim().isNotEmpty ? realFirstName.trim() : _currentUser.realFirstName,
+      handle: handle ?? _currentUser.handle,
+      nameDisplayPreference: nameDisplayPreference ?? _currentUser.nameDisplayPreference,
       age: age ?? _currentUser.age,
       location: onboardingLocation.isNotEmpty ? onboardingLocation : 'Mumbai, India',
       profession: onboardingProfession.isNotEmpty ? onboardingProfession : null,

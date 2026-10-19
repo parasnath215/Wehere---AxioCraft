@@ -314,8 +314,8 @@ class HomeScreen extends StatelessWidget {
   }
 
   Widget _buildStreakCard(BuildContext context, AppState appState) {
-    final streak = appState.dayStreak > 0 ? appState.dayStreak : 4;
-    final progress = appState.weeklyProgress > 0 ? appState.weeklyProgress : 4;
+    final streak = appState.dayStreak;
+    final progress = appState.weeklyProgress;
     const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
     return GestureDetector(

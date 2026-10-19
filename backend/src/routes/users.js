@@ -6,6 +6,7 @@ const { authenticateToken, requireVerified } = require('../middleware/auth');
 const multer = require('multer');
 const { z } = require('zod');
 const { processAndSaveImage, deleteImage } = require('../services/storage');
+const { validateDisplayName, sanitizeHandle } = require('../services/identityFilter');
 
 const MAX_PHOTOS = 6;
 const MIN_PHOTOS = 2;
@@ -17,6 +18,11 @@ const upload = multer({
 
 const updateProfileSchema = z.object({
   pseudonym: z.string().max(50).optional(),
+  displayName: z.string().max(50).optional(),
+  realFirstName: z.string().max(50).optional().nullable(),
+  legalFullName: z.string().max(100).optional().nullable(),
+  handle: z.string().max(30).optional().nullable(),
+  nameDisplayPreference: z.enum(['DISPLAY_NAME_ONLY', 'FIRST_NAME_PUBLIC']).optional(),
   bio: z.string().max(500).optional(),
   location: z.string().max(100).optional(),
   profession: z.string().max(100).optional(),
@@ -32,13 +38,19 @@ router.get('/me', authenticateToken, async (req, res, next) => {
     const user = await prisma.user.findUnique({
       where: { id: req.user.id },
       select: {
-        id: true, email: true, pseudonym: true, images: true, xp: true, isAnonymous: true,
-        bio: true, location: true, profession: true, interests: true, feelings: true, supportTypes: true, emailVerified: true
+        id: true, email: true, pseudonym: true, displayName: true, realFirstName: true,
+        legalFullName: true, handle: true, nameDisplayPreference: true, images: true, xp: true, isAnonymous: true,
+        bio: true, location: true, profession: true, interests: true, feelings: true, supportTypes: true, emailVerified: true,
+        scheduledDeletionDate: true
       }
     });
     if (!user) return res.status(401).json({ error: 'User not found (Session invalid)' });
     res.json({
       ...user,
+      displayName: user.displayName || user.pseudonym,
+      name: (user.nameDisplayPreference === 'FIRST_NAME_PUBLIC' && user.realFirstName) 
+        ? user.realFirstName 
+        : (user.displayName || user.pseudonym || 'User'),
       avatarUrl: user.images.length > 0 ? user.images[0] : null
     });
   } catch (error) {
@@ -51,17 +63,36 @@ router.put('/me', authenticateToken, requireVerified, async (req, res, next) => 
   try {
     const data = updateProfileSchema.parse(req.body);
 
+    if (data.displayName || data.pseudonym) {
+      const aliasToCheck = data.displayName || data.pseudonym;
+      const validation = validateDisplayName(aliasToCheck);
+      if (!validation.isValid) {
+        return res.status(400).json({ error: validation.error });
+      }
+      data.displayName = validation.cleaned;
+      data.pseudonym = validation.cleaned;
+    }
+
+    if (data.handle) {
+      data.handle = sanitizeHandle(data.handle);
+    }
+
     const updatedUser = await prisma.user.update({
       where: { id: req.user.id },
       data,
       select: {
-        id: true, pseudonym: true, images: true, bio: true, location: true, profession: true,
+        id: true, pseudonym: true, displayName: true, realFirstName: true, legalFullName: true,
+        handle: true, nameDisplayPreference: true, images: true, bio: true, location: true, profession: true,
         interests: true, feelings: true, supportTypes: true, isAnonymous: true
       }
     });
 
     res.json({
       ...updatedUser,
+      displayName: updatedUser.displayName || updatedUser.pseudonym,
+      name: (updatedUser.nameDisplayPreference === 'FIRST_NAME_PUBLIC' && updatedUser.realFirstName) 
+        ? updatedUser.realFirstName 
+        : (updatedUser.displayName || updatedUser.pseudonym || 'User'),
       avatarUrl: updatedUser.images.length > 0 ? updatedUser.images[0] : null
     });
   } catch (error) {
@@ -216,27 +247,32 @@ router.post('/:id/report', authenticateToken, requireVerified, async (req, res, 
   }
 });
 
-// DELETE /users/me
+// DELETE /users/me - Schedule account deletion with 30-day grace period
 router.delete('/me', authenticateToken, requireVerified, async (req, res, next) => {
   try {
     const userId = req.user.id;
-    
-    const user = await prisma.user.findUnique({ where: { id: userId } });
+    const now = new Date();
+    const scheduledDeletionDate = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
 
-    await prisma.user.delete({
-      where: { id: userId }
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        scheduledDeletionDate,
+        deletionRequestedAt: now,
+      },
+      select: {
+        id: true,
+        email: true,
+        scheduledDeletionDate: true,
+      }
     });
-    
-    // Cleanup images
-    if (user && user.images) {
-      user.images.forEach(deleteImage);
-    }
-    
-    res.json({ success: true, message: 'Account deleted successfully' });
+
+    res.json({
+      success: true,
+      message: 'Account scheduled for deletion in 30 days. To continue from where you left, just log in before the scheduled date.',
+      scheduledDeletionDate: user.scheduledDeletionDate,
+    });
   } catch (error) {
-    if (error.code === 'P2003') {
-      return res.status(400).json({ error: 'Cannot delete account due to existing relations. Please contact support.' });
-    }
     next(error);
   }
 });

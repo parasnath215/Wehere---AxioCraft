@@ -8,6 +8,11 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum NameDisplayPreference {
+  DISPLAY_NAME_ONLY
+  FIRST_NAME_PUBLIC
+}
+
 model User {
   id        String   @id @default(uuid())
   email     String?  @unique
@@ -17,6 +22,11 @@ model User {
   role      String   @default("USER") // USER or ADMIN
   isAnonymous Boolean @default(false)
   pseudonym String?
+  legalFullName String?
+  realFirstName String?
+  displayName   String?
+  handle        String?  @unique
+  nameDisplayPreference NameDisplayPreference @default(DISPLAY_NAME_ONLY)
   avatar    String?
   bio       String?
   images    String[] // Added for minimum 2 image upload
@@ -56,10 +66,14 @@ model User {
   emailVerifiedAt DateTime?
   tokenVersion   Int     @default(0)
 
+  scheduledDeletionDate DateTime?
+  deletionRequestedAt   DateTime?
+
   otpRecords     OtpRecord[]
 
   @@index([role])
   @@index([createdAt])
+  @@index([scheduledDeletionDate])
 }
 
 model OtpRecord {
@@ -98,6 +112,8 @@ model Match {
   id        String   @id @default(uuid())
   status    String   @default("pending") // pending, connected, rejected
   matchScore Int     @default(0)
+  userARevealed Boolean @default(false)
+  userBRevealed Boolean @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

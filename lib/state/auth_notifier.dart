@@ -166,7 +166,7 @@ class AuthNotifier extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<bool> register(String name, String email, String password, {String? customHandle, List<String>? imagePaths}) async {
+  Future<bool> register(String name, String email, String password, {String? customHandle, String? phone, List<String>? imagePaths}) async {
     _isLoading = true;
     _authError = null;
     notifyListeners();
@@ -176,6 +176,7 @@ class AuthNotifier extends ChangeNotifier {
         'email': email,
         'password': password,
         'pseudonym': customHandle ?? name,
+        if (phone != null && phone.isNotEmpty) 'phone': phone,
       });
 
       if (imagePaths != null && imagePaths.isNotEmpty) {
@@ -221,8 +222,8 @@ class AuthNotifier extends ChangeNotifier {
     }
   }
 
-  Future<bool> signup(String name, String email, String password, {String? customHandle, List<String>? imagePaths}) =>
-      register(name, email, password, customHandle: customHandle, imagePaths: imagePaths);
+  Future<bool> signup(String name, String email, String password, {String? customHandle, String? phone, List<String>? imagePaths}) =>
+      register(name, email, password, customHandle: customHandle, phone: phone, imagePaths: imagePaths);
 
   Future<bool> verifyOtp(String pin) async {
     _isLoading = true;
@@ -295,6 +296,10 @@ class AuthNotifier extends ChangeNotifier {
 
   Future<void> completeOnboarding({
     required String name,
+    String? displayName,
+    String? realFirstName,
+    String? handle,
+    String? nameDisplayPreference,
     required String location,
     String? profession,
     required List<String> interests,
@@ -308,6 +313,10 @@ class AuthNotifier extends ChangeNotifier {
     try {
       await apiClient.put('/auth/onboarding', data: {
         'name': name,
+        if (displayName != null && displayName.isNotEmpty) 'displayName': displayName,
+        if (realFirstName != null && realFirstName.isNotEmpty) 'realFirstName': realFirstName,
+        if (handle != null && handle.isNotEmpty) 'handle': handle,
+        if (nameDisplayPreference != null) 'nameDisplayPreference': nameDisplayPreference,
         'location': location,
         if (profession != null && profession.isNotEmpty) 'profession': profession,
         'interests': interests,

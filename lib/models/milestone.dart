@@ -6,7 +6,7 @@ class Milestone {
   final String category; // 'Journal' | 'Streak' | 'Safety' | 'Goals' | 'Connection'
   final int currentProgress;
   final int targetProgress;
-  final bool isUnlocked;
+  final bool _isUnlockedFlag;
   final DateTime? unlockedAt;
 
   const Milestone({
@@ -17,9 +17,12 @@ class Milestone {
     required this.category,
     required this.currentProgress,
     required this.targetProgress,
-    required this.isUnlocked,
+    required bool isUnlocked,
     this.unlockedAt,
-  });
+  }) : _isUnlockedFlag = isUnlocked;
+
+  /// A milestone is strictly unlocked ONLY when its conditions are completed (currentProgress >= targetProgress).
+  bool get isUnlocked => _isUnlockedFlag && (targetProgress == 0 || currentProgress >= targetProgress);
 
   double get percent =>
       targetProgress == 0 ? 1.0 : (currentProgress / targetProgress).clamp(0.0, 1.0);

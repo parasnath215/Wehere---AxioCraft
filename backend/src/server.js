@@ -13,6 +13,7 @@ const jwt = require('jsonwebtoken');
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: '*' } });
+app.set('io', io);
 const prisma = new PrismaClient();
 
 const { verifyMailConfig } = require('./services/email');
@@ -173,6 +174,55 @@ io.on('connection', (socket) => {
 
   socket.on('typing', (data) => {
     socket.to(data.conversationId).emit('user_typing', { senderId: data.senderId });
+  });
+
+  socket.on('request_reveal_identity', async (data) => {
+    try {
+      const { conversationId } = data;
+      const senderId = socket.user.id;
+      const conv = await prisma.conversation.findUnique({
+        where: { id: conversationId },
+        include: { match: { include: { userA: true, userB: true } } }
+      });
+      if (!conv) return;
+      const isUserA = conv.match.userAId === senderId;
+      const isUserB = conv.match.userBId === senderId;
+      if (!isUserA && !isUserB) return;
+
+      const myUser = isUserA ? conv.match.userA : conv.match.userB;
+      const peer = isUserA ? conv.match.userB : conv.match.userA;
+
+      const updateData = isUserA ? { userARevealed: true } : { userBRevealed: true };
+      const updatedMatch = await prisma.match.update({
+        where: { id: conv.match.id },
+        data: updateData
+      });
+
+      const isMutuallyRevealed = updatedMatch.userARevealed && updatedMatch.userBRevealed;
+      if (isMutuallyRevealed) {
+        const revealMsg = `Identity revealed! You are now chatting as ${conv.match.userA.realFirstName || conv.match.userA.displayName || 'Peer'} and ${conv.match.userB.realFirstName || conv.match.userB.displayName || 'Peer'}.`;
+        const sysMsg = await prisma.message.create({
+          data: { conversationId, senderId, content: `✨ ${revealMsg}` }
+        });
+        io.to(conversationId).emit('receive_message', sysMsg);
+        io.to(conversationId).emit('identity_revealed', {
+          conversationId,
+          isMutuallyRevealed: true,
+          userAFirstName: conv.match.userA.realFirstName,
+          userBFirstName: conv.match.userB.realFirstName,
+          userADisplayName: conv.match.userA.displayName || conv.match.userA.pseudonym,
+          userBDisplayName: conv.match.userB.displayName || conv.match.userB.pseudonym
+        });
+      } else {
+        io.to(conversationId).emit('name_reveal_requested', {
+          conversationId,
+          requesterId: senderId,
+          requesterDisplayName: myUser.displayName || myUser.pseudonym || 'Your match'
+        });
+      }
+    } catch (e) {
+      console.error('Socket identity reveal error:', e);
+    }
   });
 
   socket.on('disconnect', () => {

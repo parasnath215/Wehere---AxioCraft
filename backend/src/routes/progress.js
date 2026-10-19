@@ -3,6 +3,7 @@ const router = express.Router();
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const { authenticateToken, requireVerified } = require('../middleware/auth');
+const { evaluateStreak } = require('../services/streak');
 
 router.get('/', authenticateToken, requireVerified, async (req, res) => {
   try {
@@ -11,32 +12,21 @@ router.get('/', authenticateToken, requireVerified, async (req, res) => {
       where: { id: userId },
       select: { xp: true, level: true, currentStreak: true, lastLoginDate: true }
     });
-    
-    // Update streak logic
-    const today = new Date();
-    today.setHours(0,0,0,0);
-    const lastLogin = user.lastLoginDate ? new Date(user.lastLoginDate) : null;
-    if (lastLogin) lastLogin.setHours(0,0,0,0);
 
-    let streakUpdate = user.currentStreak;
-    if (!lastLogin) {
-      streakUpdate = 1;
-    } else {
-      const diffTime = Math.abs(today - lastLogin);
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
-      if (diffDays === 1) {
-        streakUpdate += 1;
-      } else if (diffDays > 1) {
-        streakUpdate = 1;
-      }
-    }
+    if (!user) return res.status(404).json({ error: 'User not found' });
 
-    if (!lastLogin || lastLogin.getTime() !== today.getTime()) {
+    // Update streak according to 24h + 12h window rule
+    const streakResult = evaluateStreak(user);
+    if (streakResult.shouldUpdate) {
       await prisma.user.update({
         where: { id: userId },
-        data: { currentStreak: streakUpdate, lastLoginDate: new Date() }
+        data: {
+          currentStreak: streakResult.currentStreak,
+          lastLoginDate: streakResult.lastLoginDate,
+        }
       });
-      user.currentStreak = streakUpdate;
+      user.currentStreak = streakResult.currentStreak;
+      user.lastLoginDate = streakResult.lastLoginDate;
     }
 
     // Calculate weekly progress (days active this week)
@@ -111,19 +101,23 @@ router.post('/mood', authenticateToken, requireVerified, async (req, res) => {
           userId: req.user.id
         }
       });
-      // Increment streak logic here (simplified)
-      const updatedUser = await prisma.user.update({
+      // Evaluate streak according to 24h + 12h rule
+      const user = await prisma.user.findUnique({
         where: { id: req.user.id },
-        data: { currentStreak: { increment: 1 } }
+        select: { currentStreak: true, lastLoginDate: true }
       });
-      await prisma.notification.create({
-        data: {
-          type: 'progress',
-          title: 'Daily Streak Maintained! 🔥',
-          body: `Great job! You are on a ${updatedUser.currentStreak}-day streak. Keep it up!`,
-          userId: req.user.id
+      if (user) {
+        const streakResult = evaluateStreak(user);
+        if (streakResult.shouldUpdate) {
+          await prisma.user.update({
+            where: { id: req.user.id },
+            data: {
+              currentStreak: streakResult.currentStreak,
+              lastLoginDate: streakResult.lastLoginDate,
+            }
+          });
         }
-      });
+      }
     }
 
     res.json(savedMood);

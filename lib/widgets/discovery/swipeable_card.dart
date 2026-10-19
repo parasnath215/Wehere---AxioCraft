@@ -237,7 +237,7 @@ class _SwipeableCardState extends State<SwipeableCard> {
                         Row(
                           children: [
                             Text(
-                              '${profile.name}, ${profile.age}',
+                              '${profile.cardName}, ${profile.age}',
                               style: GoogleFonts.newsreader(
                                 fontSize: 23,
                                 fontWeight: FontWeight.w600,
@@ -296,7 +296,33 @@ class _SwipeableCardState extends State<SwipeableCard> {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 10),
+                        if (profile.feelings.isNotEmpty || profile.interests.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 4,
+                            children: (profile.feelings.isNotEmpty ? profile.feelings : profile.interests)
+                                .take(3)
+                                .map((tag) => Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFF1F5F9),
+                                        borderRadius: BorderRadius.circular(10),
+                                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                                      ),
+                                      child: Text(
+                                        tag,
+                                        style: GoogleFonts.plusJakartaSans(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                          color: const Color(0xFF475569),
+                                        ),
+                                      ),
+                                    ))
+                                .toList(),
+                          ),
+                        ],
+                        const SizedBox(height: 8),
 
                         // Line 3: Bio
                         Text(

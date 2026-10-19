@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
+import '../../core/network/api_client.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/routing/app_routes.dart';
 import '../../state/app_state.dart';
@@ -17,8 +19,8 @@ class ProfileScreen extends StatelessWidget {
     final appState = context.watch<AppState>();
     final user = appState.currentUser;
 
-    final streakCount = appState.dayStreak > 0 ? appState.dayStreak : 4;
-    final entriesCount = appState.journalEntries.isNotEmpty ? appState.journalEntries.length : 3;
+    final streakCount = appState.dayStreak;
+    final entriesCount = appState.journalEntries.length;
     final peersCount = appState.matchedUsers.length;
 
     // Default chips matching mockup if empty
@@ -247,6 +249,14 @@ class ProfileScreen extends StatelessWidget {
                       iconColor: Colors.redAccent,
                       onTap: () => _showSignOutDialog(context),
                     ),
+                    const Divider(height: 1, color: AppColors.cardBorder),
+                    _buildSettingTile(
+                      icon: Icons.delete_outline_rounded,
+                      title: 'Delete account',
+                      titleColor: Colors.redAccent,
+                      iconColor: Colors.redAccent,
+                      onTap: () => _showDeleteAccountDialog(context),
+                    ),
                   ],
                 ),
               ),
@@ -367,30 +377,205 @@ class ProfileScreen extends StatelessWidget {
   }
 
   void _showPrivacyDialog(BuildContext context) {
-    showDialog(
+    showModalBottomSheet(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        title: Text('Privacy & Visibility', style: GoogleFonts.newsreader(fontWeight: FontWeight.w600)),
-        content: Text(
-          'Wehere is built with privacy-first architecture.\n\n'
-          '• Your peer messages are private and encrypted.\n'
-          '• Profile details are only visible to matched peers.\n'
-          '• You can report or block anyone at any moment.\n'
-          '• We never sell user data or run tracking ads.',
-          style: GoogleFonts.plusJakartaSans(fontSize: 13.5, height: 1.5),
-        ),
-        actions: [
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            ),
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Understood', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final appState = context.watch<AppState>();
+            final currentPref = appState.currentUser.nameDisplayPreference;
+
+            void handleSwitchToPublic() {
+              showDialog(
+                context: context,
+                builder: (dialogCtx) => AlertDialog(
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+                  title: const Row(
+                    children: [
+                      Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 24),
+                      SizedBox(width: 8),
+                      Text('Privacy Warning'),
+                    ],
+                  ),
+                  content: const Text(
+                    'Showing your first name increases the chance of acquaintances recognizing your profile while swiping.\n\nAre you sure you want to display your real first name on discovery cards?',
+                    style: TextStyle(fontSize: 14, height: 1.4),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(dialogCtx),
+                      child: const Text('Cancel'),
+                    ),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      ),
+                      onPressed: () async {
+                        Navigator.pop(dialogCtx);
+                        await appState.updateNameDisplayPreference('FIRST_NAME_PUBLIC');
+                        setModalState(() {});
+                      },
+                      child: const Text('Confirm & Switch', style: TextStyle(color: Colors.white)),
+                    ),
+                  ],
+                ),
+              );
+            }
+
+            return Container(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      const Icon(Icons.shield_outlined, color: AppColors.primary, size: 24),
+                      const SizedBox(width: 10),
+                      Text('Privacy & Visibility', style: GoogleFonts.newsreader(fontSize: 22, fontWeight: FontWeight.w600)),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Manage your progressive identity and discovery card display preference.',
+                    style: GoogleFonts.plusJakartaSans(fontSize: 13, color: AppColors.textSecondary),
+                  ),
+                  const SizedBox(height: 18),
+                  // Preference Option 1: Display Name Only
+                  InkWell(
+                    onTap: () async {
+                      if (currentPref != 'DISPLAY_NAME_ONLY') {
+                        await appState.updateNameDisplayPreference('DISPLAY_NAME_ONLY');
+                        setModalState(() {});
+                      }
+                    },
+                    borderRadius: BorderRadius.circular(16),
+                    child: Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: currentPref == 'DISPLAY_NAME_ONLY' ? AppColors.primarySoft : AppColors.surface,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: currentPref == 'DISPLAY_NAME_ONLY' ? AppColors.primary : AppColors.cardBorder,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Radio<String>(
+                            value: 'DISPLAY_NAME_ONLY',
+                            groupValue: currentPref,
+                            onChanged: (val) async {
+                              if (val != null) {
+                                await appState.updateNameDisplayPreference(val);
+                                setModalState(() {});
+                              }
+                            },
+                            activeColor: AppColors.primary,
+                          ),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Show Display Name (Recommended)',
+                                  style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700, fontSize: 14),
+                                ),
+                                const SizedBox(height: 3),
+                                Text(
+                                  'Matches see your alias (${appState.currentUser.displayAlias}) on discovery cards for mental health privacy.',
+                                  style: GoogleFonts.plusJakartaSans(fontSize: 12, color: AppColors.textSecondary, height: 1.3),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  // Preference Option 2: First Name Public
+                  InkWell(
+                    onTap: () {
+                      if (currentPref != 'FIRST_NAME_PUBLIC') {
+                        handleSwitchToPublic();
+                      }
+                    },
+                    borderRadius: BorderRadius.circular(16),
+                    child: Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: currentPref == 'FIRST_NAME_PUBLIC' ? AppColors.primarySoft : AppColors.surface,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: currentPref == 'FIRST_NAME_PUBLIC' ? AppColors.primary : AppColors.cardBorder,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Radio<String>(
+                            value: 'FIRST_NAME_PUBLIC',
+                            groupValue: currentPref,
+                            onChanged: (val) {
+                              if (val == 'FIRST_NAME_PUBLIC') {
+                                handleSwitchToPublic();
+                              }
+                            },
+                            activeColor: AppColors.primary,
+                          ),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Show First Name on Discovery Card',
+                                  style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700, fontSize: 14),
+                                ),
+                                const SizedBox(height: 3),
+                                Text(
+                                  'Displays your real first name (${appState.currentUser.realFirstName?.isNotEmpty == true ? appState.currentUser.realFirstName : "Not set"}) while swiping.',
+                                  style: GoogleFonts.plusJakartaSans(fontSize: 12, color: AppColors.textSecondary, height: 1.3),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      minimumSize: const Size.fromHeight(48),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    ),
+                    onPressed: () => Navigator.pop(ctx),
+                    child: const Text('Done', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -440,10 +625,98 @@ class ProfileScreen extends StatelessWidget {
             ),
             onPressed: () {
               Navigator.pop(ctx);
+              context.read<AppState>().resetUserSession();
               context.read<AuthNotifier>().logout();
               Navigator.pushNamedAndRemoveUntil(context, AppRoutes.login, (route) => false);
             },
             child: const Text('Sign Out', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDeleteAccountDialog(BuildContext context) {
+    final deletionDate = DateTime.now().add(const Duration(days: 30));
+    final formattedDate = DateFormat('MMMM d, yyyy').format(deletionDate);
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: Row(
+          children: [
+            const Icon(Icons.warning_amber_rounded, color: AppColors.sosRed, size: 24),
+            const SizedBox(width: 8),
+            Text('Delete Account', style: GoogleFonts.newsreader(fontWeight: FontWeight.w600, fontSize: 20)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Your account will be scheduled for permanent deletion. Your data will be deleted in 30 days ($formattedDate).',
+              style: GoogleFonts.plusJakartaSans(fontSize: 13.5, height: 1.4),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceSubtle,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.cardBorder),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.info_outline_rounded, size: 18, color: AppColors.primary),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'To continue from where you left, just log in before $formattedDate.',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
+                        height: 1.3,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.sosRed,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            ),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              try {
+                await apiClient.delete('/users/me');
+              } catch (_) {}
+              if (!context.mounted) return;
+              context.read<AppState>().resetUserSession();
+              await context.read<AuthNotifier>().logout();
+              if (!context.mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Account scheduled for deletion. Log in before $formattedDate to restore.'),
+                  duration: const Duration(seconds: 5),
+                ),
+              );
+              Navigator.pushNamedAndRemoveUntil(context, AppRoutes.login, (route) => false);
+            },
+            child: const Text('Delete Account', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           ),
         ],
       ),

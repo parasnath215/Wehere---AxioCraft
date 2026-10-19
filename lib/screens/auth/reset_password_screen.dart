@@ -34,9 +34,14 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
       UiUtils.showTopSnackBar(context, 'Please enter a valid 6-digit code and password.');
       return;
     }
-    final passRegExp = RegExp(r'^(?=.*[0-9])(?=.*[!@#\$&*~]).{8,}$');
-    if (!passRegExp.hasMatch(password)) {
-      UiUtils.showTopSnackBar(context, 'Password must be at least 8 chars long, include a number and a special character.');
+    final hasMinLength = password.length >= 8;
+    final hasCaps = RegExp(r'[A-Z]').hasMatch(password);
+    final hasSpecial = RegExp(r'[^a-zA-Z0-9]').hasMatch(password);
+    if (!hasMinLength || !hasCaps || !hasSpecial) {
+      UiUtils.showTopSnackBar(
+        context,
+        'Password must be at least 8 characters long, contain at least 1 uppercase letter and 1 special character.',
+      );
       return;
     }
 

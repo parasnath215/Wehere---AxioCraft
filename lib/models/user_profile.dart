@@ -20,9 +20,26 @@ class UserProfile {
   final int trustLevel;
   final bool hasVoiceIntro;
 
+  final String? displayName;
+  final String? realFirstName;
+  final String? legalFullName;
+  final String? handle;
+  final String nameDisplayPreference; // 'DISPLAY_NAME_ONLY' or 'FIRST_NAME_PUBLIC'
+  final bool isMutuallyRevealed;
+  final bool myRevealed;
+  final bool peerRevealed;
+
   UserProfile({
     required this.id,
     required this.name,
+    this.displayName,
+    this.realFirstName,
+    this.legalFullName,
+    this.handle,
+    this.nameDisplayPreference = 'DISPLAY_NAME_ONLY',
+    this.isMutuallyRevealed = false,
+    this.myRevealed = false,
+    this.peerRevealed = false,
     required this.age,
     required this.location,
     this.profession,
@@ -43,9 +60,23 @@ class UserProfile {
     this.hasVoiceIntro = true,
   });
 
+  String get cardName => (nameDisplayPreference == 'FIRST_NAME_PUBLIC' && realFirstName != null && realFirstName!.trim().isNotEmpty)
+      ? realFirstName!.trim()
+      : (displayName != null && displayName!.trim().isNotEmpty ? displayName!.trim() : name);
+
+  String get displayAlias => (displayName != null && displayName!.trim().isNotEmpty) ? displayName!.trim() : name;
+
   UserProfile copyWith({
     String? id,
     String? name,
+    String? displayName,
+    String? realFirstName,
+    String? legalFullName,
+    String? handle,
+    String? nameDisplayPreference,
+    bool? isMutuallyRevealed,
+    bool? myRevealed,
+    bool? peerRevealed,
     int? age,
     String? location,
     String? profession,
@@ -68,6 +99,14 @@ class UserProfile {
     return UserProfile(
       id: id ?? this.id,
       name: name ?? this.name,
+      displayName: displayName ?? this.displayName,
+      realFirstName: realFirstName ?? this.realFirstName,
+      legalFullName: legalFullName ?? this.legalFullName,
+      handle: handle ?? this.handle,
+      nameDisplayPreference: nameDisplayPreference ?? this.nameDisplayPreference,
+      isMutuallyRevealed: isMutuallyRevealed ?? this.isMutuallyRevealed,
+      myRevealed: myRevealed ?? this.myRevealed,
+      peerRevealed: peerRevealed ?? this.peerRevealed,
       age: age ?? this.age,
       location: location ?? this.location,
       profession: profession ?? this.profession,

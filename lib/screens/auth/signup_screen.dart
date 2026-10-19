@@ -24,6 +24,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final TextEditingController _handleController = TextEditingController();
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController = TextEditingController();
 
@@ -44,10 +45,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   void initState() {
     super.initState();
     _passwordController.addListener(_onPasswordChanged);
-    _handleController.addListener(_saveDraft);
-    _nameController.addListener(_saveDraft);
-    _emailController.addListener(_saveDraft);
-    _loadDraft();
+    _clearLegacyDrafts();
   }
 
   void _onPasswordChanged() {
@@ -58,46 +56,23 @@ class _SignUpScreenState extends State<SignUpScreen> {
     }
   }
 
-  Future<void> _loadDraft() async {
+  Future<void> _clearLegacyDrafts() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final draftHandle = prefs.getString('signup_draft_handle');
-      final draftName = prefs.getString('signup_draft_name');
-      final draftEmail = prefs.getString('signup_draft_email');
-      if (mounted) {
-        setState(() {
-          if (draftHandle != null && draftHandle.isNotEmpty && _handleController.text.isEmpty) {
-            _handleController.text = draftHandle;
-          }
-          if (draftName != null && draftName.isNotEmpty && _nameController.text.isEmpty) {
-            _nameController.text = draftName;
-          }
-          if (draftEmail != null && draftEmail.isNotEmpty && _emailController.text.isEmpty) {
-            _emailController.text = draftEmail;
-          }
-        });
-      }
-    } catch (_) {}
-  }
-
-  Future<void> _saveDraft() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('signup_draft_handle', _handleController.text.trim());
-      await prefs.setString('signup_draft_name', _nameController.text.trim());
-      await prefs.setString('signup_draft_email', _emailController.text.trim());
+      await prefs.remove('signup_draft_handle');
+      await prefs.remove('signup_draft_name');
+      await prefs.remove('signup_draft_email');
+      await prefs.remove('signup_draft_phone');
     } catch (_) {}
   }
 
   @override
   void dispose() {
     _passwordController.removeListener(_onPasswordChanged);
-    _handleController.removeListener(_saveDraft);
-    _nameController.removeListener(_saveDraft);
-    _emailController.removeListener(_saveDraft);
     _handleController.dispose();
     _nameController.dispose();
     _emailController.dispose();
+    _phoneController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
@@ -271,6 +246,17 @@ class _SignUpScreenState extends State<SignUpScreen> {
               ),
               const SizedBox(height: 14),
 
+              // Phone Number
+              TextField(
+                controller: _phoneController,
+                keyboardType: TextInputType.phone,
+                decoration: const InputDecoration(
+                  prefixIcon: Icon(Icons.phone_outlined, color: AppColors.primary),
+                  hintText: 'Phone Number (Optional)',
+                ),
+              ),
+              const SizedBox(height: 14),
+
               // Password
               TextField(
                 controller: _passwordController,
@@ -385,6 +371,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           }
                           final name = _nameController.text.trim();
                           final email = _emailController.text.trim();
+                          final phone = _phoneController.text.trim();
                           final pass = _passwordController.text.trim();
                           final confirmPass = _confirmPasswordController.text.trim();
                           final handle = _handleController.text.trim();
@@ -399,6 +386,16 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           if (!emailRegExp.hasMatch(email)) {
                             UiUtils.showTopSnackBar(context, 'Please enter a valid email address.');
                             return;
+                          }
+
+                          // Phone Validation (if entered)
+                          if (phone.isNotEmpty) {
+                            final cleanPhone = phone.replaceAll(RegExp(r'[\s-]'), '');
+                            final phoneRegExp = RegExp(r"^\+?[0-9]{7,15}$");
+                            if (!phoneRegExp.hasMatch(cleanPhone)) {
+                              UiUtils.showTopSnackBar(context, 'Please enter a valid phone number (7-15 digits).');
+                              return;
+                            }
                           }
 
                           // Password Criteria Validation: 8 chars, 1 caps, 1 special (minimum)
@@ -421,6 +418,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             email,
                             pass,
                             customHandle: handle,
+                            phone: phone.isNotEmpty ? phone : null,
                             imagePaths: _imagePaths,
                           );
 

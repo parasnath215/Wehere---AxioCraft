@@ -19,11 +19,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   late TextEditingController _bioController;
   late TextEditingController _locationController;
   late TextEditingController _pseudonymController;
-  
+  late TextEditingController _realFirstNameController;
+  late String _nameDisplayPreference;
 
   String? _selectedState;
   String? _selectedCity;
   String? _selectedProfession;
+  String? _professionError;
 
   static const List<String> professionOptions = [
     'Working Professional',
@@ -76,7 +78,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         _selectedState = user.location;
       }
     }
-    _pseudonymController = TextEditingController(text: user.name);
+    _pseudonymController = TextEditingController(text: user.displayName ?? user.name);
+    _realFirstNameController = TextEditingController(text: user.realFirstName ?? '');
+    _nameDisplayPreference = user.nameDisplayPreference;
     _selectedInterests = List.from(user.interests);
     _selectedFeelings = List.from(user.feelings);
     _selectedSupportTypes = List.from(user.supportTypes);
@@ -94,12 +98,60 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _bioController.dispose();
     _locationController.dispose();
     _pseudonymController.dispose();
+    _realFirstNameController.dispose();
     super.dispose();
+  }
+
+  void _promptSwitchToPublicFirstName() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 24),
+            SizedBox(width: 8),
+            Text('Privacy Warning'),
+          ],
+        ),
+        content: const Text(
+          'Showing your first name increases the chance of acquaintances recognizing your profile while swiping.\n\nAre you sure you want to display your real first name on discovery cards?',
+          style: TextStyle(fontSize: 14, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            ),
+            onPressed: () {
+              Navigator.pop(ctx);
+              setState(() {
+                _nameDisplayPreference = 'FIRST_NAME_PUBLIC';
+              });
+            },
+            child: const Text('Confirm & Switch', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _saveProfile() async {
     if (!_formKey.currentState!.validate()) return;
     
+    if (_selectedProfession == null || _selectedProfession!.trim().isEmpty) {
+      setState(() => _professionError = 'Please select your profession');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select your profession')),
+      );
+      return;
+    }
+
     final state = context.read<AppState>();
     if (state.currentUser.images.length < 2) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -111,7 +163,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     setState(() => _isSaving = true);
     try {
       final response = await apiClient.put('/users/me', data: {
-        'pseudonym': _pseudonymController.text,
+        'displayName': _pseudonymController.text.trim(),
+        'pseudonym': _pseudonymController.text.trim(),
+        'realFirstName': _realFirstNameController.text.trim().isNotEmpty ? _realFirstNameController.text.trim() : null,
+        'nameDisplayPreference': _nameDisplayPreference,
         'bio': _bioController.text,
         'location': _locationController.text,
         'profession': _selectedProfession,
@@ -121,10 +176,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       });
 
       if (response.statusCode == 200) {
-        // AppState will usually update if we integrate properly, but let's do it manually just in case
-        // The API returns the updated user, but without full details sometimes.
         final user = state.currentUser.copyWith(
-          name: _pseudonymController.text,
+          name: _pseudonymController.text.trim(),
+          displayName: _pseudonymController.text.trim(),
+          realFirstName: _realFirstNameController.text.trim().isNotEmpty ? _realFirstNameController.text.trim() : null,
+          nameDisplayPreference: _nameDisplayPreference,
           bio: _bioController.text,
           location: _locationController.text,
           profession: _selectedProfession,
@@ -137,9 +193,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         if (mounted) Navigator.pop(context);
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to save: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to save: $e')),
+        );
+      }
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
@@ -188,7 +246,164 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         children: [
           const PhotoGrid(),
           const SizedBox(height: 24),
-          _buildTextField('Pseudonym / Name', _pseudonymController, max: 50),
+          _buildTextField(
+            'App Display Name / Alias',
+            _pseudonymController,
+            max: 50,
+            helperText: 'Public pseudonym shown to other peers on cards and chats.',
+          ),
+          const SizedBox(height: 16),
+          _buildTextField(
+            'Real First Name (Private by default)',
+            _realFirstNameController,
+            max: 50,
+            validator: (v) => null,
+            helperText: 'Shared during chat only with mutual consent (unless public discovery is enabled).',
+          ),
+          const SizedBox(height: 16),
+          // Privacy & Identity Selector
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppColors.cardBorder),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Row(
+                  children: [
+                    Icon(Icons.shield_outlined, size: 20, color: AppColors.primary),
+                    SizedBox(width: 8),
+                    Text(
+                      'Privacy & Identity',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppColors.textPrimary),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'Control how your name is shown on peer discovery cards.',
+                  style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                ),
+                const SizedBox(height: 12),
+                // Option 1: DISPLAY_NAME_ONLY
+                InkWell(
+                  onTap: () {
+                    setState(() {
+                      _nameDisplayPreference = 'DISPLAY_NAME_ONLY';
+                    });
+                  },
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: _nameDisplayPreference == 'DISPLAY_NAME_ONLY'
+                          ? AppColors.primarySoft
+                          : AppColors.surface,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: _nameDisplayPreference == 'DISPLAY_NAME_ONLY'
+                            ? AppColors.primary
+                            : AppColors.cardBorder,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Radio<String>(
+                          value: 'DISPLAY_NAME_ONLY',
+                          groupValue: _nameDisplayPreference,
+                          onChanged: (val) {
+                            setState(() {
+                              _nameDisplayPreference = val!;
+                            });
+                          },
+                          activeColor: AppColors.primary,
+                        ),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Show Display Name (Recommended for mental health privacy)',
+                                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'Matches see your chosen pseudonym on discovery cards',
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  color: _nameDisplayPreference == 'DISPLAY_NAME_ONLY'
+                                      ? AppColors.primaryDark
+                                      : AppColors.textSecondary,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                // Option 2: FIRST_NAME_PUBLIC
+                InkWell(
+                  onTap: () {
+                    if (_nameDisplayPreference != 'FIRST_NAME_PUBLIC') {
+                      _promptSwitchToPublicFirstName();
+                    }
+                  },
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: _nameDisplayPreference == 'FIRST_NAME_PUBLIC'
+                          ? AppColors.primarySoft
+                          : AppColors.surface,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: _nameDisplayPreference == 'FIRST_NAME_PUBLIC'
+                            ? AppColors.primary
+                            : AppColors.cardBorder,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Radio<String>(
+                          value: 'FIRST_NAME_PUBLIC',
+                          groupValue: _nameDisplayPreference,
+                          onChanged: (val) {
+                            if (val == 'FIRST_NAME_PUBLIC') {
+                              _promptSwitchToPublicFirstName();
+                            }
+                          },
+                          activeColor: AppColors.primary,
+                        ),
+                        const Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Show First Name on Discovery Card',
+                                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                              ),
+                              SizedBox(height: 2),
+                              Text(
+                                'Displays real first name while swiping',
+                                style: TextStyle(fontSize: 11.5, color: AppColors.textSecondary),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
           const SizedBox(height: 16),
           const Text('Location', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.textSecondary)),
           const SizedBox(height: 8),
@@ -235,16 +450,27 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             enableSearch: true,
             expandedInsets: EdgeInsets.zero,
             leadingIcon: const Icon(Icons.work_outline_rounded, color: AppColors.primary),
-            label: const Text('Profession'),
+            label: const Text('Profession *'),
             onSelected: (val) {
               setState(() {
                 _selectedProfession = val;
+                _professionError = null;
               });
             },
             dropdownMenuEntries: professionOptions.map((String prof) {
               return DropdownMenuEntry<String>(value: prof, label: prof);
             }).toList(),
           ),
+          if (_professionError != null) ...[
+            const SizedBox(height: 6),
+            Padding(
+              padding: const EdgeInsets.only(left: 12),
+              child: Text(
+                _professionError!,
+                style: const TextStyle(color: Colors.redAccent, fontSize: 12),
+              ),
+            ),
+          ],
           const SizedBox(height: 16),
           _buildTextField(
             'Bio', 
@@ -270,11 +496,22 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     );
   }
 
-  Widget _buildTextField(String label, TextEditingController controller, {int maxLines = 1, required int max, String? Function(String?)? validator}) {
+  Widget _buildTextField(
+    String label, 
+    TextEditingController controller, {
+    int maxLines = 1, 
+    required int max, 
+    String? Function(String?)? validator,
+    String? helperText,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(label, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.textSecondary)),
+        if (helperText != null) ...[
+          const SizedBox(height: 3),
+          Text(helperText, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+        ],
         const SizedBox(height: 8),
         TextFormField(
           controller: controller,
