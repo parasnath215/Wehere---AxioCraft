@@ -70,7 +70,7 @@ class ProfileScreen extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    '${user.name}, ${user.age}',
+                    user.age > 0 ? '${user.name}, ${user.age}' : user.name,
                     style: GoogleFonts.newsreader(
                       fontSize: 24,
                       fontWeight: FontWeight.w600,
@@ -88,17 +88,18 @@ class ProfileScreen extends StatelessWidget {
                   ],
                 ],
               ),
-              const SizedBox(height: 4),
-
-              // Bio
-              Text(
-                user.bio.isNotEmpty ? user.bio : 'Here to grow, one day at a time.',
-                textAlign: TextAlign.center,
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 13.5,
-                  color: AppColors.textSecondary,
+              if (user.bio.trim().isNotEmpty) ...[
+                const SizedBox(height: 4),
+                // Bio
+                Text(
+                  user.bio.trim(),
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 13.5,
+                    color: AppColors.textSecondary,
+                  ),
                 ),
-              ),
+              ],
               const SizedBox(height: 20),
 
               // 3. Stats Card (Day streak | Entries | Peers)

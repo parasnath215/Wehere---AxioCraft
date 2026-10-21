@@ -6,12 +6,19 @@ const crypto = require('crypto');
 const { PrismaClient } = require('@prisma/client');
 const { z } = require('zod');
 const multer = require('multer');
-const rateLimit = require('express-rate-limit');
+const {
+  signupLimiter,
+  otpVerifyLimiter,
+  otpRequestLimiter,
+  resetPasswordLimiter,
+  loginLimiter,
+} = require('../middleware/rateLimits');
 const { authenticateToken, requireVerified } = require('../middleware/auth');
 const { sendEmail } = require('../services/email');
 const { processAndSaveImage, deleteImage } = require('../services/storage');
 const { evaluateStreak } = require('../services/streak');
 const { validateDisplayName, sanitizeHandle } = require('../services/identityFilter');
+const { parseDob, calcAge } = require('../utils/age');
 
 const prisma = new PrismaClient();
 
@@ -33,13 +40,6 @@ const loginSchema = z.object({
   password: z.string(),
 });
 
-const otpRequestLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 hour
-  max: 5,
-  handler: (req, res) => {
-    res.status(429).json({ error: 'Too many requests from this IP.', cooldown: 3600 });
-  }
-});
 
 function generateOtp() {
   if (process.env.TEST_OTP_ENABLED === 'true') {
@@ -55,27 +55,10 @@ async function sendOtpEmail(email, code, purpose) {
   await sendEmail({ to: email, subject, text, html });
 }
 
-// Anonymous Signup
-router.post('/anonymous', async (req, res) => {
-  try {
-    const now = new Date();
-    const user = await prisma.user.create({
-      data: {
-        isAnonymous: true,
-        currentStreak: 0,
-        lastLoginDate: now,
-      },
-    });
-    const token = jwt.sign({ id: user.id, role: user.role, tokenVersion: user.tokenVersion }, process.env.JWT_SECRET, { expiresIn: '7d' });
-    res.json({ token, user });
-  } catch (error) {
-    res.status(500).json({ error: 'Internal Server Error' });
-  }
-});
 
 // Email/Password Signup (Multipart with Images)
 // NOTE: Account is NOT created until email OTP is verified!
-router.post('/signup', upload.array('images', 6), async (req, res) => {
+router.post('/signup', signupLimiter, upload.array('images', 6), async (req, res) => {
   try {
     if (!req.files || req.files.length < 2) {
       return res.status(400).json({ error: 'At least 2 profile images are required.' });
@@ -148,7 +131,7 @@ router.post('/signup', upload.array('images', 6), async (req, res) => {
 
     // Generate OTP
     const code = generateOtp();
-    const codeHash = crypto.createHmac('sha256', process.env.JWT_SECRET).update(code).digest('hex');
+    const codeHash = await bcrypt.hash(code, 10);
 
     // Create a secure pending signup token (15 min validity)
     const signupToken = jwt.sign(
@@ -191,7 +174,7 @@ router.post('/signup', upload.array('images', 6), async (req, res) => {
 });
 
 // Login
-router.post('/login', rateLimit({ windowMs: 15*60*1000, max: 10 }), async (req, res) => {
+router.post('/login', loginLimiter, async (req, res) => {
   try {
     const { email, password } = loginSchema.parse(req.body);
     const rawIdentifier = email.trim();
@@ -302,7 +285,7 @@ router.post('/otp/request', otpRequestLimiter, async (req, res) => {
         const decoded = jwt.verify(signupToken, process.env.JWT_SECRET);
         if (decoded.purpose === 'pending_signup') {
           const code = generateOtp();
-          const codeHash = crypto.createHmac('sha256', process.env.JWT_SECRET).update(code).digest('hex');
+          const codeHash = await bcrypt.hash(code, 10);
           const newSignupToken = jwt.sign(
             {
               ...decoded,
@@ -373,7 +356,7 @@ router.post('/otp/request', otpRequestLimiter, async (req, res) => {
     });
 
     const code = generateOtp();
-    const codeHash = crypto.createHmac('sha256', process.env.JWT_SECRET).update(code).digest('hex');
+    const codeHash = await bcrypt.hash(code, 10);
 
     await prisma.otpRecord.create({
       data: {
@@ -394,7 +377,7 @@ router.post('/otp/request', otpRequestLimiter, async (req, res) => {
 
 // OTP Verify (Email Verification)
 // NOTE: For pending signups, the User account is created HERE after verifying OTP!
-router.post('/otp/verify', async (req, res) => {
+router.post('/otp/verify', otpVerifyLimiter, async (req, res) => {
   try {
     const { otp, signupToken } = req.body;
     let authHeaderToken = null;
@@ -403,7 +386,7 @@ router.post('/otp/verify', async (req, res) => {
     }
     const tokenToUse = signupToken || authHeaderToken;
 
-    if (!otp) return res.status(400).json({ error: 'OTP required' });
+    if (!otp) return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'OTP required' });
 
     // 1. Pending Signup Flow: Verify OTP and create User record now
     if (tokenToUse) {
@@ -411,12 +394,12 @@ router.post('/otp/verify', async (req, res) => {
         const decoded = jwt.verify(tokenToUse, process.env.JWT_SECRET);
         if (decoded.purpose === 'pending_signup') {
           if (Date.now() > decoded.expiresAt) {
-            return res.status(400).json({ error: 'Code expired. Please request a new one.' });
+            return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Code expired. Request a new one.' });
           }
 
-          const codeHash = crypto.createHmac('sha256', process.env.JWT_SECRET).update(otp.trim()).digest('hex');
-          if (decoded.codeHash !== codeHash) {
-            return res.status(400).json({ error: 'Invalid OTP' });
+          const isValid = await bcrypt.compare(otp.trim(), decoded.codeHash);
+          if (!isValid) {
+            return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Invalid OTP code.' });
           }
 
           // Check if an account was verified with this email in the meantime
@@ -424,7 +407,7 @@ router.post('/otp/verify', async (req, res) => {
             where: { email: decoded.email, emailVerified: true }
           });
           if (existingVerified) {
-            return res.status(409).json({ error: 'EMAIL_ALREADY_REGISTERED', message: 'This email is already registered.' });
+            return res.status(409).json({ error: 'CONFLICT', message: 'This email is already registered.' });
           }
 
           // Clean up any stale unverified record
@@ -477,21 +460,21 @@ router.post('/otp/verify', async (req, res) => {
         }
       } catch (jwtErr) {
         if (!authHeaderToken) {
-          return res.status(400).json({ error: 'Invalid or expired session. Please start registration again.' });
+          return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Invalid or expired session. Please start registration again.' });
         }
       }
     }
 
     // 2. Existing user flow (e.g. unverified user login flow)
     if (!authHeaderToken) {
-      return res.status(401).json({ error: 'Unauthorized' });
+      return res.status(401).json({ error: 'TOKEN_INVALID', message: 'Unauthorized' });
     }
 
     let decodedAuth;
     try {
       decodedAuth = jwt.verify(authHeaderToken, process.env.JWT_SECRET);
     } catch (e) {
-      return res.status(403).json({ error: 'Forbidden' });
+      return res.status(401).json({ error: 'TOKEN_INVALID', message: 'Session invalid' });
     }
 
     const userId = decodedAuth.id;
@@ -500,14 +483,29 @@ router.post('/otp/verify', async (req, res) => {
       orderBy: { createdAt: 'desc' }
     });
 
-    if (!record) return res.status(400).json({ error: 'No active OTP found. Please request a new one.' });
-    if (record.attempts >= 5) return res.status(400).json({ error: 'Too many failed attempts. Please request a new code.' });
-    if (new Date() > record.expiresAt) return res.status(400).json({ error: 'Code expired. Please request a new one.' });
+    if (!record) return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'No active OTP found. Please request a new one.' });
+    if (record.usedAt || new Date() > record.expiresAt) {
+      return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Code expired. Request a new one.' });
+    }
+    if (record.attempts >= 5) {
+      if (!record.usedAt) {
+        await prisma.otpRecord.update({ where: { id: record.id }, data: { usedAt: new Date() } });
+      }
+      return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Code expired. Request a new one.' });
+    }
 
-    const codeHash = crypto.createHmac('sha256', process.env.JWT_SECRET).update(otp.trim()).digest('hex');
-    if (record.codeHash !== codeHash) {
-      await prisma.otpRecord.update({ where: { id: record.id }, data: { attempts: record.attempts + 1 } });
-      return res.status(400).json({ error: 'Invalid OTP' });
+    const isValid = await bcrypt.compare(otp.trim(), record.codeHash);
+    if (!isValid) {
+      const newAttempts = record.attempts + 1;
+      const updateData = { attempts: newAttempts };
+      if (newAttempts >= 5) {
+        updateData.usedAt = new Date();
+      }
+      await prisma.otpRecord.update({ where: { id: record.id }, data: updateData });
+      if (newAttempts >= 5) {
+        return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Code expired. Request a new one.' });
+      }
+      return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Invalid OTP code.' });
     }
 
     // Success for existing user
@@ -542,11 +540,11 @@ router.post('/otp/verify', async (req, res) => {
 });
 
 // Reset Password Verify
-router.post('/reset-password', async (req, res) => {
+router.post('/reset-password', resetPasswordLimiter, async (req, res) => {
   try {
     const { email, otp, newPassword } = req.body;
     if (!email || !otp || !newPassword || newPassword.length < 6) {
-      return res.status(400).json({ error: 'Valid email/phone, OTP, and new password (min 6 chars) required.' });
+      return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Valid email/phone, OTP, and new password (min 6 chars) required.' });
     }
 
     const rawInput = email.trim();
@@ -563,22 +561,37 @@ router.post('/reset-password', async (req, res) => {
         ]
       }
     });
-    if (!user) return res.status(400).json({ error: 'Invalid request' });
+    if (!user) return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Invalid request' });
 
     const record = await prisma.otpRecord.findFirst({
       where: { userId: user.id, purpose: 'reset_password', usedAt: null },
       orderBy: { createdAt: 'desc' }
     });
 
-    if (!record) return res.status(400).json({ error: 'No active OTP found. Please request a new one.' });
-    if (record.attempts >= 5) return res.status(400).json({ error: 'Too many failed attempts. Please request a new code.' });
-    if (new Date() > record.expiresAt) return res.status(400).json({ error: 'Code expired. Please request a new one.' });
+    if (!record) return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'No active OTP found. Please request a new one.' });
+    if (record.usedAt || new Date() > record.expiresAt) {
+      return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Code expired. Request a new one.' });
+    }
+    if (record.attempts >= 5) {
+      if (!record.usedAt) {
+        await prisma.otpRecord.update({ where: { id: record.id }, data: { usedAt: new Date() } });
+      }
+      return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Code expired. Request a new one.' });
+    }
 
-    const codeHash = crypto.createHmac('sha256', process.env.JWT_SECRET).update(otp.trim()).digest('hex');
+    const isValid = await bcrypt.compare(otp.trim(), record.codeHash);
     
-    if (record.codeHash !== codeHash) {
-      await prisma.otpRecord.update({ where: { id: record.id }, data: { attempts: record.attempts + 1 } });
-      return res.status(400).json({ error: 'Invalid OTP' });
+    if (!isValid) {
+      const newAttempts = record.attempts + 1;
+      const updateData = { attempts: newAttempts };
+      if (newAttempts >= 5) {
+        updateData.usedAt = new Date();
+      }
+      await prisma.otpRecord.update({ where: { id: record.id }, data: updateData });
+      if (newAttempts >= 5) {
+        return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Code expired. Request a new one.' });
+      }
+      return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Invalid OTP code.' });
     }
 
     // Success
@@ -607,6 +620,7 @@ const onboardingSchema = z.object({
   feelings: z.array(z.string()).max(10).optional(),
   supportTypes: z.array(z.string()).max(5).optional(),
   isAnonymous: z.boolean().optional(),
+  dateOfBirth: z.string().optional(),
 });
 
 // Complete Onboarding
@@ -614,9 +628,25 @@ router.put('/onboarding', authenticateToken, requireVerified, async (req, res) =
   try {
     const { 
       name, displayName, realFirstName, legalFullName, handle, nameDisplayPreference,
-      location, profession, interests, feelings, supportTypes, isAnonymous 
+      location, profession, interests, feelings, supportTypes, isAnonymous, dateOfBirth
     } = onboardingSchema.parse(req.body);
     const userId = req.user.id; 
+
+    let dobToSave;
+    if (!req.user.dateOfBirth) {
+      if (!dateOfBirth) {
+        return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Date of birth is required.' });
+      }
+      const parsedDob = parseDob(dateOfBirth);
+      if (!parsedDob) {
+        return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Invalid date of birth. Must be YYYY-MM-DD.' });
+      }
+      const age = calcAge(parsedDob);
+      if (age < 18) {
+        return res.status(403).json({ error: 'UNDERAGE', message: 'You must be at least 18 years old to use Wehere.' });
+      }
+      dobToSave = parsedDob;
+    }
 
     const finalAlias = (displayName && displayName.trim().length > 0) 
       ? displayName.trim() 
@@ -625,7 +655,7 @@ router.put('/onboarding', authenticateToken, requireVerified, async (req, res) =
     // Filter profanity / triggers
     const aliasValidation = validateDisplayName(finalAlias);
     if (!aliasValidation.isValid) {
-      return res.status(400).json({ error: aliasValidation.error });
+      return res.status(400).json({ error: 'VALIDATION_ERROR', message: aliasValidation.error });
     }
 
     const cleanHandle = handle ? sanitizeHandle(handle) : undefined;
@@ -647,6 +677,7 @@ router.put('/onboarding', authenticateToken, requireVerified, async (req, res) =
         feelings: feelings || [],
         supportTypes: supportTypes || [],
         isAnonymous: isAnonymous || false,
+        ...(dobToSave ? { dateOfBirth: dobToSave } : {}),
       },
     });
 

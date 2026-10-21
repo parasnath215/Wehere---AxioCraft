@@ -183,14 +183,15 @@ class ProfileDetailSheet extends StatelessWidget {
                     ],
                   ),
 
-                  const SizedBox(height: 18),
-
                   // About Me Card
-                  _buildSectionCard(
-                    title: 'About Me',
-                    icon: Icons.person_outline_rounded,
-                    child: Text(profile.bio, style: AppTextStyles.bodyMedium),
-                  ),
+                  if (profile.bio.trim().isNotEmpty) ...[
+                    const SizedBox(height: 18),
+                    _buildSectionCard(
+                      title: 'About Me',
+                      icon: Icons.person_outline_rounded,
+                      child: Text(profile.bio.trim(), style: AppTextStyles.bodyMedium),
+                    ),
+                  ],
 
                   const SizedBox(height: 14),
 

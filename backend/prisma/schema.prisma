@@ -41,6 +41,7 @@ model User {
   level     Int      @default(1)
   currentStreak Int  @default(0)
   lastLoginDate DateTime?
+  dateOfBirth   DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

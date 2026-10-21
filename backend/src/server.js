@@ -18,6 +18,7 @@ const prisma = new PrismaClient();
 
 const { verifyMailConfig } = require('./services/email');
 const { deleteImage } = require('./services/storage');
+const { calcAge } = require('./utils/age');
 
 // Trust proxy for rate limiting behind Nginx
 const trustProxyHops = process.env.TRUST_PROXY_HOPS ? parseInt(process.env.TRUST_PROXY_HOPS, 10) : 0;
@@ -112,8 +113,15 @@ io.use((socket, next) => {
       if (decoded.tokenVersion !== undefined && decoded.tokenVersion !== user.tokenVersion) {
         return next(new Error('Authentication error: Session expired'));
       }
-      if (!user.emailVerified && !user.isAnonymous) {
-        return next(new Error('Authentication error: EMAIL_NOT_VERIFIED'));
+      if (!user.emailVerified) {
+        return next(new Error('EMAIL_NOT_VERIFIED'));
+      }
+      if (!user.dateOfBirth) {
+        return next(new Error('AGE_REQUIRED'));
+      }
+      const age = calcAge(user.dateOfBirth);
+      if (age < 18) {
+        return next(new Error('UNDERAGE'));
       }
       socket.user = user;
       next();

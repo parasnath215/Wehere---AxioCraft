@@ -3,10 +3,12 @@ const router = express.Router();
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const { authenticateToken, requireVerified } = require('../middleware/auth');
+const { reportLimiter } = require('../middleware/rateLimits');
 const multer = require('multer');
 const { z } = require('zod');
 const { processAndSaveImage, deleteImage } = require('../services/storage');
 const { validateDisplayName, sanitizeHandle } = require('../services/identityFilter');
+const { parseDob, calcAge } = require('../utils/age');
 
 const MAX_PHOTOS = 6;
 const MIN_PHOTOS = 2;
@@ -41,18 +43,63 @@ router.get('/me', authenticateToken, async (req, res, next) => {
         id: true, email: true, pseudonym: true, displayName: true, realFirstName: true,
         legalFullName: true, handle: true, nameDisplayPreference: true, images: true, xp: true, isAnonymous: true,
         bio: true, location: true, profession: true, interests: true, feelings: true, supportTypes: true, emailVerified: true,
-        scheduledDeletionDate: true
+        scheduledDeletionDate: true, dateOfBirth: true
       }
     });
-    if (!user) return res.status(401).json({ error: 'User not found (Session invalid)' });
+    if (!user) return res.status(401).json({ error: 'TOKEN_INVALID', message: 'User not found (Session invalid)' });
+    
+    const computedAge = user.dateOfBirth ? calcAge(user.dateOfBirth) : null;
+    const needsDob = user.dateOfBirth == null;
+
     res.json({
       ...user,
+      age: computedAge,
+      needsDob,
       displayName: user.displayName || user.pseudonym,
       name: (user.nameDisplayPreference === 'FIRST_NAME_PUBLIC' && user.realFirstName) 
         ? user.realFirstName 
         : (user.displayName || user.pseudonym || 'User'),
       avatarUrl: user.images.length > 0 ? user.images[0] : null
     });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// PUT /users/me/dob - Set date of birth for existing users
+router.put('/me/dob', authenticateToken, requireVerified, async (req, res, next) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      select: { id: true, dateOfBirth: true }
+    });
+
+    if (!user) return res.status(401).json({ error: 'TOKEN_INVALID', message: 'User not found' });
+    if (user.dateOfBirth != null) {
+      return res.status(409).json({ error: 'CONFLICT', message: 'Date of birth is already set and cannot be changed.' });
+    }
+
+    const { dateOfBirth } = req.body || {};
+    if (!dateOfBirth) {
+      return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Date of birth is required.' });
+    }
+
+    const parsed = parseDob(dateOfBirth);
+    if (!parsed) {
+      return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Invalid date of birth. Must be YYYY-MM-DD.' });
+    }
+
+    const age = calcAge(parsed);
+    if (age < 18) {
+      return res.status(403).json({ error: 'UNDERAGE', message: 'You must be at least 18 years old to use Wehere.' });
+    }
+
+    await prisma.user.update({
+      where: { id: req.user.id },
+      data: { dateOfBirth: parsed }
+    });
+
+    res.json({ success: true, age, message: 'Date of birth updated successfully.' });
   } catch (error) {
     next(error);
   }
@@ -217,7 +264,7 @@ router.post('/:id/block', authenticateToken, requireVerified, async (req, res, n
 });
 
 // POST /users/:id/report
-router.post('/:id/report', authenticateToken, requireVerified, async (req, res, next) => {
+router.post('/:id/report', reportLimiter, authenticateToken, requireVerified, async (req, res, next) => {
   try {
     const targetUserId = req.params.id;
     const reporterId = req.user.id;

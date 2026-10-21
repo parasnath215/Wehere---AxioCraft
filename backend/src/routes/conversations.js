@@ -2,10 +2,13 @@ const express = require('express');
 const router = express.Router();
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
-const { authenticateToken, requireVerified } = require('../middleware/auth');
+const { authenticateToken, requireVerified, requireAdult } = require('../middleware/auth');
+
+// Apply authentication, email verification, and 18+ requirement to all conversation routes
+router.use(authenticateToken, requireVerified, requireAdult);
 
 // List conversations for the logged in user
-router.get('/', authenticateToken, requireVerified, async (req, res, next) => {
+router.get('/', async (req, res, next) => {
   try {
     const userId = req.user.id;
     

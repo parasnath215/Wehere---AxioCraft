@@ -1,5 +1,30 @@
+import 'package:flutter/foundation.dart';
+
 class AppConstants {
-  static const String apiBaseUrl = String.fromEnvironment('API_URL', defaultValue: 'http://200.97.165.22:4000/api');
+  static String get apiBaseUrl {
+    const fromEnv = String.fromEnvironment('API_URL');
+    if (fromEnv.isNotEmpty) {
+      return fromEnv;
+    }
+    if (kReleaseMode) {
+      return '';
+    }
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      return 'http://10.0.2.2:4000/api';
+    }
+    return 'http://localhost:4000/api';
+  }
+
+  static String get socketUrl {
+    final base = apiBaseUrl;
+    if (base.endsWith('/api')) {
+      return base.substring(0, base.length - 4);
+    }
+    if (base.endsWith('/api/')) {
+      return base.substring(0, base.length - 5);
+    }
+    return base;
+  }
   static const String appName = 'Wehere';
   static const String appTagline = 'A safe place to talk, connect and heal.';
   static const String safeSpaceNotice =

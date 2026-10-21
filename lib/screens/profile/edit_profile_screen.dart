@@ -160,6 +160,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       return;
     }
 
+    final finalAge = state.currentUser.age;
+
     setState(() => _isSaving = true);
     try {
       final response = await apiClient.put('/users/me', data: {
@@ -167,7 +169,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         'pseudonym': _pseudonymController.text.trim(),
         'realFirstName': _realFirstNameController.text.trim().isNotEmpty ? _realFirstNameController.text.trim() : null,
         'nameDisplayPreference': _nameDisplayPreference,
-        'bio': _bioController.text,
+        'bio': _bioController.text.trim(),
         'location': _locationController.text,
         'profession': _selectedProfession,
         'interests': _selectedInterests,
@@ -181,7 +183,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           displayName: _pseudonymController.text.trim(),
           realFirstName: _realFirstNameController.text.trim().isNotEmpty ? _realFirstNameController.text.trim() : null,
           nameDisplayPreference: _nameDisplayPreference,
-          bio: _bioController.text,
+          age: finalAge,
+          bio: _bioController.text.trim(),
           location: _locationController.text,
           profession: _selectedProfession,
           interests: _selectedInterests,
@@ -259,6 +262,35 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             max: 50,
             validator: (v) => null,
             helperText: 'Shared during chat only with mutual consent (unless public discovery is enabled).',
+          ),
+          const SizedBox(height: 16),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppColors.cardBorder),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Age',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textSecondary),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  appState.currentUser.age > 0 ? '${appState.currentUser.age} years old' : 'Not set',
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: AppColors.textPrimary),
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'Date of birth is verified and cannot be changed.',
+                  style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 16),
           // Privacy & Identity Selector
@@ -477,8 +509,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             _bioController, 
             maxLines: 4, 
             max: appState.configLimits?.bioMaxLength ?? 500,
+            helperText: 'A short description about yourself (optional).',
             validator: (value) {
-              if (value == null || value.isEmpty) return 'Required';
+              if (value == null || value.trim().isEmpty) return null;
               final limit = appState.configLimits?.bioMaxLength ?? 500;
               if (value.length > limit) return 'Bio cannot exceed $limit characters';
               return null;
@@ -503,6 +536,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     required int max, 
     String? Function(String?)? validator,
     String? helperText,
+    TextInputType? keyboardType,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -517,6 +551,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           controller: controller,
           maxLength: max,
           maxLines: maxLines,
+          keyboardType: keyboardType,
           decoration: InputDecoration(
             hintText: 'Enter your $label',
             filled: true,

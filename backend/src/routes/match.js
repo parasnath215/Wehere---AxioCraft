@@ -2,7 +2,8 @@ const express = require('express');
 const router = express.Router();
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
-const { authenticateToken, requireVerified } = require('../middleware/auth');
+const { authenticateToken, requireVerified, requireAdult } = require('../middleware/auth');
+const { calcAge } = require('../utils/age');
 const { z } = require('zod');
 
 const swipeSchema = z.object({
@@ -10,7 +11,7 @@ const swipeSchema = z.object({
   action: z.enum(['connect', 'pass']),
 });
 
-router.get(['/discover', '/feed'], authenticateToken, requireVerified, async (req, res, next) => {
+router.get(['/discover', '/feed'], authenticateToken, requireVerified, requireAdult, async (req, res, next) => {
   try {
     const userId = req.user.id;
     const cursor = req.query.cursor;
@@ -48,12 +49,14 @@ router.get(['/discover', '/feed'], authenticateToken, requireVerified, async (re
     const matches = await prisma.user.findMany({
       where: {
         id: { notIn: excludedUserIds },
-        isBanned: false
+        isBanned: false,
+        dateOfBirth: { not: null }
       },
       select: {
         id: true, isAnonymous: true, pseudonym: true, displayName: true, realFirstName: true,
         handle: true, username: true, nameDisplayPreference: true, bio: true, images: true, 
-        location: true, interests: true, feelings: true, supportTypes: true, xp: true, level: true, updatedAt: true
+        location: true, interests: true, feelings: true, supportTypes: true, xp: true, level: true, updatedAt: true,
+        dateOfBirth: true
       }
     });
     
@@ -61,6 +64,7 @@ router.get(['/discover', '/feed'], authenticateToken, requireVerified, async (re
     let scoredMatches = [];
 
     for (const u of matches) {
+      if (!u.dateOfBirth || calcAge(u.dateOfBirth) < 18) continue;
       const sharedInterests = u.interests.filter(i => currentUser.interests.includes(i));
       const sharedSupport = u.supportTypes.filter(s => currentUser.supportTypes.includes(s));
       
@@ -90,7 +94,7 @@ router.get(['/discover', '/feed'], authenticateToken, requireVerified, async (re
     const nextCursor = paginated.length === 20 ? paginated[19].id : null;
 
     const formattedMatches = paginated.map(u => {
-      const { score, sharedInterests, updatedAt, realFirstName, nameDisplayPreference, ...rest } = u;
+      const { score, sharedInterests, updatedAt, realFirstName, nameDisplayPreference, dateOfBirth, ...rest } = u;
       
       const safeAlias = rest.displayName || rest.pseudonym || 'Peer';
       let cardName = (nameDisplayPreference === 'FIRST_NAME_PUBLIC' && realFirstName && realFirstName.trim().length > 0)
@@ -119,9 +123,10 @@ router.get(['/discover', '/feed'], authenticateToken, requireVerified, async (re
         feelings: rest.feelings || [],
         supportTypes: rest.supportTypes || [],
         isAnonymous: rest.isAnonymous,
+        age: calcAge(dateOfBirth),
         xp: rest.xp,
         level: rest.level
-        // Strictly zero data leak: realFirstName, legalFullName, email, phone are not serialized!
+        // Strictly zero data leak: realFirstName, legalFullName, email, phone, raw dateOfBirth are not serialized!
       };
     });
 
@@ -131,7 +136,7 @@ router.get(['/discover', '/feed'], authenticateToken, requireVerified, async (re
   }
 });
 
-router.post('/swipe', authenticateToken, requireVerified, async (req, res, next) => {
+router.post('/swipe', authenticateToken, requireVerified, requireAdult, async (req, res, next) => {
   try {
     const { targetUserId, action } = swipeSchema.parse(req.body);
     const userId = req.user.id;

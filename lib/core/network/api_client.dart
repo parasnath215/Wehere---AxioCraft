@@ -1,8 +1,19 @@
 import 'dart:async';
 import 'package:dio/dio.dart';
+import '../constants/app_constants.dart';
 import '../utils/storage_helper.dart';
 
-enum AuthEvent { loggedOut, emailNotVerified }
+enum AuthEvent { loggedOut, emailNotVerified, ageRequired }
+
+bool shouldForceLogout(int? status, String path, String? code) {
+  if (status == 401 && !path.startsWith('/auth/')) {
+    return true;
+  }
+  if (status == 403 && code == 'ACCOUNT_BANNED') {
+    return true;
+  }
+  return false;
+}
 
 class ApiClient {
   late final Dio dio;
@@ -12,7 +23,7 @@ class ApiClient {
 
   ApiClient() {
     dio = Dio(BaseOptions(
-      baseUrl: const String.fromEnvironment('API_URL', defaultValue: 'http://200.97.165.22:4000/api'),
+      baseUrl: AppConstants.apiBaseUrl,
       connectTimeout: const Duration(seconds: 10),
       receiveTimeout: const Duration(seconds: 10),
       headers: {
@@ -29,17 +40,18 @@ class ApiClient {
         return handler.next(options);
       },
       onError: (DioException e, handler) async {
-        if (e.response?.statusCode == 401) {
+        final status = e.response?.statusCode;
+        final path = e.requestOptions.path;
+        final dynamic data = e.response?.data;
+        final String? code = data is Map ? data['error']?.toString() : null;
+
+        if (status == 403 && code == 'EMAIL_NOT_VERIFIED') {
+          _authEventController.add(AuthEvent.emailNotVerified);
+        } else if (status == 403 && code == 'AGE_REQUIRED') {
+          _authEventController.add(AuthEvent.ageRequired);
+        } else if (shouldForceLogout(status, path, code)) {
           await StorageHelper.delete(key: 'jwt_token');
           _authEventController.add(AuthEvent.loggedOut);
-        } else if (e.response?.statusCode == 403) {
-          final errorMsg = e.response?.data?['error'];
-          if (errorMsg == 'EMAIL_NOT_VERIFIED') {
-            _authEventController.add(AuthEvent.emailNotVerified);
-          } else {
-            await StorageHelper.delete(key: 'jwt_token');
-            _authEventController.add(AuthEvent.loggedOut);
-          }
         }
         return handler.next(e);
       },

@@ -165,12 +165,17 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
             _firstNameController.text = appState.currentUser.name;
           }
 
-          // Date of Birth
+          // Date of Birth / Age
+          final savedAge = prefs.getInt('onboarding_draft_age');
           if (savedDob != null && savedDob.isNotEmpty) {
             try {
               _selectedDob = DateTime.parse(savedDob);
               _dobController.text = _formatDob(_selectedDob!);
             } catch (_) {}
+          } else if (savedAge != null && savedAge > 0) {
+            _dobController.text = '$savedAge';
+            final now = DateTime.now();
+            _selectedDob = DateTime(now.year - savedAge, now.month, now.day);
           }
 
           if (savedState != null && savedState.isNotEmpty) {
@@ -219,8 +224,25 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
       await prefs.setString('onboarding_draft_first_name', _firstNameController.text.trim());
       if (_selectedDob != null) {
         await prefs.setString('onboarding_draft_dob', _selectedDob!.toIso8601String());
+        final now = DateTime.now();
+        int a = now.year - _selectedDob!.year;
+        if (now.month < _selectedDob!.month || (now.month == _selectedDob!.month && now.day < _selectedDob!.day)) {
+          a--;
+        }
+        await prefs.setInt('onboarding_draft_age', a);
+      } else if (_dobController.text.trim().isNotEmpty) {
+        await prefs.remove('onboarding_draft_dob');
+        final raw = _dobController.text.trim();
+        final match = RegExp(r'^(\d{1,3})').firstMatch(raw);
+        if (match != null) {
+          final parsed = int.tryParse(match.group(1)!);
+          if (parsed != null && parsed >= 13 && parsed <= 120) {
+            await prefs.setInt('onboarding_draft_age', parsed);
+          }
+        }
       } else {
         await prefs.remove('onboarding_draft_dob');
+        await prefs.remove('onboarding_draft_age');
       }
       if (_selectedState != null) {
         await prefs.setString('onboarding_draft_state', _selectedState!);
@@ -250,6 +272,7 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
       await prefs.remove('onboarding_draft_name');
       await prefs.remove('onboarding_draft_first_name');
       await prefs.remove('onboarding_draft_dob');
+      await prefs.remove('onboarding_draft_age');
       await prefs.remove('onboarding_draft_state');
       await prefs.remove('onboarding_draft_city');
       await prefs.remove('onboarding_draft_profession');
@@ -387,21 +410,52 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
         return;
       }
 
-      if (_selectedDob == null) {
+      int? calculatedAge;
+      if (_selectedDob != null) {
+        final now = DateTime.now();
+        calculatedAge = now.year - _selectedDob!.year;
+        if (now.month < _selectedDob!.month || (now.month == _selectedDob!.month && now.day < _selectedDob!.day)) {
+          calculatedAge--;
+        }
+      } else if (_dobController.text.trim().isNotEmpty) {
+        final text = _dobController.text.trim();
+        final match = RegExp(r'^(\d{1,3})').firstMatch(text);
+        if (match != null && !text.contains('/')) {
+          final parsed = int.tryParse(match.group(1)!);
+          if (parsed != null && parsed >= 1 && parsed <= 120) {
+            calculatedAge = parsed;
+            final now = DateTime.now();
+            _selectedDob = DateTime(now.year - parsed, now.month, now.day);
+          }
+        } else if (text.contains('/')) {
+          final parts = text.split('/');
+          if (parts.length >= 3) {
+            final d = int.tryParse(parts[0]);
+            final m = int.tryParse(parts[1]);
+            final y = int.tryParse(parts[2].split(' ')[0]);
+            if (d != null && m != null && y != null) {
+              final dt = DateTime(y, m, d);
+              _selectedDob = dt;
+              final now = DateTime.now();
+              calculatedAge = now.year - dt.year;
+              if (now.month < dt.month || (now.month == dt.month && now.day < dt.day)) {
+                calculatedAge--;
+              }
+            }
+          }
+        }
+      }
+
+      if (calculatedAge == null || _selectedDob == null) {
         setState(() {
           _dobError = 'Please select your Date of Birth.';
         });
         return;
       }
 
-      final now = DateTime.now();
-      int calculatedAge = now.year - _selectedDob!.year;
-      if (now.month < _selectedDob!.month || (now.month == _selectedDob!.month && now.day < _selectedDob!.day)) {
-        calculatedAge--;
-      }
-      if (calculatedAge < 13) {
+      if (calculatedAge < 18) {
         setState(() {
-          _dobError = 'You must be at least 13 years old to join Wehere.';
+          _dobError = 'You must be at least 18 years old to join Wehere.';
         });
         return;
       }
@@ -469,12 +523,14 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
       final realFirstName = _firstNameController.text.trim();
 
       int? userAge;
+      String? dobStr;
       if (_selectedDob != null) {
         final now = DateTime.now();
         userAge = now.year - _selectedDob!.year;
         if (now.month < _selectedDob!.month || (now.month == _selectedDob!.month && now.day < _selectedDob!.day)) {
           userAge--;
         }
+        dobStr = '${_selectedDob!.year.toString().padLeft(4, '0')}-${_selectedDob!.month.toString().padLeft(2, '0')}-${_selectedDob!.day.toString().padLeft(2, '0')}';
       }
 
       await auth.completeOnboarding(
@@ -488,6 +544,7 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
         feelings: _selectedFeelings.toList(),
         supportTypes: _selectedLookingFor.toList(),
         isAnonymous: false,
+        dateOfBirth: dobStr,
       );
 
       if (!mounted) return;
@@ -646,33 +703,33 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
         ),
         const SizedBox(height: 14),
 
-        // 2. Date of Birth Section (below Real Name, chosen by calendar picker)
+        // 2. Date of Birth / Age Section (below Real Name)
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            GestureDetector(
-              onTap: () => _selectDob(context),
-              child: AbsorbPointer(
-                child: TextField(
-                  controller: _dobController,
-                  decoration: InputDecoration(
-                    prefixIcon: const Icon(Icons.cake_outlined, color: AppColors.primary),
-                    labelText: 'Date of Birth *',
-                    hintText: 'Select Date of Birth (Calendar)',
-                    suffixIcon: IconButton(
-                      icon: const Icon(Icons.calendar_month_rounded, color: AppColors.primary),
-                      onPressed: () => _selectDob(context),
-                    ),
-                    errorText: _dobError,
-                  ),
+            TextField(
+              controller: _dobController,
+              keyboardType: TextInputType.text,
+              onChanged: (_) {
+                if (_dobError != null) setState(() => _dobError = null);
+                _saveDraft();
+              },
+              decoration: InputDecoration(
+                prefixIcon: const Icon(Icons.cake_outlined, color: AppColors.primary),
+                labelText: 'Date of Birth / Age *',
+                hintText: 'e.g. 24 or tap calendar icon',
+                suffixIcon: IconButton(
+                  icon: const Icon(Icons.calendar_month_rounded, color: AppColors.primary),
+                  onPressed: () => _selectDob(context),
                 ),
+                errorText: _dobError,
               ),
             ),
             const SizedBox(height: 6),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 4),
               child: Text(
-                'Tap to pick your date of birth from the calendar. Confirms you meet age guidelines.',
+                'Enter your age or tap the calendar icon to pick your date of birth. Confirms you meet age guidelines.',
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 12,
                   color: AppColors.textSecondary,

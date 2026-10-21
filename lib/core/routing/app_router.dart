@@ -10,6 +10,7 @@ import '../../screens/auth/login_screen.dart';
 import '../../screens/auth/signup_screen.dart';
 import '../../screens/auth/otp_verification_screen.dart';
 import '../../screens/auth/reset_password_screen.dart';
+import '../../screens/auth/dob_gate_screen.dart';
 import '../../screens/onboarding/onboarding_flow_screen.dart';
 import '../../screens/main_navigation_shell.dart';
 import '../../screens/chat/chat_conversation_screen.dart';
@@ -55,6 +56,9 @@ class AppRouter {
           settings,
           transitionType: PageTransitionType.slideRight,
         );
+
+      case AppRoutes.dobGate:
+        return _buildPageRoute(const DobGateScreen(), settings);
 
       // Protected Route: Onboarding Flow
       case AppRoutes.onboarding:
@@ -158,6 +162,10 @@ class AppRouter {
         
         if (auth.status == AuthStatus.unverified) {
           return OtpVerificationScreen(email: auth.registeredEmail);
+        }
+
+        if (auth.needsDob) {
+          return const DobGateScreen();
         }
 
         if (auth.status == AuthStatus.authenticated && !auth.hasCompletedOnboarding) {

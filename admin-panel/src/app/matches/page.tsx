@@ -1,13 +1,10 @@
+import { adminFetch } from '@/lib/api';
+
 export default async function MatchesPage() {
   let matches = [];
   try {
-    const apiUrl = process.env.API_URL || 'http://backend:4000';
-    if (!apiUrl) throw new Error("API_URL is not defined");
-    const res = await fetch(`${apiUrl}/api/admin/matches`, {
+    const res = await adminFetch('/api/admin/matches', {
       cache: 'no-store',
-      headers: {
-        'x-api-key': process.env.INTERNAL_API_KEY || ''
-      }
     });
     if (res.ok) {
       matches = await res.json();

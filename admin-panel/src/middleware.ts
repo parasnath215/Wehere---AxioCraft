@@ -1,26 +1,34 @@
-import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 
 export function middleware(request: NextRequest) {
-  const basicAuth = request.headers.get('authorization')
+  const { pathname } = request.nextUrl;
 
-  if (basicAuth) {
-    const authValue = basicAuth.split(' ')[1]
-    const [user, pwd] = atob(authValue).split(':')
-
-    if (user === process.env.ADMIN_USER && pwd === process.env.ADMIN_PASSWORD) {
-      return NextResponse.next()
+  // Paths excluded from authentication check
+  if (
+    pathname.startsWith('/login') ||
+    pathname.startsWith('/_next') ||
+    pathname.startsWith('/api/admin/login') ||
+    pathname === '/favicon.ico' ||
+    pathname.includes('.')
+  ) {
+    // If authenticated user visits /login, redirect to dashboard
+    if (pathname === '/login' && request.cookies.get('admin_token')?.value) {
+      return NextResponse.redirect(new URL('/', request.url));
     }
+    return NextResponse.next();
   }
 
-  return new NextResponse('Authentication required', {
-    status: 401,
-    headers: {
-      'WWW-Authenticate': 'Basic realm="Secure Area"',
-    },
-  })
+  const token = request.cookies.get('admin_token')?.value;
+
+  if (!token) {
+    const loginUrl = new URL('/login', request.url);
+    return NextResponse.redirect(loginUrl);
+  }
+
+  return NextResponse.next();
 }
 
 export const config = {
-  matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)'],
-}
+  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
+};

@@ -20,10 +20,10 @@ class AppState extends ChangeNotifier {
   UserProfile _currentUser = UserProfile(
     id: 'user_paras_01',
     name: 'Paras',
-    age: 29,
+    age: 24,
     location: 'Mumbai, India',
     profession: 'Product Designer',
-    bio: 'Here to grow, one day at a time.',
+    bio: '',
     avatarUrl: 'assets/images/paras_avatar.jpg',
     images: ['assets/images/paras_avatar.jpg'],
     isVerified: true,
@@ -37,6 +37,7 @@ class AppState extends ChangeNotifier {
     isAnonymous: false,
     trustLevel: 5,
   );
+
 
   UserProfile get currentUser => _currentUser;
 
@@ -61,10 +62,15 @@ class AppState extends ChangeNotifier {
           parsedAvatarUrl = baseUrl + parsedAvatarUrl;
         }
 
+        int effectiveAge = _currentUser.age;
+        if (data['age'] != null && data['age'] is int && (data['age'] as int) > 0) {
+          effectiveAge = data['age'];
+        }
+
         _currentUser = UserProfile(
           id: data['id'],
           name: data['pseudonym'] ?? 'Anonymous',
-          age: 18, // Backend doesn't store age yet, mock it
+          age: effectiveAge,
           location: data['location'] ?? '',
           profession: data['profession'],
           bio: data['bio'] ?? '',
@@ -963,7 +969,7 @@ class AppState extends ChangeNotifier {
   void initSocket(String token) {
     if (_socket != null) return;
     
-    _socket = io.io(AppConstants.apiBaseUrl, io.OptionBuilder()
+    _socket = io.io(AppConstants.socketUrl, io.OptionBuilder()
       .setTransports(['websocket'])
       .setAuth({'token': token})
       .build());
@@ -1719,11 +1725,8 @@ class AppState extends ChangeNotifier {
     if (supportTypes != null && supportTypes.isNotEmpty) selectedSupportTypes = supportTypes;
     if (isAnonymous != null) isAnonymousMode = isAnonymous;
 
-    final derivedBio = bio != null && bio.trim().isNotEmpty
-        ? bio.trim()
-        : (selectedFeelings.isNotEmpty
-            ? 'Navigating ${selectedFeelings.join(' & ')} one day at a time. Here for kind peer support. 🌱'
-            : _currentUser.bio);
+
+    final derivedBio = (bio != null && bio.trim().isNotEmpty) ? bio.trim() : '';
 
     _currentUser = _currentUser.copyWith(
       name: isAnonymousMode ? 'Kind Peer' : (onboardingName.isNotEmpty ? onboardingName : 'User'),

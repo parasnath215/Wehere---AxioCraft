@@ -1,15 +1,92 @@
 const express = require('express');
 const router = express.Router();
+const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
-const { authenticateAdmin } = require('../middleware/auth');
-const bcrypt = require('bcryptjs');
+const { adminGuard } = require('../middleware/auth');
+const { loginLimiter, adminApiLimiter } = require('../middleware/rateLimits');
 const { deleteImage } = require('../services/storage');
 
-// Apply admin authentication to all routes in this router
-router.use(authenticateAdmin);
+// Apply admin router rate limit: 120 req/min per IP
+router.use(adminApiLimiter);
 
-router.get('/stats', async (req, res) => {
+// Safe User fields selection excluding password, tokenVersion, and OTP records
+const safeUserSelect = {
+  id: true,
+  email: true,
+  username: true,
+  phone: true,
+  role: true,
+  isAnonymous: true,
+  pseudonym: true,
+  legalFullName: true,
+  realFirstName: true,
+  displayName: true,
+  handle: true,
+  nameDisplayPreference: true,
+  avatar: true,
+  bio: true,
+  images: true,
+  location: true,
+  profession: true,
+  lookingFor: true,
+  interests: true,
+  feelings: true,
+  supportTypes: true,
+  photoVersion: true,
+  xp: true,
+  level: true,
+  currentStreak: true,
+  lastLoginDate: true,
+  createdAt: true,
+  updatedAt: true,
+  isBanned: true,
+  emailVerified: true,
+  emailVerifiedAt: true,
+  scheduledDeletionDate: true,
+  deletionRequestedAt: true,
+};
+
+// POST /api/admin/login (public, loginLimiter)
+router.post('/login', loginLimiter, async (req, res, next) => {
+  try {
+    const { email, password } = req.body || {};
+    if (!email || !password) {
+      return res.status(401).json({ error: 'TOKEN_INVALID', message: 'Invalid credentials.' });
+    }
+
+    const normalizedEmail = String(email).trim().toLowerCase();
+    const user = await prisma.user.findFirst({
+      where: { email: normalizedEmail }
+    });
+
+    if (!user || !user.password || user.role !== 'ADMIN' || !user.emailVerified || user.isBanned) {
+      return res.status(401).json({ error: 'TOKEN_INVALID', message: 'Invalid credentials.' });
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ error: 'TOKEN_INVALID', message: 'Invalid credentials.' });
+    }
+
+    // Sign JWT with 12h expiry: { id, tokenVersion }
+    const token = jwt.sign(
+      { id: user.id, tokenVersion: user.tokenVersion },
+      process.env.JWT_SECRET,
+      { expiresIn: '12h' }
+    );
+
+    res.json({ success: true, token });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Guard all subsequent admin routes
+router.use(adminGuard);
+
+router.get('/stats', async (req, res, next) => {
   try {
     const totalUsers = await prisma.user.count();
     const activeMatches = await prisma.match.count({ where: { status: 'connected' } });
@@ -48,7 +125,8 @@ router.get('/users', async (req, res, next) => {
     const users = await prisma.user.findMany({
       skip,
       take: limit,
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
+      select: safeUserSelect
     });
     res.json(users);
   } catch (error) {
@@ -81,15 +159,7 @@ router.put('/users/:id', async (req, res, next) => {
           deletionRequestedAt: updateDeletionDate ? new Date() : null,
         }),
       },
-      select: {
-        id: true,
-        email: true,
-        pseudonym: true,
-        role: true,
-        scheduledDeletionDate: true,
-        deletionRequestedAt: true,
-        createdAt: true,
-      }
+      select: safeUserSelect
     });
     res.json(user);
   } catch (error) {
@@ -101,11 +171,11 @@ router.post('/users', async (req, res, next) => {
   try {
     const { email, password, pseudonym, role } = req.body;
     if (!email || !password || !pseudonym) {
-      return res.status(400).json({ error: 'Missing required fields' });
+      return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Missing required fields' });
     }
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) {
-      return res.status(400).json({ error: 'Email already exists' });
+      return res.status(409).json({ error: 'CONFLICT', message: 'Email already exists' });
     }
     const hashedPassword = await bcrypt.hash(password, 10);
     const user = await prisma.user.create({
@@ -116,7 +186,7 @@ router.post('/users', async (req, res, next) => {
         role: role || 'USER',
         emailVerified: true
       },
-      select: { id: true, email: true, pseudonym: true, role: true, createdAt: true }
+      select: safeUserSelect
     });
     res.status(201).json(user);
   } catch (error) {
@@ -140,7 +210,7 @@ router.get('/users/:id/analytics', async (req, res, next) => {
       }
     });
     
-    if (!user) return res.status(404).json({ error: 'User not found' });
+    if (!user) return res.status(404).json({ error: 'VALIDATION_ERROR', message: 'User not found' });
 
     const totalMatches = await prisma.match.count({
       where: { OR: [{ userAId: id }, { userBId: id }] }
@@ -154,8 +224,9 @@ router.get('/users/:id/analytics', async (req, res, next) => {
       where: { senderId: id }
     });
 
-    const journalsWritten = await prisma.journal.count({
-      where: { authorId: id }
+    // Fix 1.5: use journalEntry and userId instead of journal and authorId
+    const journalsWritten = await prisma.journalEntry.count({
+      where: { userId: id }
     });
 
     res.json({
@@ -234,9 +305,14 @@ router.put('/users/:id/ban', async (req, res, next) => {
     const { id } = req.params;
     const { isBanned } = req.body; // true to ban, false to unban
     
+    const updateData = { isBanned: Boolean(isBanned) };
+    if (isBanned) {
+      updateData.tokenVersion = { increment: 1 };
+    }
+
     const user = await prisma.user.update({
       where: { id },
-      data: { isBanned },
+      data: updateData,
       select: { id: true, pseudonym: true, isBanned: true }
     });
     

@@ -1,18 +1,12 @@
 import Link from 'next/link';
+import { adminFetch } from '@/lib/api';
 
 export default async function UserAnalyticsPage({ params }: { params: Promise<{ id: string }> }) {
   let data: any = null;
   const { id } = await params;
   try {
-    const apiUrl = process.env.API_URL || 'http://backend:4000';
-    if (!apiUrl) throw new Error("API_URL is not defined");
-    
-    // We can't use route handler cache because we need the latest stats for user
-    const res = await fetch(`${apiUrl}/api/admin/users/${id}/analytics`, {
+    const res = await adminFetch(`/api/admin/users/${id}/analytics`, {
       cache: 'no-store',
-      headers: {
-        'x-api-key': process.env.INTERNAL_API_KEY || ''
-      }
     });
     if (res.ok) {
       data = await res.json();

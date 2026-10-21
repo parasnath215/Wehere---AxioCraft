@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import '../core/utils/storage_helper.dart';
 import '../core/network/api_client.dart';
 import 'package:dio/dio.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 enum AuthStatus { initializing, unauthenticated, unverified, authenticated }
 
@@ -14,6 +15,7 @@ class AuthNotifier extends ChangeNotifier {
   String _registeredEmail = '';
   bool _hasSeenWalkthrough = false;
   bool _hasCompletedOnboarding = false;
+  bool _needsDob = false;
   String? _authError;
   bool _isLoading = false;
 
@@ -26,8 +28,17 @@ class AuthNotifier extends ChangeNotifier {
       } else if (event == AuthEvent.emailNotVerified) {
         _status = AuthStatus.unverified;
         notifyListeners();
+      } else if (event == AuthEvent.ageRequired) {
+        _needsDob = true;
+        notifyListeners();
       }
     });
+  }
+
+  bool get needsDob => _needsDob;
+  void setNeedsDob(bool val) {
+    _needsDob = val;
+    notifyListeners();
   }
 
   @override
@@ -65,7 +76,8 @@ class AuthNotifier extends ChangeNotifier {
         // Check if verified by hitting /me
         try {
           final res = await apiClient.get('/users/me');
-          final isVerified = res.data['emailVerified'] == true || res.data['isAnonymous'] == true;
+          final isVerified = res.data['emailVerified'] == true;
+          _needsDob = res.data['needsDob'] == true;
           _status = isVerified ? AuthStatus.authenticated : AuthStatus.unverified;
           
           final savedOnboarding = await StorageHelper.read(key: 'onboarding_completed');
@@ -306,6 +318,7 @@ class AuthNotifier extends ChangeNotifier {
     required List<String> feelings,
     required List<String> supportTypes,
     required bool isAnonymous,
+    String? dateOfBirth,
   }) async {
     _isLoading = true;
     notifyListeners();
@@ -323,9 +336,11 @@ class AuthNotifier extends ChangeNotifier {
         'feelings': feelings,
         'supportTypes': supportTypes,
         'isAnonymous': isAnonymous,
+        if (dateOfBirth != null && dateOfBirth.isNotEmpty) 'dateOfBirth': dateOfBirth,
       });
       await StorageHelper.write(key: 'onboarding_completed', value: 'true');
       _hasCompletedOnboarding = true;
+      _needsDob = false;
     } catch (e) {
       _authError = 'Failed to save onboarding preferences';
     } finally {
@@ -338,6 +353,13 @@ class AuthNotifier extends ChangeNotifier {
     await StorageHelper.delete(key: 'jwt_token');
     await StorageHelper.delete(key: 'user_id');
     await StorageHelper.delete(key: 'user_email');
+    await StorageHelper.delete(key: 'user_age');
+    await StorageHelper.delete(key: 'user_dob');
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('user_age');
+      await prefs.remove('user_dob');
+    } catch (_) {}
     _userId = null;
     _status = AuthStatus.unauthenticated;
     _hasCompletedOnboarding = false;

@@ -325,19 +325,21 @@ class _SwipeableCardState extends State<SwipeableCard> {
                         const SizedBox(height: 8),
 
                         // Line 3: Bio
-                        Text(
-                          profile.bio.isNotEmpty
-                              ? profile.bio
-                              : 'Learning to slow down. Happy to listen or just sit in the quiet together.',
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 13,
-                            color: const Color(0xFF475569),
-                            height: 1.4,
+                        if (profile.bio.trim().isNotEmpty) ...[
+                          Text(
+                            profile.bio.trim(),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 13,
+                              color: const Color(0xFF475569),
+                              height: 1.4,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 12),
+                          const SizedBox(height: 12),
+                        ] else ...[
+                          const SizedBox(height: 6),
+                        ],
 
                         // Line 4: Two Info Badges Side by Side
                         Row(

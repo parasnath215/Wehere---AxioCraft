@@ -1,14 +1,11 @@
+import { adminFetch } from '@/lib/api';
+
 export default async function AdminDashboard() {
   let stats = { totalUsers: 0, activeMatches: 0, totalMessages: 0, reportedUsers: 0, recentUsers: [] };
   
   try {
-    const apiUrl = process.env.API_URL || 'http://backend:4000';
-    if (!apiUrl) throw new Error("API_URL is not defined");
-    const res = await fetch(`${apiUrl}/api/admin/stats`, {
+    const res = await adminFetch('/api/admin/stats', {
       cache: 'no-store',
-      headers: {
-        'x-api-key': process.env.INTERNAL_API_KEY || ''
-      }
     });
     if (res.ok) {
       stats = await res.json();

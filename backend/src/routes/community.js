@@ -2,8 +2,12 @@ const express = require('express');
 const router = express.Router();
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
-const { authenticateToken, requireVerified } = require('../middleware/auth');
+const { authenticateToken, requireVerified, requireAdult } = require('../middleware/auth');
+const { communityLimiter } = require('../middleware/rateLimits');
 const { z } = require('zod');
+
+// Require authentication, email verification, and 18+ for community
+router.use(authenticateToken, requireVerified, requireAdult);
 
 function applyAnonymity(author) {
   if (author && author.isAnonymous) {
@@ -22,7 +26,7 @@ const commentSchema = z.object({
   text: z.string().min(1).max(1000),
 });
 
-router.get('/', authenticateToken, requireVerified, async (req, res, next) => {
+router.get('/', async (req, res, next) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
@@ -68,7 +72,7 @@ router.get('/', authenticateToken, requireVerified, async (req, res, next) => {
   }
 });
 
-router.post('/', authenticateToken, requireVerified, async (req, res, next) => {
+router.post('/', authenticateToken, requireVerified, communityLimiter, async (req, res, next) => {
   try {
     const { topic, content } = postSchema.parse(req.body);
     const userId = req.user.id;
