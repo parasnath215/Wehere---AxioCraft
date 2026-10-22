@@ -38,7 +38,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   bool get _hasMinLength => _password.length >= 8;
   bool get _hasCaps => RegExp(r'[A-Z]').hasMatch(_password);
   bool get _hasLower => RegExp(r'[a-z]').hasMatch(_password);
-  bool get _hasSpecial => RegExp(r'[!@#$%^&*()_+={}\[\]|\\:;"\'<>,.?/~`]').hasMatch(_password);
+  bool get _hasSpecial => RegExp(r'''[!@#$%^&*()_+={}\[\]|\\:;"'<>,.?/~`]''').hasMatch(_password);
 
   @override
   void initState() {

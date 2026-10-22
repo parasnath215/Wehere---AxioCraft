@@ -37,7 +37,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     final hasMinLength = password.length >= 8;
     final hasCaps = RegExp(r'[A-Z]').hasMatch(password);
     final hasLower = RegExp(r'[a-z]').hasMatch(password);
-    final hasSpecial = RegExp(r'[!@#$%^&*()_+={}\[\]|\\:;"\'<>,.?/~`]').hasMatch(password);
+    final hasSpecial = RegExp(r'''[!@#$%^&*()_+={}\[\]|\\:;"'<>,.?/~`]''').hasMatch(password);
     if (!hasMinLength || !hasCaps || !hasLower || !hasSpecial) {
       UiUtils.showTopSnackBar(
         context,

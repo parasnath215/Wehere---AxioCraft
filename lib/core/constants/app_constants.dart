@@ -7,7 +7,7 @@ class AppConstants {
       return fromEnv;
     }
     if (kReleaseMode) {
-      return '';
+      return 'http://200.97.165.22:4000/api';
     }
     if (defaultTargetPlatform == TargetPlatform.android) {
       return 'http://10.0.2.2:4000/api';

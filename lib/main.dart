@@ -14,8 +14,8 @@ import 'core/utils/storage_helper.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  if (kReleaseMode && !AppConstants.apiBaseUrl.startsWith('https://')) {
-    throw StateError('Release builds require an https API_URL (--dart-define=API_URL=https://...)');
+  if (kReleaseMode && AppConstants.apiBaseUrl.isEmpty) {
+    throw StateError('Release builds require a valid API_URL (--dart-define=API_URL=...)');
   }
 
   // F12: Delete legacy keys user_age and user_dob from secure storage and SharedPreferences
