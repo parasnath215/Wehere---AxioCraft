@@ -61,6 +61,7 @@ This directory contains the exhaustive technical audit and architectural bluepri
 | **11** | [BACKEND_API.md](file:///e:/Websites/Wehere/docs/architecture/BACKEND_API.md) | Backend route reference for all endpoints, middleware security rules, Admin panel API mapping, and Socket.IO WebSocket event matrix. |
 | **12** | [DATABASE.md](file:///e:/Websites/Wehere/docs/architecture/DATABASE.md) | Complete PostgreSQL Prisma schema specification: 17 models, column constraints, indexes, ER diagram, and Flutter feature mappings. |
 | **13** | [CHANGELOG_FIXES.md](file:///e:/Websites/Wehere/docs/architecture/CHANGELOG_FIXES.md) | Phase-by-phase implementation changelog of production hardening fixes, migrations, and architecture changes. |
+| **14** | [AUTH_LOGIN_REGISTRATION_FLOW.md](file:///e:/Websites/Wehere/docs/architecture/AUTH_LOGIN_REGISTRATION_FLOW.md) | Exhaustive technical specification and visual decision trees for all Login, Social Login (Google & Apple), Registration, OTP, DOB Age-Gate, and Admin flows. |
 
 ---
 
