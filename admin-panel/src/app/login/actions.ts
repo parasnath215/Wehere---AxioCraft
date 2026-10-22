@@ -1,6 +1,6 @@
 'use server';
 
-import { cookies } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 
 export interface LoginState {
@@ -34,10 +34,15 @@ export async function loginAction(prevState: LoginState | null, formData: FormDa
       return { error: data.message || 'Invalid credentials or access denied.' };
     }
 
+    const headerList = await headers();
+    const proto = headerList.get('x-forwarded-proto') || '';
+    const referer = headerList.get('referer') || '';
+    const isHttps = proto === 'https' || referer.startsWith('https://');
+
     const cookieStore = await cookies();
     cookieStore.set('admin_token', data.token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: isHttps,
       sameSite: 'lax',
       maxAge: 12 * 60 * 60, // 12 hours
       path: '/',
