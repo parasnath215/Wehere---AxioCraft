@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/network/api_client.dart';
+import '../../core/routing/app_routes.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../state/auth_notifier.dart';
@@ -69,10 +70,17 @@ class _DobGateScreenState extends State<DobGateScreen> {
         if (!mounted) return;
         final auth = context.read<AuthNotifier>();
         auth.setNeedsDob(false);
-        if (!mounted) return;
         final appState = context.read<AppState>();
         await appState.fetchCurrentUser();
         await appState.fetchBackendData();
+        if (!mounted) return;
+        if (!auth.hasCompletedOnboarding) {
+          Navigator.pushReplacementNamed(context, AppRoutes.onboarding);
+        } else {
+          appState.setTabIndex(0);
+          Navigator.pushNamedAndRemoveUntil(context, AppRoutes.main, (route) => false);
+        }
+        return;
       }
     } on DioException catch (e) {
       final errCode = e.response?.data?['error'];
@@ -83,6 +91,23 @@ class _DobGateScreenState extends State<DobGateScreen> {
           const SnackBar(content: Text('You must be 18 or older to use Wehere.')),
         );
         await context.read<AuthNotifier>().logout();
+        return;
+      }
+      if (e.response?.statusCode == 409) {
+        // DOB is already recorded in the database; treat as verified and proceed
+        if (!mounted) return;
+        final auth = context.read<AuthNotifier>();
+        auth.setNeedsDob(false);
+        final appState = context.read<AppState>();
+        await appState.fetchCurrentUser();
+        await appState.fetchBackendData();
+        if (!mounted) return;
+        if (!auth.hasCompletedOnboarding) {
+          Navigator.pushReplacementNamed(context, AppRoutes.onboarding);
+        } else {
+          appState.setTabIndex(0);
+          Navigator.pushNamedAndRemoveUntil(context, AppRoutes.main, (route) => false);
+        }
         return;
       }
       setState(() => _errorMessage = msg.toString());

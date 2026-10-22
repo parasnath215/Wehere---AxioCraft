@@ -9,6 +9,20 @@ import 'package:google_sign_in/google_sign_in.dart';
 
 enum AuthStatus { initializing, unauthenticated, unverified, authenticated }
 
+class GoogleUserData {
+  final String name;
+  final String email;
+  final String? photoUrl;
+  final String idToken;
+
+  GoogleUserData({
+    required this.name,
+    required this.email,
+    this.photoUrl,
+    required this.idToken,
+  });
+}
+
 class AuthNotifier extends ChangeNotifier {
   AuthStatus _status = AuthStatus.initializing;
   String? _userId;
@@ -161,25 +175,28 @@ class AuthNotifier extends ChangeNotifier {
     }
   }
 
-  Future<bool> loginWithGoogle() async {
+  Future<bool> loginWithGoogle([String? providedIdToken]) async {
     _isLoading = true;
     _authError = null;
     notifyListeners();
 
     try {
-      final GoogleSignIn googleSignIn = GoogleSignIn(
-        serverClientId: '477223765836-9t4oml9khj3jelnlqc33r093uupa08cr.apps.googleusercontent.com',
-      );
+      String? idToken = providedIdToken;
+      if (idToken == null || idToken.isEmpty) {
+        final GoogleSignIn googleSignIn = GoogleSignIn(
+          serverClientId: '477223765836-9t4oml9khj3jelnlqc33r093uupa08cr.apps.googleusercontent.com',
+        );
 
-      final GoogleSignInAccount? account = await googleSignIn.signIn();
-      if (account == null) {
-        _isLoading = false;
-        notifyListeners();
-        return false;
+        final GoogleSignInAccount? account = await googleSignIn.signIn();
+        if (account == null) {
+          _isLoading = false;
+          notifyListeners();
+          return false;
+        }
+
+        final GoogleSignInAuthentication auth = await account.authentication;
+        idToken = auth.idToken;
       }
-
-      final GoogleSignInAuthentication auth = await account.authentication;
-      final String? idToken = auth.idToken;
 
       if (idToken == null || idToken.isEmpty) {
         _authError = 'Failed to retrieve Google identity token.';
@@ -202,11 +219,11 @@ class AuthNotifier extends ChangeNotifier {
       _userId = user['id'];
       _registeredEmail = user['email'] ?? '';
       _registeredName = user['displayName'] ?? user['pseudonym'] ?? 'Explorer';
-      _needsDob = response.data['requiresDob'] == true || user['dateOfBirth'] == null;
+      _needsDob = response.data['requiresDob'] == true;
       _status = AuthStatus.authenticated;
 
       final savedOnboarding = await StorageHelper.read(key: 'onboarding_completed');
-      _hasCompletedOnboarding = savedOnboarding == 'true' || (user['interests'] != null && user['interests'].isNotEmpty);
+      _hasCompletedOnboarding = savedOnboarding == 'true' || (user['interests'] != null && (user['interests'] as List).isNotEmpty);
 
       _isLoading = false;
       notifyListeners();
@@ -221,6 +238,82 @@ class AuthNotifier extends ChangeNotifier {
       return false;
     } catch (e) {
       _authError = 'Google sign-in error: ${e.toString()}';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<Map<String, dynamic>?> checkGoogleUser(String idToken) async {
+    try {
+      final res = await apiClient.post('/auth/google/check', data: {'idToken': idToken});
+      if (res.statusCode == 200 && res.data is Map) {
+        return Map<String, dynamic>.from(res.data);
+      }
+    } catch (e) {
+      debugPrint('checkGoogleUser error: $e');
+    }
+    return null;
+  }
+
+  Future<bool> registerWithGoogle({
+    required String idToken,
+    required String pseudonym,
+    String? password,
+    String? phone,
+    required List<String> imagePaths,
+  }) async {
+    _isLoading = true;
+    _authError = null;
+    notifyListeners();
+
+    try {
+      final formData = FormData();
+      formData.fields.add(MapEntry('idToken', idToken));
+      formData.fields.add(MapEntry('pseudonym', pseudonym));
+      if (password != null && password.isNotEmpty) {
+        formData.fields.add(MapEntry('password', password));
+      }
+      if (phone != null && phone.isNotEmpty) {
+        formData.fields.add(MapEntry('phone', phone));
+      }
+
+      for (final path in imagePaths) {
+        final filename = path.split(Platform.pathSeparator).last;
+        formData.files.add(MapEntry(
+          'images',
+          await MultipartFile.fromFile(path, filename: filename),
+        ));
+      }
+
+      final response = await apiClient.post('/auth/register-google', data: formData);
+      final token = response.data['token'];
+      final user = response.data['user'];
+
+      await StorageHelper.write(key: 'jwt_token', value: token);
+      await StorageHelper.write(key: 'user_id', value: user['id']);
+      await StorageHelper.write(key: 'user_email', value: user['email']);
+
+      _userId = user['id'];
+      _registeredEmail = user['email'] ?? '';
+      _registeredName = user['displayName'] ?? user['pseudonym'] ?? 'Explorer';
+      _needsDob = response.data['requiresDob'] == true;
+      _hasCompletedOnboarding = false;
+      _status = AuthStatus.authenticated;
+
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } on DioException catch (e) {
+      final resData = e.response?.data;
+      _authError = (resData is Map)
+          ? (resData['message'] ?? resData['error'] ?? 'Google registration failed.')
+          : 'Google registration failed.';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    } catch (e) {
+      _authError = 'Google registration error: ${e.toString()}';
       _isLoading = false;
       notifyListeners();
       return false;

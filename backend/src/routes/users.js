@@ -82,7 +82,12 @@ router.put('/me/dob', dobLimiter, authenticateToken, requireVerified, async (req
     }
 
     if (user.dateOfBirth != null) {
-      return res.status(409).json({ error: 'CONFLICT', message: 'Date of birth is already set and cannot be changed.' });
+      return res.json({
+        success: true,
+        age: calcAge(user.dateOfBirth),
+        alreadySet: true,
+        message: 'Date of birth is already set.'
+      });
     }
 
     const { dateOfBirth } = req.body || {};

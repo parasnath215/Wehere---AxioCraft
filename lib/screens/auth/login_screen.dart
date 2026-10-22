@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:dio/dio.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/routing/app_routes.dart';
@@ -385,20 +386,56 @@ class _LoginScreenState extends State<LoginScreen> {
                   onPressed: auth.isLoading
                       ? null
                       : () async {
-                          final success = await context.read<AuthNotifier>().loginWithGoogle();
-                          if (!context.mounted) return;
-                          final authNotifier = context.read<AuthNotifier>();
-                          if (success && authNotifier.status == AuthStatus.authenticated) {
-                            if (authNotifier.needsDob) {
-                              Navigator.pushReplacementNamed(context, AppRoutes.dobGate);
-                            } else if (!authNotifier.hasCompletedOnboarding) {
-                              Navigator.pushReplacementNamed(context, AppRoutes.onboarding);
-                            } else {
-                              context.read<AppState>().setTabIndex(0);
-                              Navigator.pushNamedAndRemoveUntil(context, AppRoutes.main, (route) => false);
+                          try {
+                            final GoogleSignIn googleSignIn = GoogleSignIn(
+                              serverClientId: '477223765836-9t4oml9khj3jelnlqc33r093uupa08cr.apps.googleusercontent.com',
+                            );
+                            final account = await googleSignIn.signIn();
+                            if (account == null) return;
+
+                            final googleAuth = await account.authentication;
+                            final idToken = googleAuth.idToken;
+                            if (idToken == null || idToken.isEmpty) {
+                              if (context.mounted) UiUtils.showTopSnackBar(context, 'Failed to retrieve Google identity token.');
+                              return;
                             }
-                          } else if (authNotifier.authError != null) {
-                            UiUtils.showTopSnackBar(context, authNotifier.authError!);
+
+                            if (!context.mounted) return;
+                            final authNotifier = context.read<AuthNotifier>();
+                            final check = await authNotifier.checkGoogleUser(idToken);
+
+                            if (check != null && check['exists'] == true) {
+                              // Existing user -> login directly using retrieved token!
+                              final success = await authNotifier.loginWithGoogle(idToken);
+                              if (!context.mounted) return;
+                              if (success && authNotifier.status == AuthStatus.authenticated) {
+                                if (authNotifier.needsDob) {
+                                  Navigator.pushReplacementNamed(context, AppRoutes.dobGate);
+                                } else if (!authNotifier.hasCompletedOnboarding) {
+                                  Navigator.pushReplacementNamed(context, AppRoutes.onboarding);
+                                } else {
+                                  context.read<AppState>().setTabIndex(0);
+                                  Navigator.pushNamedAndRemoveUntil(context, AppRoutes.main, (route) => false);
+                                }
+                              } else if (authNotifier.authError != null) {
+                                UiUtils.showTopSnackBar(context, authNotifier.authError!);
+                              }
+                            } else {
+                              // Brand new user from login screen -> forward to SignUpScreen with prefilled Google details!
+                              if (!context.mounted) return;
+                              Navigator.pushNamed(
+                                context,
+                                AppRoutes.signup,
+                                arguments: GoogleUserData(
+                                  name: account.displayName ?? '',
+                                  email: account.email,
+                                  photoUrl: account.photoUrl,
+                                  idToken: idToken,
+                                ),
+                              );
+                            }
+                          } catch (e) {
+                            if (context.mounted) UiUtils.showTopSnackBar(context, 'Google sign-in error: $e');
                           }
                         },
                   child: Row(

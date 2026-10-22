@@ -419,13 +419,188 @@ router.post('/google', async (req, res) => {
         pseudonym: user.pseudonym,
         displayName: user.displayName,
         avatar: user.avatar,
+        images: user.images || [],
+        interests: user.interests || [],
         emailVerified: user.emailVerified,
         currentStreak: user.currentStreak,
+        dateOfBirth: user.dateOfBirth,
       },
       requiresDob: !user.dateOfBirth,
     });
   } catch (error) {
     console.error('Google auth error:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// POST /auth/google/check - Check if Google account already exists in DB
+router.post('/google/check', async (req, res) => {
+  try {
+    const { idToken } = req.body;
+    if (!idToken || typeof idToken !== 'string') {
+      return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Google idToken is required' });
+    }
+
+    let payload;
+    try {
+      const ticket = await googleClient.verifyIdToken({
+        idToken,
+        audience: [
+          '477223765836-9t4oml9khj3jelnlqc33r093uupa08cr.apps.googleusercontent.com',
+          '477223765836-s04n00edhkkoj7hlkc76qqs52iotkfa0.apps.googleusercontent.com',
+          process.env.GOOGLE_CLIENT_ID,
+        ].filter(Boolean),
+      });
+      payload = ticket.getPayload();
+    } catch (verifyErr) {
+      return res.status(401).json({ error: 'INVALID_CREDENTIALS', message: 'Invalid Google token' });
+    }
+
+    const { sub: googleId, email, name, picture } = payload;
+    const normalizedEmail = (email || '').trim().toLowerCase();
+
+    const existingUser = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { googleId },
+          ...(normalizedEmail ? [{ email: normalizedEmail }] : []),
+        ]
+      }
+    });
+
+    res.json({
+      success: true,
+      exists: !!existingUser,
+      email: normalizedEmail,
+      name,
+      picture,
+    });
+  } catch (err) {
+    console.error('google/check error:', err);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// POST /auth/register-google - Direct registration with Google verification (skips OTP)
+router.post('/register-google', signupLimiter, upload.array('images', 6), async (req, res) => {
+  try {
+    const { idToken, pseudonym, password, phone } = req.body;
+    if (!idToken || typeof idToken !== 'string') {
+      return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Google idToken is required' });
+    }
+
+    if (!req.files || req.files.length < 2) {
+      return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'At least 2 profile images are required.' });
+    }
+
+    let payload;
+    try {
+      const ticket = await googleClient.verifyIdToken({
+        idToken,
+        audience: [
+          '477223765836-9t4oml9khj3jelnlqc33r093uupa08cr.apps.googleusercontent.com',
+          '477223765836-s04n00edhkkoj7hlkc76qqs52iotkfa0.apps.googleusercontent.com',
+          process.env.GOOGLE_CLIENT_ID,
+        ].filter(Boolean),
+      });
+      payload = ticket.getPayload();
+    } catch (verifyErr) {
+      console.error('Google token verification failed in register-google:', verifyErr.message);
+      return res.status(401).json({ error: 'INVALID_CREDENTIALS', message: 'Invalid or expired Google token.' });
+    }
+
+    const { sub: googleId, email, name, picture } = payload;
+    if (!email) {
+      return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Google account has no email address.' });
+    }
+    const normalizedEmail = email.trim().toLowerCase();
+
+    // Check if user already exists
+    const existing = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { googleId },
+          { email: normalizedEmail }
+        ]
+      }
+    });
+
+    if (existing) {
+      return res.status(409).json({ error: 'CONFLICT', message: 'An account with this email already exists. Please log in.' });
+    }
+
+    const imagePaths = await Promise.all(req.files.map(f => processAndSaveImage(f.buffer)));
+
+    let hashedPassword = null;
+    if (password && typeof password === 'string' && password.trim().length > 0) {
+      hashedPassword = await bcrypt.hash(password.trim(), 10);
+    }
+
+    let desiredPseudonym = (pseudonym && pseudonym.trim().length > 0) ? pseudonym.trim() : (name || 'Explorer');
+    let uniqueHandle = desiredPseudonym;
+    let handleExists = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { pseudonym: uniqueHandle },
+          { username: uniqueHandle }
+        ],
+        emailVerified: true
+      }
+    });
+    while (handleExists) {
+      uniqueHandle = `${desiredPseudonym}_${crypto.randomInt(1000, 9999)}`;
+      handleExists = await prisma.user.findFirst({
+        where: {
+          OR: [
+            { pseudonym: uniqueHandle },
+            { username: uniqueHandle }
+          ],
+          emailVerified: true
+        }
+      });
+    }
+
+    const user = await prisma.user.create({
+      data: {
+        email: normalizedEmail,
+        googleId,
+        password: hashedPassword,
+        pseudonym: uniqueHandle,
+        displayName: name || desiredPseudonym,
+        avatar: imagePaths[0] || picture,
+        images: imagePaths,
+        phone: phone ? phone.trim() : null,
+        emailVerified: true,
+        emailVerifiedAt: new Date(),
+        role: 'USER',
+      }
+    });
+
+    const token = jwt.sign(
+      { id: user.id, role: user.role, tokenVersion: user.tokenVersion },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    res.json({
+      success: true,
+      token,
+      user: {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        pseudonym: user.pseudonym,
+        displayName: user.displayName,
+        avatar: user.avatar,
+        images: user.images,
+        emailVerified: user.emailVerified,
+        currentStreak: user.currentStreak,
+        dateOfBirth: user.dateOfBirth,
+      },
+      requiresDob: !user.dateOfBirth,
+    });
+  } catch (error) {
+    console.error('register-google error:', error);
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });

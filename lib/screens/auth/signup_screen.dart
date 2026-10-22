@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:dio/dio.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/routing/app_routes.dart';
@@ -34,6 +37,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final List<String> _imagePaths = [];
   final ImagePicker _picker = ImagePicker();
 
+  bool _isGoogleVerified = false;
+  String? _googleIdToken;
+  bool _didInitGoogleData = false;
+
   // Password criteria getters
   bool get _hasMinLength => _password.length >= 8;
   bool get _hasCaps => RegExp(r'[A-Z]').hasMatch(_password);
@@ -45,6 +52,107 @@ class _SignUpScreenState extends State<SignUpScreen> {
     super.initState();
     _passwordController.addListener(_onPasswordChanged);
     _clearLegacyDrafts();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_didInitGoogleData) {
+      _didInitGoogleData = true;
+      final args = ModalRoute.of(context)?.settings.arguments;
+      if (args is GoogleUserData) {
+        _applyGoogleData(args);
+      }
+    }
+  }
+
+  void _applyGoogleData(GoogleUserData data) {
+    setState(() {
+      _isGoogleVerified = true;
+      _googleIdToken = data.idToken;
+      if (_nameController.text.isEmpty) {
+        _nameController.text = data.name;
+      }
+      _emailController.text = data.email;
+    });
+
+    if (data.photoUrl != null && data.photoUrl!.isNotEmpty && _imagePaths.isEmpty) {
+      _downloadGooglePhoto(data.photoUrl!);
+    }
+  }
+
+  Future<void> _downloadGooglePhoto(String url) async {
+    try {
+      final dio = Dio();
+      final tempDir = await getTemporaryDirectory();
+      final filePath = '${tempDir.path}/google_avatar_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      await dio.download(url, filePath);
+      if (File(filePath).existsSync() && mounted) {
+        setState(() {
+          if (!_imagePaths.contains(filePath)) {
+            _imagePaths.insert(0, filePath);
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint('Error downloading Google photo: $e');
+    }
+  }
+
+  Future<void> _handleGoogleSignIn() async {
+    try {
+      final GoogleSignIn googleSignIn = GoogleSignIn(
+        serverClientId: '477223765836-9t4oml9khj3jelnlqc33r093uupa08cr.apps.googleusercontent.com',
+      );
+      final account = await googleSignIn.signIn();
+      if (account == null) return;
+
+      final auth = await account.authentication;
+      final idToken = auth.idToken;
+      if (idToken == null || idToken.isEmpty) {
+        if (mounted) UiUtils.showTopSnackBar(context, 'Failed to retrieve Google identity token.');
+        return;
+      }
+
+      if (!mounted) return;
+      final authNotifier = context.read<AuthNotifier>();
+      final check = await authNotifier.checkGoogleUser(idToken);
+
+      if (check != null && check['exists'] == true) {
+        // Existing user -> login directly using retrieved token!
+        final success = await authNotifier.loginWithGoogle(idToken);
+        if (!mounted) return;
+        if (success && authNotifier.status == AuthStatus.authenticated) {
+          if (authNotifier.needsDob) {
+            Navigator.pushReplacementNamed(context, AppRoutes.dobGate);
+          } else if (!authNotifier.hasCompletedOnboarding) {
+            Navigator.pushReplacementNamed(context, AppRoutes.onboarding);
+          } else {
+            context.read<AppState>().setTabIndex(0);
+            Navigator.pushNamedAndRemoveUntil(context, AppRoutes.main, (route) => false);
+          }
+        } else if (authNotifier.authError != null) {
+          UiUtils.showTopSnackBar(context, authNotifier.authError!);
+        }
+      } else {
+        // Brand new Google user: auto-fill the form and skip OTP!
+        _applyGoogleData(GoogleUserData(
+          name: account.displayName ?? '',
+          email: account.email,
+          photoUrl: account.photoUrl,
+          idToken: idToken,
+        ));
+        if (mounted) {
+          UiUtils.showTopSnackBar(
+            context,
+            'Google account connected. Profile details auto-filled! (OTP will be skipped)',
+            isError: false,
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) UiUtils.showTopSnackBar(context, 'Google sign-in error: $e');
+    }
   }
 
   void _onPasswordChanged() {
@@ -197,11 +305,41 @@ class _SignUpScreenState extends State<SignUpScreen> {
               const SizedBox(height: 14),
 
               // Email
+              if (_isGoogleVerified)
+                Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF10B981).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.3)),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.verified_rounded, color: Color(0xFF10B981), size: 16),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Verified via Google — Email OTP verification skipped',
+                          style: TextStyle(
+                            color: Color(0xFF10B981),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               TextField(
                 controller: _emailController,
+                readOnly: _isGoogleVerified,
                 keyboardType: TextInputType.emailAddress,
-                decoration: const InputDecoration(
-                  prefixIcon: Icon(Icons.email_outlined, color: AppColors.primary),
+                decoration: InputDecoration(
+                  prefixIcon: Icon(
+                    _isGoogleVerified ? Icons.check_circle_rounded : Icons.email_outlined,
+                    color: _isGoogleVerified ? const Color(0xFF10B981) : AppColors.primary,
+                  ),
                   hintText: 'Email',
                 ),
               ),
@@ -373,6 +511,38 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           }
 
                           final appState = context.read<AppState>();
+                          if (_isGoogleVerified && _googleIdToken != null) {
+                            final success = await auth.registerWithGoogle(
+                              idToken: _googleIdToken!,
+                              pseudonym: name,
+                              password: pass.isNotEmpty ? pass : null,
+                              phone: phone.isNotEmpty ? phone : null,
+                              imagePaths: _imagePaths,
+                            );
+
+                            if (success) {
+                              appState.onboardingName = name;
+                              appState.initializeUserFromAuth(
+                                id: auth.userId?.isNotEmpty == true ? auth.userId! : 'usr_${DateTime.now().millisecondsSinceEpoch}',
+                                name: auth.registeredName,
+                                email: auth.registeredEmail,
+                              );
+                              if (context.mounted) {
+                                if (auth.needsDob) {
+                                  Navigator.pushNamedAndRemoveUntil(context, AppRoutes.dobGate, (route) => false);
+                                } else if (!auth.hasCompletedOnboarding) {
+                                  Navigator.pushNamedAndRemoveUntil(context, AppRoutes.onboarding, (route) => false);
+                                } else {
+                                  context.read<AppState>().setTabIndex(0);
+                                  Navigator.pushNamedAndRemoveUntil(context, AppRoutes.main, (route) => false);
+                                }
+                              }
+                            } else if (context.mounted && auth.authError != null) {
+                              UiUtils.showTopSnackBar(context, auth.authError!);
+                            }
+                            return;
+                          }
+
                           final success = await auth.register(
                             name,
                             email,
@@ -445,25 +615,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                   ),
-                  onPressed: auth.isLoading
-                      ? null
-                      : () async {
-                          final success = await context.read<AuthNotifier>().loginWithGoogle();
-                          if (!context.mounted) return;
-                          final authNotifier = context.read<AuthNotifier>();
-                          if (success && authNotifier.status == AuthStatus.authenticated) {
-                            if (authNotifier.needsDob) {
-                              Navigator.pushReplacementNamed(context, AppRoutes.dobGate);
-                            } else if (!authNotifier.hasCompletedOnboarding) {
-                              Navigator.pushReplacementNamed(context, AppRoutes.onboarding);
-                            } else {
-                              context.read<AppState>().setTabIndex(0);
-                              Navigator.pushNamedAndRemoveUntil(context, AppRoutes.main, (route) => false);
-                            }
-                          } else if (authNotifier.authError != null) {
-                            UiUtils.showTopSnackBar(context, authNotifier.authError!);
-                          }
-                        },
+                  onPressed: auth.isLoading ? null : () => _handleGoogleSignIn(),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
