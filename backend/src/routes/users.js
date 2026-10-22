@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const bcrypt = require('bcryptjs');
 const prisma = require('../lib/prisma');
 const { authenticateToken, requireVerified } = require('../middleware/auth');
 const { reportLimiter, dobLimiter } = require('../middleware/rateLimits');
@@ -303,14 +304,43 @@ router.post('/:id/report', reportLimiter, authenticateToken, requireVerified, as
   }
 });
 
-// DELETE /users/me - Schedule account deletion with 30-day grace period
+// DELETE /users/me - Schedule account deletion with 30-day grace period (requires password confirmation)
 router.delete('/me', authenticateToken, requireVerified, async (req, res, next) => {
   try {
     const userId = req.user.id;
+    const { password } = req.body || {};
+
+    if (!password || typeof password !== 'string') {
+      return res.status(400).json({
+        error: 'VALIDATION_ERROR',
+        message: 'Please enter your password to confirm account deletion.',
+      });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, password: true, email: true },
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        error: 'USER_NOT_FOUND',
+        message: 'User not found.',
+      });
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(401).json({
+        error: 'INVALID_CREDENTIALS',
+        message: 'Incorrect password. Account deletion cancelled.',
+      });
+    }
+
     const now = new Date();
     const scheduledDeletionDate = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
 
-    const user = await prisma.user.update({
+    const updatedUser = await prisma.user.update({
       where: { id: userId },
       data: {
         scheduledDeletionDate,
@@ -326,7 +356,7 @@ router.delete('/me', authenticateToken, requireVerified, async (req, res, next) 
     res.json({
       success: true,
       message: 'Account scheduled for deletion in 30 days. To continue from where you left, just log in before the scheduled date.',
-      scheduledDeletionDate: user.scheduledDeletionDate,
+      scheduledDeletionDate: updatedUser.scheduledDeletionDate,
     });
   } catch (error) {
     next(error);

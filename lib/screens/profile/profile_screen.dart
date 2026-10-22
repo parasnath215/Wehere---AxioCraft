@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import 'package:dio/dio.dart';
 import '../../core/network/api_client.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/routing/app_routes.dart';
@@ -640,86 +641,170 @@ class ProfileScreen extends StatelessWidget {
   void _showDeleteAccountDialog(BuildContext context) {
     final deletionDate = DateTime.now().add(const Duration(days: 30));
     final formattedDate = DateFormat('MMMM d, yyyy').format(deletionDate);
+    final passwordController = TextEditingController();
+    bool obscurePassword = true;
+    bool isDeleting = false;
+    String? errorMessage;
 
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        title: Row(
-          children: [
-            const Icon(Icons.warning_amber_rounded, color: AppColors.sosRed, size: 24),
-            const SizedBox(width: 8),
-            Text('Delete Account', style: GoogleFonts.newsreader(fontWeight: FontWeight.w600, fontSize: 20)),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Your account will be scheduled for permanent deletion. Your data will be deleted in 30 days ($formattedDate).',
-              style: GoogleFonts.plusJakartaSans(fontSize: 13.5, height: 1.4),
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+            title: Row(
+              children: [
+                const Icon(Icons.warning_amber_rounded, color: AppColors.sosRed, size: 24),
+                const SizedBox(width: 8),
+                Text('Delete Account', style: GoogleFonts.newsreader(fontWeight: FontWeight.w600, fontSize: 20)),
+              ],
             ),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppColors.surfaceSubtle,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.cardBorder),
-              ),
-              child: Row(
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.info_outline_rounded, size: 18, color: AppColors.primary),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'To continue from where you left, just log in before $formattedDate.',
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary,
-                        height: 1.3,
+                  Text(
+                    'Your account will be scheduled for permanent deletion. Your data will be deleted in 30 days ($formattedDate).',
+                    style: GoogleFonts.plusJakartaSans(fontSize: 13.5, height: 1.4),
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceSubtle,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.cardBorder),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.info_outline_rounded, size: 18, color: AppColors.primary),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'To continue from where you left, just log in before $formattedDate.',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textPrimary,
+                              height: 1.3,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Enter your password to confirm deletion:',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: passwordController,
+                    obscureText: obscurePassword,
+                    enabled: !isDeleting,
+                    decoration: InputDecoration(
+                      hintText: 'Your password',
+                      prefixIcon: const Icon(Icons.lock_outline_rounded, size: 20),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                          size: 20,
+                          color: AppColors.textMuted,
+                        ),
+                        onPressed: () {
+                          setDialogState(() {
+                            obscurePassword = !obscurePassword;
+                          });
+                        },
                       ),
+                      errorText: errorMessage,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                   ),
                 ],
               ),
             ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.sosRed,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            ),
-            onPressed: () async {
-              Navigator.pop(ctx);
-              try {
-                await apiClient.delete('/users/me');
-              } catch (_) {}
-              if (!context.mounted) return;
-              context.read<AppState>().resetUserSession();
-              await context.read<AuthNotifier>().logout();
-              if (!context.mounted) return;
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Account scheduled for deletion. Log in before $formattedDate to restore.'),
-                  duration: const Duration(seconds: 5),
+            actions: [
+              TextButton(
+                onPressed: isDeleting ? null : () => Navigator.pop(ctx),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.sosRed,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 ),
-              );
-              Navigator.pushNamedAndRemoveUntil(context, AppRoutes.login, (route) => false);
-            },
-            child: const Text('Delete Account', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-          ),
-        ],
+                onPressed: isDeleting
+                    ? null
+                    : () async {
+                        final password = passwordController.text.trim();
+                        if (password.isEmpty) {
+                          setDialogState(() {
+                            errorMessage = 'Password is required to delete your account.';
+                          });
+                          return;
+                        }
+
+                        setDialogState(() {
+                          isDeleting = true;
+                          errorMessage = null;
+                        });
+
+                        try {
+                          await apiClient.delete('/users/me', data: {'password': password});
+                          if (!context.mounted) return;
+                          Navigator.pop(ctx);
+                          context.read<AppState>().resetUserSession();
+                          await context.read<AuthNotifier>().logout();
+                          if (!context.mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Account scheduled for deletion. Log in before $formattedDate to restore.'),
+                              duration: const Duration(seconds: 5),
+                            ),
+                          );
+                          Navigator.pushNamedAndRemoveUntil(context, AppRoutes.login, (route) => false);
+                        } on DioException catch (e) {
+                          final data = e.response?.data;
+                          String msg = 'Failed to delete account. Please try again.';
+                          if (data is Map && data['message'] != null) {
+                            msg = data['message'].toString();
+                          }
+                          setDialogState(() {
+                            isDeleting = false;
+                            errorMessage = msg;
+                          });
+                        } catch (e) {
+                          setDialogState(() {
+                            isDeleting = false;
+                            errorMessage = 'An unexpected error occurred.';
+                          });
+                        }
+                      },
+                child: isDeleting
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Text(
+                        'Delete Account',
+                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                      ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

@@ -1630,12 +1630,12 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  Future<bool> deleteAccount() async {
+  Future<bool> deleteAccount({required String password}) async {
     try {
-      await apiClient.delete('/users/me');
+      await apiClient.delete('/users/me', data: {'password': password});
       return true;
     } catch (e) {
-      return false;
+      rethrow;
     }
   }
 
