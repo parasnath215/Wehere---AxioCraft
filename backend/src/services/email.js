@@ -20,31 +20,27 @@ const mailConfig = {
 const transporter = nodemailer.createTransport(mailConfig);
 
 async function verifyMailConfig() {
-  if (process.env.NODE_ENV === 'production' && process.env.TEST_OTP_ENABLED !== 'true') {
-    if (!mailHost || !mailFrom) {
-      console.error('FATAL ERROR: SMTP_HOST (or MAIL_HOST) and SMTP_FROM (or MAIL_FROM) must be configured in production.');
-      process.exit(1);
-    }
+  if (!mailHost || !mailFrom) {
+    console.warn('⚠️ Mail service: SMTP_HOST (or MAIL_HOST) and SMTP_FROM are not configured. Outgoing emails will be disabled until configured.');
+    return;
   }
 
   try {
     await transporter.verify();
     console.log('✅ Mail service is ready');
   } catch (error) {
-    if (process.env.NODE_ENV === 'production' && process.env.TEST_OTP_ENABLED !== 'true') {
-      console.error('FATAL ERROR: Failed to connect to the mail server in production.');
-      console.error(error);
-      process.exit(1);
-    } else {
-      console.warn('⚠️ Mail service connection failed (expected if local Mailpit is down or TEST_OTP_ENABLED=true):', error.message);
-    }
+    console.warn('⚠️ Mail service connection failed:', error.message);
   }
 }
 
 async function sendEmail({ to, subject, text, html }) {
+  if (!mailHost || !mailFrom) {
+    console.warn(`⚠️ Email to ${to} skipped because SMTP credentials are not yet configured in .env. Subject: "${subject}"`);
+    return false;
+  }
   try {
     const info = await transporter.sendMail({
-      from: mailFrom || '"Wehere" <noreply@wehere.com>',
+      from: mailFrom,
       to,
       subject,
       text,
