@@ -6,13 +6,8 @@ import '../utils/storage_helper.dart';
 enum AuthEvent { loggedOut, emailNotVerified, ageRequired }
 
 bool shouldForceLogout(int? status, String path, String? code) {
-  if (status == 401 && !path.startsWith('/auth/')) {
-    return true;
-  }
-  if (status == 403 && code == 'ACCOUNT_BANNED') {
-    return true;
-  }
-  return false;
+  return (status == 401 && (code == 'TOKEN_INVALID' || code == 'TOKEN_EXPIRED')) ||
+      (status == 403 && code == 'ACCOUNT_BANNED');
 }
 
 class ApiClient {

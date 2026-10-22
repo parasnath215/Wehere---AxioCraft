@@ -41,9 +41,23 @@ erDiagram
         int level
         int currentStreak
         datetime dateOfBirth
+        datetime underageBlockedAt
         boolean emailVerified
         int tokenVersion
         datetime scheduledDeletionDate
+    }
+
+    PendingSignup {
+        string id PK
+        string email UK
+        string phone
+        string passwordHash
+        string pseudonym
+        string[] images
+        string codeHash
+        int attempts
+        datetime expiresAt
+        datetime createdAt
     }
 
     OtpRecord {
@@ -368,3 +382,20 @@ erDiagram
   - `order`: `Int`, `@default(0)`
 - **Indexes**: `@@index([type])`
 - **Flutter Feature Consuming**: `OnboardingFlowScreen`, `EditProfileScreen`.
+
+---
+
+### 15. `PendingSignup` Table ([schema.prisma:L300-L315](file:///e:/Websites/Wehere/backend/prisma/schema.prisma#L300-L315))
+- **Primary Key**: `id` (`String`, UUID)
+- **Columns**:
+  - `email`: `String` (Unique)
+  - `phone`: `String?`
+  - `passwordHash`: `String`
+  - `pseudonym`: `String`
+  - `images`: `String[]`
+  - `codeHash`: `String`
+  - `attempts`: `Int`, `@default(0)`
+  - `expiresAt`: `DateTime`
+  - `createdAt`: `DateTime`, `@default(now())`
+- **Indexes**: `@@index([expiresAt])`
+- **Flutter Feature Consuming**: `SignUpScreen`, `OtpVerificationScreen`. Holds registration state securely server-side so credentials and images are never embedded in client tokens. Expired rows and images are automatically purged by a 15-minute background worker.

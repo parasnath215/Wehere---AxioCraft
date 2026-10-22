@@ -1,7 +1,6 @@
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const prisma = require('../lib/prisma');
 
 function checkApiKey(providedKey, expectedKey) {
   if (!providedKey || !expectedKey) return false;
@@ -12,6 +11,8 @@ function checkApiKey(providedKey, expectedKey) {
   }
   return crypto.timingSafeEqual(providedBuffer, expectedBuffer);
 }
+
+let legacyTokenCount = 0;
 
 function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'];
@@ -25,6 +26,11 @@ function authenticateToken(req, res, next) {
     if (err) {
       return res.status(401).json({ error: 'TOKEN_INVALID', message: 'Token invalid or expired' });
     }
+
+    // F5: Reject any token that carries a purpose claim
+    if (decoded.purpose) {
+      return res.status(401).json({ error: 'TOKEN_INVALID', message: 'Token invalid for this endpoint' });
+    }
     
     try {
       const user = await prisma.user.findUnique({
@@ -32,9 +38,18 @@ function authenticateToken(req, res, next) {
       });
       
       if (!user) return res.status(401).json({ error: 'TOKEN_INVALID', message: 'Session invalid' });
+
+      // F2: Ban check
+      if (user.isBanned) {
+        return res.status(403).json({ error: 'ACCOUNT_BANNED', message: 'This account has been suspended.' });
+      }
       
-      // Check token version to invalidate old sessions
-      if (decoded.tokenVersion !== undefined && decoded.tokenVersion !== user.tokenVersion) {
+      // F2: Legacy token check (no tokenVersion)
+      // TODO (2026-10-29): Reject legacy tokens without tokenVersion once deploy is older than 7 days.
+      if (decoded.tokenVersion === undefined) {
+        legacyTokenCount++;
+        console.warn(`[Auth Warning] Legacy token without tokenVersion detected. Total: ${legacyTokenCount}`);
+      } else if (decoded.tokenVersion !== user.tokenVersion) {
         return res.status(401).json({ error: 'TOKEN_INVALID', message: 'Session expired. Please log in again.' });
       }
       
@@ -61,15 +76,49 @@ function adminGuard(req, res, next) {
     return res.status(401).json({ error: 'TOKEN_INVALID', message: 'Invalid internal API key.' });
   }
 
-  authenticateToken(req, res, () => {
-    if (!req.user || req.user.role !== 'ADMIN' || req.user.isBanned) {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) {
+    return res.status(401).json({ error: 'TOKEN_INVALID', message: 'Admin access required.' });
+  }
+
+  jwt.verify(token, process.env.JWT_SECRET, async (err, decoded) => {
+    // F11: adminGuard requires purpose === 'admin'
+    if (err || !decoded || decoded.purpose !== 'admin') {
       return res.status(401).json({ error: 'TOKEN_INVALID', message: 'Admin access required.' });
     }
-    next();
+
+    try {
+      const user = await prisma.user.findUnique({
+        where: { id: decoded.id }
+      });
+
+      if (!user || user.role !== 'ADMIN' || user.isBanned) {
+        return res.status(401).json({ error: 'TOKEN_INVALID', message: 'Admin access required.' });
+      }
+
+      if (decoded.tokenVersion !== undefined && decoded.tokenVersion !== user.tokenVersion) {
+        return res.status(401).json({ error: 'TOKEN_INVALID', message: 'Session expired. Please log in again.' });
+      }
+
+      req.user = user;
+      next();
+    } catch (e) {
+      res.status(500).json({ error: 'Internal server error' });
+    }
   });
 }
 
 function requireAdult(req, res, next) {
+  // F12: Check if user is already underage blocked
+  if (req.user?.underageBlockedAt) {
+    return res.status(403).json({
+      error: 'UNDERAGE',
+      message: 'You must be at least 18 years old to access this feature.'
+    });
+  }
+
   if (!req.user || !req.user.dateOfBirth) {
     return res.status(403).json({
       error: 'AGE_REQUIRED',

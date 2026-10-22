@@ -145,7 +145,10 @@ class AuthNotifier extends ChangeNotifier {
         notifyListeners();
         return false;
       }
-      _authError = e.response?.data?['error'] ?? 'Login failed. Please check credentials.';
+      final resData = e.response?.data;
+      _authError = (resData is Map)
+          ? (resData['message'] ?? resData['error'] ?? 'Login failed. Please check credentials.')
+          : 'Login failed. Please check credentials.';
       _isLoading = false;
       notifyListeners();
       return false;

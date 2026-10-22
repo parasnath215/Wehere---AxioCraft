@@ -1,4 +1,5 @@
 const rateLimit = require('express-rate-limit');
+const { ipKeyGenerator } = require('express-rate-limit');
 const jwt = require('jsonwebtoken');
 
 const createStandardLimiter = ({ windowMs, max, message, keyGenerator }) => {
@@ -22,17 +23,38 @@ const createStandardLimiter = ({ windowMs, max, message, keyGenerator }) => {
   return rateLimit(options);
 };
 
-// 5 per hour per IP
+// Global API limiter: 1200 per 15 min, keyed by auth user id when valid token exists, otherwise IP
+const apiLimiter = createStandardLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 1200,
+  keyGenerator: (req) => {
+    if (req.user?.id) return `user:${req.user.id}`;
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.split(' ')[1];
+      try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        if (decoded && decoded.id && !decoded.purpose) {
+          return `user:${decoded.id}`;
+        }
+      } catch (_) {}
+    }
+    return ipKeyGenerator(req.ip || '');
+  },
+  message: 'Too many requests. Please try again later.'
+});
+
+// 20 per hour per IP (signupLimiter)
 const signupLimiter = createStandardLimiter({
   windowMs: 60 * 60 * 1000,
-  max: 5,
+  max: 20,
   message: 'Too many signup attempts. Please try again in an hour.'
 });
 
-// 10 per 15 min per IP
+// 60 per 15 min per IP (otpVerifyLimiter)
 const otpVerifyLimiter = createStandardLimiter({
   windowMs: 15 * 60 * 1000,
-  max: 10,
+  max: 60,
   message: 'Too many OTP verification attempts. Please try again later.'
 });
 
@@ -100,11 +122,47 @@ const resetPasswordLimiter = createStandardLimiter({
   message: 'Too many password reset attempts. Please try again later.'
 });
 
-// 10 per 15 min per IP
-const loginLimiter = createStandardLimiter({
+// Login limiter: key = ip + ':' + lowercase(email), 10 per 15 min, plus loose per-IP cap of 100 per 15 min
+const loginIpCapLimiter = createStandardLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  message: 'Too many login attempts from this IP. Please try again later.'
+});
+
+const loginAccountLimiter = createStandardLimiter({
   windowMs: 15 * 60 * 1000,
   max: 10,
-  message: 'Too many login attempts. Please try again later.'
+  keyGenerator: (req) => {
+    const ip = ipKeyGenerator(req.ip || '');
+    const email = String(req.body?.email || '').trim().toLowerCase();
+    return `${ip}:${email}`;
+  },
+  message: 'Too many login attempts for this account. Please try again later.'
+});
+
+const loginLimiter = [loginIpCapLimiter, loginAccountLimiter];
+
+// Admin login limiter: separate limiter (5 per 15 min per ip + email)
+const adminLoginLimiter = createStandardLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  keyGenerator: (req) => {
+    const ip = ipKeyGenerator(req.ip || '');
+    const email = String(req.body?.email || '').trim().toLowerCase();
+    return `${ip}:${email}`;
+  },
+  message: 'Too many admin login attempts. Please try again later.'
+});
+
+// DOB limiter: 10 per hour per user on PUT /api/users/me/dob
+const dobLimiter = createStandardLimiter({
+  windowMs: 60 * 60 * 1000,
+  max: 10,
+  keyGenerator: (req) => {
+    if (req.user?.id) return `dob:${req.user.id}`;
+    return ipKeyGenerator(req.ip || '');
+  },
+  message: 'Too many date of birth updates. Please try again later.'
 });
 
 // 10 per hour per IP (user reporting)
@@ -118,7 +176,7 @@ const reportLimiter = createStandardLimiter({
 const communityLimiter = createStandardLimiter({
   windowMs: 60 * 60 * 1000,
   max: 20,
-  keyGenerator: (req) => req.user?.id || req.ip,
+  keyGenerator: (req) => req.user?.id ? `user:${req.user.id}` : ipKeyGenerator(req.ip || ''),
   message: 'Too many community posts submitted. Please wait before posting again.'
 });
 
@@ -130,11 +188,14 @@ const adminApiLimiter = createStandardLimiter({
 });
 
 module.exports = {
+  apiLimiter,
   signupLimiter,
   otpVerifyLimiter,
   otpRequestLimiter,
   resetPasswordLimiter,
   loginLimiter,
+  adminLoginLimiter,
+  dobLimiter,
   reportLimiter,
   communityLimiter,
   adminApiLimiter,

@@ -37,12 +37,12 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _sendPasswordResetOtp(String identifier) async {
     setState(() => _isResetting = true);
     try {
-      final res = await apiClient.post('/auth/otp/request', data: {
+      await apiClient.post('/auth/otp/request', data: {
         'email': identifier,
         'purpose': 'reset_password',
       });
       if (mounted) {
-        final targetEmail = res.data?['email'] ?? identifier;
+        final targetEmail = identifier;
         UiUtils.showTopSnackBar(context, 'Recovery code sent! Please check your email.', isError: false);
         Navigator.pushNamed(context, AppRoutes.resetPassword, arguments: targetEmail);
       }
@@ -71,16 +71,17 @@ class _LoginScreenState extends State<LoginScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Enter your registered email or phone number to receive a recovery code.',
+              'Enter your registered email to receive a recovery code.',
               style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
             ),
             const SizedBox(height: 16),
             TextField(
               controller: dialogController,
               autofocus: true,
+              keyboardType: TextInputType.emailAddress,
               decoration: const InputDecoration(
-                prefixIcon: Icon(Icons.account_circle_outlined, color: AppColors.primary),
-                hintText: 'Email or Phone Number',
+                prefixIcon: Icon(Icons.email_outlined, color: AppColors.primary),
+                hintText: 'Email',
               ),
             ),
           ],
@@ -221,12 +222,13 @@ class _LoginScreenState extends State<LoginScreen> {
 
               const SizedBox(height: 24),
 
-              // Email or Phone input
+              // Email input
               TextField(
                 controller: _loginController,
+                keyboardType: TextInputType.emailAddress,
                 decoration: const InputDecoration(
                   prefixIcon: Icon(Icons.email_outlined, color: AppColors.primary),
-                  hintText: 'Email or Phone Number',
+                  hintText: 'Email',
                 ),
               ),
               const SizedBox(height: 14),
@@ -301,25 +303,20 @@ class _LoginScreenState extends State<LoginScreen> {
                   onPressed: auth.isLoading
                       ? null
                       : () async {
-                          final identifier = _loginController.text.trim();
+                          final email = _loginController.text.trim();
                           final password = _passwordController.text.trim();
-                          if (identifier.isEmpty || password.isEmpty) {
-                            UiUtils.showTopSnackBar(context, 'Please enter email/phone and password');
+                          if (email.isEmpty || password.isEmpty) {
+                            UiUtils.showTopSnackBar(context, 'Please enter email and password');
                             return;
                           }
-                          // Email or Phone Validation
-                          final emailRegExp = RegExp(r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+-/=?^_`{|}~]+@[a-zA-Z0-9]+\.[a-zA-Z]+");
-                          final phoneClean = identifier.replaceAll(RegExp(r'[\s-]'), '');
-                          final phoneRegExp = RegExp(r"^\+?[0-9]{7,15}$");
-                          final isEmail = emailRegExp.hasMatch(identifier);
-                          final isPhone = phoneRegExp.hasMatch(phoneClean);
-
-                          if (!isEmail && !isPhone) {
-                            UiUtils.showTopSnackBar(context, 'Please enter a valid email address or phone number.');
+                          // Email Validation
+                          final emailRegExp = RegExp(r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+-/=?^_`{|}~]+@[a-zA-Z0-9-]+\.[a-zA-Z]+");
+                          if (!emailRegExp.hasMatch(email)) {
+                            UiUtils.showTopSnackBar(context, 'Please enter a valid email address.');
                             return;
                           }
 
-                          final success = await context.read<AuthNotifier>().login(identifier, password);
+                          final success = await context.read<AuthNotifier>().login(email, password);
                           if (context.mounted) {
                             final authNotifier = context.read<AuthNotifier>();
                             if (success && authNotifier.status == AuthStatus.authenticated) {

@@ -1,9 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const prisma = require('../lib/prisma');
 const { authenticateToken, requireVerified } = require('../middleware/auth');
-const { reportLimiter } = require('../middleware/rateLimits');
+const { reportLimiter, dobLimiter } = require('../middleware/rateLimits');
 const multer = require('multer');
 const { z } = require('zod');
 const { processAndSaveImage, deleteImage } = require('../services/storage');
@@ -43,7 +42,7 @@ router.get('/me', authenticateToken, async (req, res, next) => {
         id: true, email: true, pseudonym: true, displayName: true, realFirstName: true,
         legalFullName: true, handle: true, nameDisplayPreference: true, images: true, xp: true, isAnonymous: true,
         bio: true, location: true, profession: true, interests: true, feelings: true, supportTypes: true, emailVerified: true,
-        scheduledDeletionDate: true, dateOfBirth: true
+        scheduledDeletionDate: true, dateOfBirth: true, underageBlockedAt: true
       }
     });
     if (!user) return res.status(401).json({ error: 'TOKEN_INVALID', message: 'User not found (Session invalid)' });
@@ -66,15 +65,21 @@ router.get('/me', authenticateToken, async (req, res, next) => {
   }
 });
 
-// PUT /users/me/dob - Set date of birth for existing users
-router.put('/me/dob', authenticateToken, requireVerified, async (req, res, next) => {
+// PUT /users/me/dob - Set date of birth for existing users (F7: dobLimiter, F12: underage handling)
+router.put('/me/dob', dobLimiter, authenticateToken, requireVerified, async (req, res, next) => {
   try {
     const user = await prisma.user.findUnique({
       where: { id: req.user.id },
-      select: { id: true, dateOfBirth: true }
+      select: { id: true, dateOfBirth: true, underageBlockedAt: true }
     });
 
     if (!user) return res.status(401).json({ error: 'TOKEN_INVALID', message: 'User not found' });
+
+    // F12: If user already flagged as underage, return 403 immediately without parsing
+    if (user.underageBlockedAt) {
+      return res.status(403).json({ error: 'UNDERAGE', message: 'You must be at least 18 years old to use Wehere.' });
+    }
+
     if (user.dateOfBirth != null) {
       return res.status(409).json({ error: 'CONFLICT', message: 'Date of birth is already set and cannot be changed.' });
     }
@@ -91,6 +96,11 @@ router.put('/me/dob', authenticateToken, requireVerified, async (req, res, next)
 
     const age = calcAge(parsed);
     if (age < 18) {
+      // F12: Set underageBlockedAt, do not store dateOfBirth, return 403
+      await prisma.user.update({
+        where: { id: req.user.id },
+        data: { underageBlockedAt: new Date() }
+      });
       return res.status(403).json({ error: 'UNDERAGE', message: 'You must be at least 18 years old to use Wehere.' });
     }
 
@@ -245,7 +255,6 @@ router.delete('/me/photos', authenticateToken, requireVerified, async (req, res,
     next(error);
   }
 });
-
 
 // POST /users/:id/block
 router.post('/:id/block', authenticateToken, requireVerified, async (req, res, next) => {

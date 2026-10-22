@@ -3,9 +3,12 @@ const router = express.Router();
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
-const { PrismaClient } = require('@prisma/client');
 const { z } = require('zod');
 const multer = require('multer');
+
+// F10: Shared Prisma client
+const prisma = require('../lib/prisma');
+
 const {
   signupLimiter,
   otpVerifyLimiter,
@@ -19,33 +22,31 @@ const { processAndSaveImage, deleteImage } = require('../services/storage');
 const { evaluateStreak } = require('../services/streak');
 const { validateDisplayName, sanitizeHandle } = require('../services/identityFilter');
 const { parseDob, calcAge } = require('../utils/age');
-
-const prisma = new PrismaClient();
+const { passwordSchema } = require('../utils/password');
 
 const upload = multer({ 
   storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 } 
 });
 
-const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#$%^&*()_+={}\[\]|\\:;"'<>,.?/~`]).{8,}$/;
 const signupSchema = z.object({
   email: z.string().email('Invalid email address'),
-  password: z.string().regex(passwordRegex, 'Password must be at least 8 characters, contain 1 uppercase, 1 lowercase, and 1 special character.'),
+  password: passwordSchema,
   pseudonym: z.string().optional(),
   phone: z.string().optional(),
 });
 
 const loginSchema = z.object({
-  email: z.string().min(1, 'Identifier is required'),
-  password: z.string(),
+  email: z.string().min(1, 'Email is required'),
+  password: z.string().min(1, 'Password is required'),
 });
 
-
+// F1: generateOtp() returns '123456' ONLY when TEST_OTP_ENABLED === 'true' && NODE_ENV !== 'production'
 function generateOtp() {
-  if (process.env.TEST_OTP_ENABLED === 'true') {
+  if (process.env.TEST_OTP_ENABLED === 'true' && process.env.NODE_ENV !== 'production') {
     return '123456';
   }
-  return crypto.randomInt(100000, 999999).toString();
+  return crypto.randomInt(100000, 1000000).toString();
 }
 
 async function sendOtpEmail(email, code, purpose) {
@@ -55,16 +56,15 @@ async function sendOtpEmail(email, code, purpose) {
   await sendEmail({ to: email, subject, text, html });
 }
 
-
-// Email/Password Signup (Multipart with Images)
-// NOTE: Account is NOT created until email OTP is verified!
+// F4: Email/Password Signup (Multipart with Images)
+// Creates a PendingSignup row in the database; returns a minimal signupToken
 router.post('/signup', signupLimiter, upload.array('images', 6), async (req, res) => {
   try {
     if (!req.files || req.files.length < 2) {
-      return res.status(400).json({ error: 'At least 2 profile images are required.' });
+      return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'At least 2 profile images are required.' });
     }
     const { email, password, pseudonym, phone } = signupSchema.parse(req.body);
-    const normalizedEmail = email.toLowerCase().trim();
+    const normalizedEmail = email.trim().toLowerCase();
     const rawPhone = phone && phone.trim().length > 0 ? phone.trim() : null;
     const normalizedPhone = rawPhone ? rawPhone.replace(/[^\d+]/g, '') : null;
 
@@ -74,36 +74,35 @@ router.post('/signup', signupLimiter, upload.array('images', 6), async (req, res
     });
 
     if (existingUser && existingUser.emailVerified) {
-      return res.status(400).json({ error: 'This email is already registered and verified. Please log in.' });
+      return res.status(409).json({ error: 'CONFLICT', message: 'This email is already registered and verified. Please log in.' });
     }
 
-    if (normalizedPhone) {
-      const existingPhoneUser = await prisma.user.findFirst({
-        where: {
-          phone: normalizedPhone,
-          emailVerified: true
-        }
-      });
-      if (existingPhoneUser) {
-        return res.status(400).json({ error: 'This phone number is already registered and verified. Please log in.' });
-      }
-      // Clean up any stale unverified record with this phone number
-      await prisma.user.deleteMany({
-        where: { phone: normalizedPhone, emailVerified: false }
-      });
-    }
-
-    // Clean up any stale unverified record for this email
+    // Delete any stale unverified User record
     if (existingUser && !existingUser.emailVerified) {
       await prisma.user.deleteMany({
         where: { email: normalizedEmail, emailVerified: false }
       });
     }
 
+    // Delete any existing PendingSignup row for that email and purge its stored images
+    const existingPending = await prisma.pendingSignup.findUnique({
+      where: { email: normalizedEmail }
+    });
+    if (existingPending) {
+      if (existingPending.images && Array.isArray(existingPending.images)) {
+        existingPending.images.forEach(img => {
+          try { deleteImage(img); } catch (_) {}
+        });
+      }
+      await prisma.pendingSignup.delete({
+        where: { id: existingPending.id }
+      });
+    }
+
     const imagePaths = await Promise.all(req.files.map(f => processAndSaveImage(f.buffer)));
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Ensure handle/pseudonym is unique among verified users
+    // Ensure pseudonym is unique among verified users
     let desiredPseudonym = (pseudonym && pseudonym.trim().length > 0) ? pseudonym.trim() : 'user';
     let uniqueHandle = desiredPseudonym;
     let handleExists = await prisma.user.findFirst({
@@ -129,21 +128,29 @@ router.post('/signup', signupLimiter, upload.array('images', 6), async (req, res
       });
     }
 
-    // Generate OTP
+    // Generate OTP and bcrypt hash
     const code = generateOtp();
     const codeHash = await bcrypt.hash(code, 10);
 
-    // Create a secure pending signup token (15 min validity)
-    const signupToken = jwt.sign(
-      {
-        purpose: 'pending_signup',
+    // Save pending signup row with 10 min expiry
+    const pending = await prisma.pendingSignup.create({
+      data: {
         email: normalizedEmail,
         phone: normalizedPhone || null,
-        hashedPassword,
+        passwordHash: hashedPassword,
         pseudonym: uniqueHandle,
         images: imagePaths,
         codeHash,
-        expiresAt: Date.now() + 10 * 60 * 1000, // 10 min
+        attempts: 0,
+        expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+      }
+    });
+
+    // Return signupToken containing ONLY purpose and pendingId
+    const signupToken = jwt.sign(
+      {
+        purpose: 'pending_signup',
+        pendingId: pending.id,
       },
       process.env.JWT_SECRET,
       { expiresIn: '15m' }
@@ -155,48 +162,44 @@ router.post('/signup', signupLimiter, upload.array('images', 6), async (req, res
       console.error('Failed to send initial OTP on signup:', e.message);
     }
 
-    // Notice: NO user record is created in the database yet!
-    // The account ID will only be created after the OTP is verified.
     res.json({
       success: true,
       pendingVerification: true,
       signupToken,
-      email: normalizedEmail,
-      pseudonym: uniqueHandle,
       message: 'Verification code sent to your email.'
     });
   } catch (error) {
-    if (error instanceof z.ZodError) return res.status(400).json({ error: 'Validation failed', details: error.errors });
-    if (error.code === 'P2002') return res.status(400).json({ error: 'Email already exists' });
+    if (error instanceof z.ZodError) return res.status(400).json({ error: 'VALIDATION_ERROR', message: error.errors[0]?.message || 'Validation failed' });
+    if (error.code === 'P2002') return res.status(409).json({ error: 'CONFLICT', message: 'Email already exists' });
     console.error('Signup error:', error);
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
 
-// Login
+// F3 & F8: Login by normalized EMAIL ONLY; returns 401 INVALID_CREDENTIALS on bad credentials
 router.post('/login', loginLimiter, async (req, res) => {
   try {
     const { email, password } = loginSchema.parse(req.body);
-    const rawIdentifier = email.trim();
-    const normalizedIdentifier = rawIdentifier.toLowerCase();
-    const digitsOnly = rawIdentifier.replace(/[^\d+]/g, '');
+    const normalizedEmail = email.trim().toLowerCase();
 
     const user = await prisma.user.findFirst({ 
-      where: {
-        OR: [
-          { email: normalizedIdentifier },
-          { username: normalizedIdentifier },
-          { pseudonym: normalizedIdentifier },
-          ...(digitsOnly ? [{ phone: digitsOnly }, { phone: rawIdentifier }] : [{ phone: rawIdentifier }])
-        ]
-      } 
+      where: { email: normalizedEmail } 
     });
-    if (!user || !user.password) return res.status(400).json({ error: 'Invalid credentials' });
+    if (!user || !user.password) {
+      return res.status(401).json({ error: 'INVALID_CREDENTIALS', message: 'Invalid email or password.' });
+    }
 
     const validPassword = await bcrypt.compare(password, user.password);
-    if (!validPassword) return res.status(400).json({ error: 'Invalid credentials' });
+    if (!validPassword) {
+      return res.status(401).json({ error: 'INVALID_CREDENTIALS', message: 'Invalid email or password.' });
+    }
 
-    // Enforce email verification before logging in
+    // F2: Ban check
+    if (user.isBanned) {
+      return res.status(403).json({ error: 'ACCOUNT_BANNED', message: 'This account has been suspended.' });
+    }
+
+    // F5: Enforce email verification before logging in
     if (!user.emailVerified && !user.isAnonymous) {
       await prisma.otpRecord.updateMany({
         where: { userId: user.id, purpose: 'verify_email', usedAt: null },
@@ -204,7 +207,7 @@ router.post('/login', loginLimiter, async (req, res) => {
       });
 
       const code = generateOtp();
-      const codeHash = crypto.createHmac('sha256', process.env.JWT_SECRET).update(code).digest('hex');
+      const codeHash = await bcrypt.hash(code, 10);
       await prisma.otpRecord.create({
         data: {
           purpose: 'verify_email',
@@ -217,7 +220,12 @@ router.post('/login', loginLimiter, async (req, res) => {
         await sendOtpEmail(user.email, code, 'verify_email');
       }
 
-      const token = jwt.sign({ id: user.id, role: user.role, tokenVersion: user.tokenVersion }, process.env.JWT_SECRET, { expiresIn: '7d' });
+      // F5: 15-minute token with purpose: 'verify_email'
+      const token = jwt.sign(
+        { id: user.id, purpose: 'verify_email' },
+        process.env.JWT_SECRET,
+        { expiresIn: '15m' }
+      );
       return res.status(403).json({
         error: 'EMAIL_NOT_VERIFIED',
         message: 'Please verify your email before logging in. A new verification code has been sent to your email.',
@@ -231,7 +239,6 @@ router.post('/login', loginLimiter, async (req, res) => {
     if (user.scheduledDeletionDate) {
       const now = new Date();
       if (now.getTime() >= new Date(user.scheduledDeletionDate).getTime()) {
-        // Grace period expired (30 days): permanently delete account
         await prisma.user.delete({ where: { id: user.id } });
         if (user.images) user.images.forEach(deleteImage);
         return res.status(410).json({
@@ -239,7 +246,6 @@ router.post('/login', loginLimiter, async (req, res) => {
           message: 'This account was permanently deleted after the 30-day grace period.'
         });
       } else {
-        // User logged in before calculated date (+30 days): restore account!
         await prisma.user.update({
           where: { id: user.id },
           data: {
@@ -266,78 +272,144 @@ router.post('/login', loginLimiter, async (req, res) => {
       user.lastLoginDate = streakResult.lastLoginDate;
     }
 
-    const token = jwt.sign({ id: user.id, role: user.role, tokenVersion: user.tokenVersion }, process.env.JWT_SECRET, { expiresIn: '7d' });
-    res.json({ token, user: { id: user.id, email: user.email, role: user.role, emailVerified: user.emailVerified, currentStreak: user.currentStreak } });
+    const token = jwt.sign(
+      { id: user.id, role: user.role, tokenVersion: user.tokenVersion },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+    res.json({
+      token,
+      user: {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        emailVerified: user.emailVerified,
+        currentStreak: user.currentStreak
+      }
+    });
   } catch (error) {
-    if (error instanceof z.ZodError) return res.status(400).json({ error: 'Validation failed', details: error.errors });
+    if (error instanceof z.ZodError) {
+      return res.status(401).json({ error: 'INVALID_CREDENTIALS', message: 'Invalid email or password.' });
+    }
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
 
-// OTP Request (Resend or Forgot Password)
+// F3: OTP Request (Resend or Forgot Password)
+// Always responds exactly { success: true, message: 'If the account exists, a code was sent to the registered email.', cooldown: 60 }
 router.post('/otp/request', otpRequestLimiter, async (req, res) => {
   try {
     const { email, purpose = 'verify_email', signupToken } = req.body;
+    let authHeaderToken = null;
+    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
+      authHeaderToken = req.headers.authorization.split(' ')[1];
+    }
+    const tokenToUse = signupToken || authHeaderToken;
 
-    // Handle pending signup OTP resend
-    if (signupToken) {
+    // F4: Handle pending signup OTP resend
+    if (tokenToUse) {
       try {
-        const decoded = jwt.verify(signupToken, process.env.JWT_SECRET);
+        const decoded = jwt.verify(tokenToUse, process.env.JWT_SECRET);
         if (decoded.purpose === 'pending_signup') {
-          const code = generateOtp();
-          const codeHash = await bcrypt.hash(code, 10);
-          const newSignupToken = jwt.sign(
-            {
-              ...decoded,
-              codeHash,
-              expiresAt: Date.now() + 10 * 60 * 1000,
-            },
-            process.env.JWT_SECRET,
-            { expiresIn: '15m' }
-          );
-
-          await sendOtpEmail(decoded.email, code, 'verify_email');
-          return res.json({
-            message: 'A new verification code has been sent.',
-            success: true,
-            signupToken: newSignupToken,
-            cooldown: 60
+          const pending = await prisma.pendingSignup.findUnique({
+            where: { id: decoded.pendingId }
           });
+          if (pending) {
+            const code = generateOtp();
+            const codeHash = await bcrypt.hash(code, 10);
+            await prisma.pendingSignup.update({
+              where: { id: pending.id },
+              data: {
+                codeHash,
+                attempts: 0,
+                expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+              }
+            });
+
+            await sendOtpEmail(pending.email, code, 'verify_email');
+            return res.json({
+              success: true,
+              message: 'If the account exists, a code was sent to the registered email.',
+              cooldown: 60
+            });
+          }
+        } else if (decoded.purpose === 'verify_email') {
+          // F5: Unverified user OTP resend
+          const user = await prisma.user.findUnique({ where: { id: decoded.id } });
+          if (user) {
+            if (user.isBanned) {
+              return res.status(403).json({ error: 'ACCOUNT_BANNED', message: 'This account has been suspended.' });
+            }
+
+            const recentOtp = await prisma.otpRecord.findFirst({
+              where: { userId: user.id, purpose: 'verify_email' },
+              orderBy: { createdAt: 'desc' }
+            });
+
+            if (recentOtp && (Date.now() - recentOtp.createdAt.getTime()) < 60000) {
+              return res.status(429).json({
+                error: 'RATE_LIMITED',
+                message: 'If the account exists, a code was sent to the registered email.',
+                cooldown: Math.ceil(60 - (Date.now() - recentOtp.createdAt.getTime()) / 1000)
+              });
+            }
+
+            await prisma.otpRecord.updateMany({
+              where: { userId: user.id, purpose: 'verify_email', usedAt: null },
+              data: { usedAt: new Date() }
+            });
+
+            const code = generateOtp();
+            const codeHash = await bcrypt.hash(code, 10);
+            await prisma.otpRecord.create({
+              data: {
+                purpose: 'verify_email',
+                codeHash,
+                expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+                userId: user.id,
+              }
+            });
+
+            await sendOtpEmail(user.email, code, 'verify_email');
+            return res.json({
+              success: true,
+              message: 'If the account exists, a code was sent to the registered email.',
+              cooldown: 60
+            });
+          }
         }
       } catch (err) {
-        return res.status(400).json({ error: 'Session expired. Please start registration again.' });
+        // Fall through to regular email handling
       }
     }
 
-    if (!email) return res.status(400).json({ error: 'Email or phone number is required' });
-    if (!['verify_email', 'reset_password'].includes(purpose)) {
-      return res.status(400).json({ error: 'Invalid purpose' });
+    if (!email) {
+      return res.json({
+        success: true,
+        message: 'If the account exists, a code was sent to the registered email.',
+        cooldown: 60
+      });
     }
 
-    const rawInput = email.trim();
-    const normalizedInput = rawInput.toLowerCase();
-    const digitsOnly = rawInput.replace(/[^\d+]/g, '');
-
+    // F3: Identify user by normalized EMAIL ONLY
+    const normalizedEmail = email.trim().toLowerCase();
     const user = await prisma.user.findFirst({
-      where: {
-        OR: [
-          { email: normalizedInput },
-          { username: normalizedInput },
-          { pseudonym: normalizedInput },
-          ...(digitsOnly ? [{ phone: digitsOnly }, { phone: rawInput }] : [{ phone: rawInput }])
-        ]
-      }
+      where: { email: normalizedEmail }
     });
 
-    // Always return a success response to prevent enumeration, include user email if available
-    const genericResponse = { 
-      message: 'If the account exists, a code was sent to the registered email.', 
-      success: true, 
-      cooldown: 60,
-      email: user?.email || rawInput
+    const genericSuccess = {
+      success: true,
+      message: 'If the account exists, a code was sent to the registered email.',
+      cooldown: 60
     };
 
-    if (!user || !user.email) return res.json(genericResponse);
+    if (!user || !user.email) {
+      return res.json(genericSuccess);
+    }
+
+    if (user.isBanned) {
+      return res.status(403).json({ error: 'ACCOUNT_BANNED', message: 'This account has been suspended.' });
+    }
 
     // Cooldown check (60s)
     const recentOtp = await prisma.otpRecord.findFirst({
@@ -346,13 +418,16 @@ router.post('/otp/request', otpRequestLimiter, async (req, res) => {
     });
 
     if (recentOtp && (Date.now() - recentOtp.createdAt.getTime()) < 60000) {
-      return res.status(429).json({ error: 'Please wait 60 seconds before requesting a new code.', cooldown: Math.ceil(60 - (Date.now() - recentOtp.createdAt.getTime())/1000) });
+      return res.status(429).json({
+        error: 'RATE_LIMITED',
+        message: 'If the account exists, a code was sent to the registered email.',
+        cooldown: Math.ceil(60 - (Date.now() - recentOtp.createdAt.getTime()) / 1000)
+      });
     }
 
-    // Invalidate previous OTPs for this purpose
     await prisma.otpRecord.updateMany({
       where: { userId: user.id, purpose, usedAt: null },
-      data: { usedAt: new Date() } // Mark unused as invalidated
+      data: { usedAt: new Date() }
     });
 
     const code = generateOtp();
@@ -362,21 +437,20 @@ router.post('/otp/request', otpRequestLimiter, async (req, res) => {
       data: {
         purpose,
         codeHash,
-        expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 min
+        expiresAt: new Date(Date.now() + 10 * 60 * 1000),
         userId: user.id,
       }
     });
 
     await sendOtpEmail(user.email, code, purpose);
-    res.json(genericResponse);
+    res.json(genericSuccess);
   } catch (error) {
     console.error('OTP Request Error:', error.message);
     res.status(500).json({ error: 'Failed to send OTP' });
   }
 });
 
-// OTP Verify (Email Verification)
-// NOTE: For pending signups, the User account is created HERE after verifying OTP!
+// F4 & F5: OTP Verify (Email Verification)
 router.post('/otp/verify', otpVerifyLimiter, async (req, res) => {
   try {
     const { otp, signupToken } = req.body;
@@ -388,54 +462,76 @@ router.post('/otp/verify', otpVerifyLimiter, async (req, res) => {
 
     if (!otp) return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'OTP required' });
 
-    // 1. Pending Signup Flow: Verify OTP and create User record now
+    // 1. Pending Signup Flow (F4)
     if (tokenToUse) {
       try {
         const decoded = jwt.verify(tokenToUse, process.env.JWT_SECRET);
         if (decoded.purpose === 'pending_signup') {
-          if (Date.now() > decoded.expiresAt) {
+          const pending = await prisma.pendingSignup.findUnique({
+            where: { id: decoded.pendingId }
+          });
+
+          if (!pending) {
             return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Code expired. Request a new one.' });
           }
 
-          const isValid = await bcrypt.compare(otp.trim(), decoded.codeHash);
+          // Expired → delete row + images and return VALIDATION_ERROR
+          if (new Date() > pending.expiresAt) {
+            if (pending.images && Array.isArray(pending.images)) {
+              pending.images.forEach(img => { try { deleteImage(img); } catch (_) {} });
+            }
+            await prisma.pendingSignup.delete({ where: { id: pending.id } }).catch(() => {});
+            return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Code expired. Request a new one.' });
+          }
+
+          // Attempts >= 5 → delete row + images and return VALIDATION_ERROR
+          if (pending.attempts >= 5) {
+            if (pending.images && Array.isArray(pending.images)) {
+              pending.images.forEach(img => { try { deleteImage(img); } catch (_) {} });
+            }
+            await prisma.pendingSignup.delete({ where: { id: pending.id } }).catch(() => {});
+            return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Code expired. Request a new one.' });
+          }
+
+          const isValid = await bcrypt.compare(otp.trim(), pending.codeHash);
           if (!isValid) {
+            const updatedPending = await prisma.pendingSignup.update({
+              where: { id: pending.id },
+              data: { attempts: { increment: 1 } }
+            });
+
+            if (updatedPending.attempts >= 5) {
+              if (pending.images && Array.isArray(pending.images)) {
+                pending.images.forEach(img => { try { deleteImage(img); } catch (_) {} });
+              }
+              await prisma.pendingSignup.delete({ where: { id: pending.id } }).catch(() => {});
+              return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Code expired. Request a new one.' });
+            }
             return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Invalid OTP code.' });
           }
 
-          // Check if an account was verified with this email in the meantime
-          const existingVerified = await prisma.user.findFirst({
-            where: { email: decoded.email, emailVerified: true }
-          });
-          if (existingVerified) {
-            return res.status(409).json({ error: 'CONFLICT', message: 'This email is already registered.' });
-          }
-
-          // Clean up any stale unverified record
-          await prisma.user.deleteMany({
-            where: { email: decoded.email, emailVerified: false }
-          });
-          if (decoded.phone) {
-            await prisma.user.deleteMany({
-              where: { phone: decoded.phone, emailVerified: false }
-            });
-          }
-
+          // Correct code: create User and delete PendingSignup row in ONE transaction
           const now = new Date();
-          const user = await prisma.user.create({
-            data: {
-              email: decoded.email,
-              phone: decoded.phone || null,
-              password: decoded.hashedPassword,
-              pseudonym: decoded.pseudonym,
-              username: decoded.pseudonym,
-              images: decoded.images || [],
-              isAnonymous: false,
-              emailVerified: true,
-              emailVerifiedAt: now,
-              currentStreak: 0,
-              lastLoginDate: now,
-            }
-          });
+          const [user] = await prisma.$transaction([
+            prisma.user.create({
+              data: {
+                email: pending.email,
+                phone: pending.phone || null,
+                password: pending.passwordHash,
+                pseudonym: pending.pseudonym,
+                username: pending.pseudonym,
+                images: pending.images || [],
+                isAnonymous: false,
+                emailVerified: true,
+                emailVerifiedAt: now,
+                currentStreak: 0,
+                lastLoginDate: now,
+              }
+            }),
+            prisma.pendingSignup.delete({
+              where: { id: pending.id }
+            })
+          ]);
 
           const authToken = jwt.sign(
             { id: user.id, role: user.role, tokenVersion: user.tokenVersion },
@@ -465,19 +561,27 @@ router.post('/otp/verify', otpVerifyLimiter, async (req, res) => {
       }
     }
 
-    // 2. Existing user flow (e.g. unverified user login flow)
-    if (!authHeaderToken) {
+    // 2. Existing user flow (e.g. unverified login flow)
+    if (!tokenToUse) {
       return res.status(401).json({ error: 'TOKEN_INVALID', message: 'Unauthorized' });
     }
 
     let decodedAuth;
     try {
-      decodedAuth = jwt.verify(authHeaderToken, process.env.JWT_SECRET);
+      decodedAuth = jwt.verify(tokenToUse, process.env.JWT_SECRET);
     } catch (e) {
       return res.status(401).json({ error: 'TOKEN_INVALID', message: 'Session invalid' });
     }
 
     const userId = decodedAuth.id;
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) return res.status(401).json({ error: 'TOKEN_INVALID', message: 'Session invalid' });
+
+    // F2: Ban check
+    if (user.isBanned) {
+      return res.status(403).json({ error: 'ACCOUNT_BANNED', message: 'This account has been suspended.' });
+    }
+
     const record = await prisma.otpRecord.findFirst({
       where: { userId, purpose: 'verify_email', usedAt: null },
       orderBy: { createdAt: 'desc' }
@@ -539,29 +643,31 @@ router.post('/otp/verify', otpVerifyLimiter, async (req, res) => {
   }
 });
 
-// Reset Password Verify
+// F3, F8 & F9: Reset Password Verify
 router.post('/reset-password', resetPasswordLimiter, async (req, res) => {
   try {
     const { email, otp, newPassword } = req.body;
-    if (!email || !otp || !newPassword || newPassword.length < 6) {
-      return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Valid email/phone, OTP, and new password (min 6 chars) required.' });
+    if (!email || !otp || !newPassword) {
+      return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Email, OTP, and new password are required.' });
     }
 
-    const rawInput = email.trim();
-    const normalizedInput = rawInput.toLowerCase();
-    const digitsOnly = rawInput.replace(/[^\d+]/g, '');
+    // F9: Validate password against passwordSchema
+    const parsedPassword = passwordSchema.safeParse(newPassword);
+    if (!parsedPassword.success) {
+      return res.status(400).json({ error: 'VALIDATION_ERROR', message: parsedPassword.error.errors[0]?.message || 'Invalid password format.' });
+    }
 
+    // F3: Normalized EMAIL ONLY
+    const normalizedEmail = email.trim().toLowerCase();
     const user = await prisma.user.findFirst({
-      where: {
-        OR: [
-          { email: normalizedInput },
-          { username: normalizedInput },
-          { pseudonym: normalizedInput },
-          ...(digitsOnly ? [{ phone: digitsOnly }, { phone: rawInput }] : [{ phone: rawInput }])
-        ]
-      }
+      where: { email: normalizedEmail }
     });
     if (!user) return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Invalid request' });
+
+    // F2: Ban check
+    if (user.isBanned) {
+      return res.status(403).json({ error: 'ACCOUNT_BANNED', message: 'This account has been suspended.' });
+    }
 
     const record = await prisma.otpRecord.findFirst({
       where: { userId: user.id, purpose: 'reset_password', usedAt: null },
@@ -580,7 +686,6 @@ router.post('/reset-password', resetPasswordLimiter, async (req, res) => {
     }
 
     const isValid = await bcrypt.compare(otp.trim(), record.codeHash);
-    
     if (!isValid) {
       const newAttempts = record.attempts + 1;
       const updateData = { attempts: newAttempts };
@@ -594,11 +699,17 @@ router.post('/reset-password', resetPasswordLimiter, async (req, res) => {
       return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Invalid OTP code.' });
     }
 
-    // Success
+    // Success: update password and increment tokenVersion (F9)
     const hashedPassword = await bcrypt.hash(newPassword, 10);
     await prisma.$transaction([
       prisma.otpRecord.update({ where: { id: record.id }, data: { usedAt: new Date() } }),
-      prisma.user.update({ where: { id: user.id }, data: { password: hashedPassword, tokenVersion: user.tokenVersion + 1 } })
+      prisma.user.update({
+        where: { id: user.id },
+        data: {
+          password: hashedPassword,
+          tokenVersion: { increment: 1 }
+        }
+      })
     ]);
 
     res.json({ message: 'Password reset successfully', success: true });
@@ -623,7 +734,7 @@ const onboardingSchema = z.object({
   dateOfBirth: z.string().optional(),
 });
 
-// Complete Onboarding
+// Complete Onboarding (F12: underage handling)
 router.put('/onboarding', authenticateToken, requireVerified, async (req, res) => {
   try {
     const { 
@@ -631,6 +742,11 @@ router.put('/onboarding', authenticateToken, requireVerified, async (req, res) =
       location, profession, interests, feelings, supportTypes, isAnonymous, dateOfBirth
     } = onboardingSchema.parse(req.body);
     const userId = req.user.id; 
+
+    // F12: If user already flagged as underage, return 403 immediately without parsing
+    if (req.user.underageBlockedAt) {
+      return res.status(403).json({ error: 'UNDERAGE', message: 'You must be at least 18 years old to use Wehere.' });
+    }
 
     let dobToSave;
     if (!req.user.dateOfBirth) {
@@ -643,6 +759,11 @@ router.put('/onboarding', authenticateToken, requireVerified, async (req, res) =
       }
       const age = calcAge(parsedDob);
       if (age < 18) {
+        // F12: Set underageBlockedAt, do not store dateOfBirth, return 403
+        await prisma.user.update({
+          where: { id: userId },
+          data: { underageBlockedAt: new Date() }
+        });
         return res.status(403).json({ error: 'UNDERAGE', message: 'You must be at least 18 years old to use Wehere.' });
       }
       dobToSave = parsedDob;
@@ -683,29 +804,42 @@ router.put('/onboarding', authenticateToken, requireVerified, async (req, res) =
 
     res.json({ message: 'Onboarding completed', user: updatedUser });
   } catch (error) {
-    if (error instanceof z.ZodError) return res.status(400).json({ error: 'Validation failed', details: error.errors });
+    if (error instanceof z.ZodError) return res.status(400).json({ error: 'VALIDATION_ERROR', message: error.errors[0]?.message || 'Validation failed' });
     console.error('Onboarding Error:', error);
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
 
-// Change Password
+// F8 & F9: Change Password
 router.post('/change-password', authenticateToken, requireVerified, async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
     const userId = req.user.id;
 
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Current password and new password are required.' });
+    }
+
     const user = await prisma.user.findUnique({ where: { id: userId } });
-    if (!user || !user.password) return res.status(400).json({ error: 'Cannot change password for this account' });
+    if (!user || !user.password) return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Cannot change password for this account' });
 
     const validPassword = await bcrypt.compare(currentPassword, user.password);
-    if (!validPassword) return res.status(400).json({ error: 'Invalid current password' });
-    if (newPassword.length < 6) return res.status(400).json({ error: 'New password must be at least 6 characters' });
+    if (!validPassword) {
+      return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Current password is incorrect.' });
+    }
+
+    const parsedPassword = passwordSchema.safeParse(newPassword);
+    if (!parsedPassword.success) {
+      return res.status(400).json({ error: 'VALIDATION_ERROR', message: parsedPassword.error.errors[0]?.message || 'Invalid new password format.' });
+    }
 
     const hashedPassword = await bcrypt.hash(newPassword, 10);
     await prisma.user.update({
       where: { id: userId },
-      data: { password: hashedPassword, tokenVersion: user.tokenVersion + 1 }
+      data: {
+        password: hashedPassword,
+        tokenVersion: { increment: 1 }
+      }
     });
 
     res.json({ message: 'Password updated successfully', success: true });

@@ -1,60 +1,80 @@
 require('dotenv').config();
+
+// F1: Startup guard against test OTP bypass in production
+if (process.env.NODE_ENV === 'production' && process.env.TEST_OTP_ENABLED === 'true') {
+  console.error('FATAL: TEST_OTP_ENABLED must not be enabled in production.');
+  process.exit(1);
+}
+
 const express = require('express');
 const cors = require('cors');
 const compression = require('compression');
 const helmet = require('helmet');
-const rateLimit = require('express-rate-limit');
 const http = require('http');
 const path = require('path');
 const { Server } = require('socket.io');
-const { PrismaClient } = require('@prisma/client');
 const jwt = require('jsonwebtoken');
 
-const app = express();
-const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: '*' } });
-app.set('io', io);
-const prisma = new PrismaClient();
+// F10: Shared Prisma client
+const prisma = require('./lib/prisma');
 
+const { apiLimiter } = require('./middleware/rateLimits');
 const { verifyMailConfig } = require('./services/email');
 const { deleteImage } = require('./services/storage');
 const { calcAge } = require('./utils/age');
 
-// Trust proxy for rate limiting behind Nginx
-const trustProxyHops = process.env.TRUST_PROXY_HOPS ? parseInt(process.env.TRUST_PROXY_HOPS, 10) : 0;
+const app = express();
+const server = http.createServer(app);
+
+// F7: Trust proxy hops default to 1 in production if unset
+const trustProxyEnv = process.env.TRUST_PROXY_HOPS;
+let trustProxyHops;
+if (trustProxyEnv !== undefined && trustProxyEnv !== '') {
+  trustProxyHops = parseInt(trustProxyEnv, 10);
+} else if (process.env.NODE_ENV === 'production') {
+  trustProxyHops = 1;
+} else {
+  trustProxyHops = 0;
+}
 if (trustProxyHops > 0) {
   app.set('trust proxy', trustProxyHops);
 }
+console.log(`[Startup] Effective trust proxy hops: ${trustProxyHops}`);
 
-// Security Middleware
+// F11b: CORS allow-list function (no '*' in production; allow FRONTEND_URL, ADMIN_URL; mobile sends no origin)
+const allowedOrigins = process.env.NODE_ENV === 'production'
+  ? [process.env.FRONTEND_URL, process.env.ADMIN_URL].filter(Boolean)
+  : ['http://localhost:3000', 'http://localhost:3001', '*'];
+
+const corsOriginHandler = function (origin, callback) {
+  if (!origin || allowedOrigins.includes('*') || allowedOrigins.indexOf(origin) !== -1) {
+    callback(null, true);
+  } else {
+    callback(new Error('Not allowed by CORS'));
+  }
+};
+
+// Initialize Socket.io with the same CORS configuration
+const io = new Server(server, {
+  cors: {
+    origin: corsOriginHandler,
+    credentials: true,
+  }
+});
+app.set('io', io);
+
+// Security Middleware (single helmet instance)
 app.use(helmet());
 
-// Apply rate limiting to all /api routes
-const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 150, // Limit each IP to 150 requests per window
-  standardHeaders: true,
-  legacyHeaders: false,
-});
+// Apply global rate limiting to all /api routes (F7: 1200 req / 15 min keyed by user or IP)
 app.use('/api/', apiLimiter);
 
-const allowedOrigins = process.env.NODE_ENV === 'production' 
-  ? [process.env.FRONTEND_URL, process.env.ADMIN_URL].filter(Boolean)
-  : ['http://localhost:3000', 'http://localhost:3001', '*']; // Star is for local dev flutter
-
 app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes('*') || allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
+  origin: corsOriginHandler,
   credentials: true,
 }));
 app.use(express.json());
 app.use(compression());
-app.use(helmet());
 
 // Serve static images uploaded by users
 app.use('/uploads', express.static(path.join(__dirname, '../public/uploads'), {
@@ -100,19 +120,37 @@ app.use((err, req, res, next) => {
 });
 
 // Socket.io JWT Auth Middleware
+let legacySocketTokenCount = 0;
 io.use((socket, next) => {
   const token = socket.handshake.auth.token;
   if (!token) return next(new Error('Authentication error'));
   
   jwt.verify(token, process.env.JWT_SECRET, async (err, decoded) => {
-    if (err) return next(new Error('Authentication error'));
+    if (err || !decoded) return next(new Error('Authentication error'));
     
+    // F5: Reject any token with a purpose claim
+    if (decoded.purpose) {
+      return next(new Error('Authentication error'));
+    }
+
     try {
       const user = await prisma.user.findUnique({ where: { id: decoded.id } });
       if (!user) return next(new Error('Authentication error: User not found'));
-      if (decoded.tokenVersion !== undefined && decoded.tokenVersion !== user.tokenVersion) {
+
+      // F2: Ban check
+      if (user.isBanned) {
+        return next(new Error('ACCOUNT_BANNED'));
+      }
+
+      // F2: Legacy token check (no tokenVersion)
+      // TODO (2026-10-29): Reject legacy tokens without tokenVersion once deploy is older than 7 days.
+      if (decoded.tokenVersion === undefined) {
+        legacySocketTokenCount++;
+        console.warn(`[Socket Auth Warning] Legacy token without tokenVersion detected. Total: ${legacySocketTokenCount}`);
+      } else if (decoded.tokenVersion !== user.tokenVersion) {
         return next(new Error('Authentication error: Session expired'));
       }
+
       if (!user.emailVerified) {
         return next(new Error('EMAIL_NOT_VERIFIED'));
       }
@@ -120,7 +158,7 @@ io.use((socket, next) => {
         return next(new Error('AGE_REQUIRED'));
       }
       const age = calcAge(user.dateOfBirth);
-      if (age < 18) {
+      if (age < 18 || user.underageBlockedAt) {
         return next(new Error('UNDERAGE'));
       }
       socket.user = user;
@@ -181,8 +219,9 @@ io.on('connection', (socket) => {
     }
   });
 
+  // F11b: Ignore data.senderId and use socket.user.id
   socket.on('typing', (data) => {
-    socket.to(data.conversationId).emit('user_typing', { senderId: data.senderId });
+    socket.to(data.conversationId).emit('user_typing', { senderId: socket.user.id });
   });
 
   socket.on('request_reveal_identity', async (data) => {
@@ -252,7 +291,6 @@ setInterval(async () => {
     });
 
     if (unverifiedUsers.length > 0) {
-      // Clean up uploaded files as well
       for (const u of unverifiedUsers) {
         if (u.images && Array.isArray(u.images)) {
           u.images.forEach(img => {
@@ -271,6 +309,39 @@ setInterval(async () => {
     console.error('Cleanup Job Error:', error.message);
   }
 }, 12 * 60 * 60 * 1000); // Run every 12 hours
+
+// F4: Worker: every 15 minutes delete expired PendingSignup rows and their image files
+async function cleanupExpiredPendingSignups() {
+  try {
+    const now = new Date();
+    const expiredPending = await prisma.pendingSignup.findMany({
+      where: {
+        expiresAt: { lt: now }
+      }
+    });
+
+    if (expiredPending.length > 0) {
+      for (const p of expiredPending) {
+        if (p.images && Array.isArray(p.images)) {
+          p.images.forEach(img => {
+            try { deleteImage(img); } catch (_) {}
+          });
+        }
+      }
+      const result = await prisma.pendingSignup.deleteMany({
+        where: {
+          id: { in: expiredPending.map(p => p.id) }
+        }
+      });
+      console.log(`🗑️ Cleanup Job: Deleted ${result.count} expired pending signups.`);
+    }
+  } catch (error) {
+    console.error('PendingSignup Cleanup Job Error:', error.message);
+  }
+}
+
+setInterval(cleanupExpiredPendingSignups, 15 * 60 * 1000);
+cleanupExpiredPendingSignups();
 
 // Automated Deletion Job for Accounts with scheduledDeletionDate <= now()
 async function processScheduledAccountDeletions() {
@@ -321,3 +392,20 @@ server.listen(PORT, async () => {
   await verifyMailConfig();
   console.log(`Wehere Backend running on port ${PORT}`);
 });
+
+// F10: SIGTERM/SIGINT handlers calling prisma.$disconnect()
+const gracefulShutdown = async (signal) => {
+  console.log(`Received ${signal}. Shutting down server gracefully...`);
+  server.close(async () => {
+    try {
+      await prisma.$disconnect();
+      console.log('Prisma disconnected.');
+    } catch (err) {
+      console.error('Error disconnecting Prisma:', err);
+    }
+    process.exit(0);
+  });
+};
+
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));

@@ -36,11 +36,12 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     }
     final hasMinLength = password.length >= 8;
     final hasCaps = RegExp(r'[A-Z]').hasMatch(password);
-    final hasSpecial = RegExp(r'[^a-zA-Z0-9]').hasMatch(password);
-    if (!hasMinLength || !hasCaps || !hasSpecial) {
+    final hasLower = RegExp(r'[a-z]').hasMatch(password);
+    final hasSpecial = RegExp(r'[!@#$%^&*()_+={}\[\]|\\:;"\'<>,.?/~`]').hasMatch(password);
+    if (!hasMinLength || !hasCaps || !hasLower || !hasSpecial) {
       UiUtils.showTopSnackBar(
         context,
-        'Password must be at least 8 characters long, contain at least 1 uppercase letter and 1 special character.',
+        'Password must be at least 8 characters, contain 1 uppercase, 1 lowercase, and 1 special character.',
       );
       return;
     }
@@ -60,7 +61,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
       }
     } on DioException catch (e) {
       if (mounted) {
-        final err = e.response?.data?['error'] ?? 'Failed to reset password';
+        final err = e.response?.data?['message'] ?? e.response?.data?['error'] ?? 'Failed to reset password';
         UiUtils.showTopSnackBar(context, err);
       }
     } finally {

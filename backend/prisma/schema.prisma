@@ -66,6 +66,7 @@ model User {
   emailVerified  Boolean @default(false)
   emailVerifiedAt DateTime?
   tokenVersion   Int     @default(0)
+  underageBlockedAt DateTime?
 
   scheduledDeletionDate DateTime?
   deletionRequestedAt   DateTime?
@@ -296,4 +297,19 @@ model ConfigOption {
   createdAt DateTime @default(now())
 
   @@index([type])
+}
+
+model PendingSignup {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  phone        String?
+  passwordHash String
+  pseudonym    String
+  images       String[]
+  codeHash     String
+  attempts     Int      @default(0)
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+
+  @@index([expiresAt])
 }

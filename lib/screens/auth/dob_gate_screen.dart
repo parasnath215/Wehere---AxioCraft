@@ -70,7 +70,9 @@ class _DobGateScreenState extends State<DobGateScreen> {
         final auth = context.read<AuthNotifier>();
         auth.setNeedsDob(false);
         if (!mounted) return;
-        context.read<AppState>().fetchCurrentUser();
+        final appState = context.read<AppState>();
+        await appState.fetchCurrentUser();
+        await appState.fetchBackendData();
       }
     } on DioException catch (e) {
       final errCode = e.response?.data?['error'];
@@ -117,13 +119,13 @@ class _DobGateScreenState extends State<DobGateScreen> {
               ),
               const SizedBox(height: 24),
               Text(
-                'Age Verification',
+                'Self-Declared Age',
                 style: AppTextStyles.h1,
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 12),
               Text(
-                'We need your date of birth to confirm you are 18 or older.',
+                'We need your self-declared date of birth to confirm you are 18 or older.',
                 style: AppTextStyles.bodyMedium,
                 textAlign: TextAlign.center,
               ),

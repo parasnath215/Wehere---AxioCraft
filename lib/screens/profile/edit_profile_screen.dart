@@ -286,7 +286,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 ),
                 const SizedBox(height: 4),
                 const Text(
-                  'Date of birth is verified and cannot be changed.',
+                  'Date of birth is self-declared and cannot be changed.',
                   style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
                 ),
               ],

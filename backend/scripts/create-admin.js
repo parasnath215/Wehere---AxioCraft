@@ -8,6 +8,7 @@
 require('dotenv').config();
 const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcryptjs');
+const { passwordSchema } = require('../src/utils/password');
 
 const prisma = new PrismaClient();
 
@@ -17,6 +18,13 @@ async function main() {
 
   if (!email || !password) {
     console.error('Error: ADMIN_EMAIL and ADMIN_PASSWORD environment variables are required.');
+    process.exit(1);
+  }
+
+  // F11 safeguard: refuse to run with password that fails passwordSchema
+  const passwordValidation = passwordSchema.safeParse(password);
+  if (!passwordValidation.success) {
+    console.error('Error: ADMIN_PASSWORD fails password policy: ' + (passwordValidation.error.errors[0]?.message || 'Invalid password'));
     process.exit(1);
   }
 
@@ -59,7 +67,7 @@ async function main() {
 
 main()
   .catch((e) => {
-    console.error('Failed to create/update admin user:', e);
+    console.error('Failed to create/update admin user:', e.message);
     process.exit(1);
   })
   .finally(async () => {

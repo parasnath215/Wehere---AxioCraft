@@ -37,7 +37,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
   // Password criteria getters
   bool get _hasMinLength => _password.length >= 8;
   bool get _hasCaps => RegExp(r'[A-Z]').hasMatch(_password);
-  bool get _hasSpecial => RegExp(r'[^a-zA-Z0-9]').hasMatch(_password);
+  bool get _hasLower => RegExp(r'[a-z]').hasMatch(_password);
+  bool get _hasSpecial => RegExp(r'[!@#$%^&*()_+={}\[\]|\\:;"\'<>,.?/~`]').hasMatch(_password);
 
   @override
   void initState() {
@@ -357,11 +358,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             }
                           }
 
-                          // Password Criteria Validation: 8 chars, 1 caps, 1 special (minimum)
-                          if (!_hasMinLength || !_hasCaps || !_hasSpecial) {
+                          // Password Criteria Validation: 8 chars, 1 caps, 1 lower, 1 special
+                          if (!_hasMinLength || !_hasCaps || !_hasLower || !_hasSpecial) {
                             UiUtils.showTopSnackBar(
                               context,
-                              'Password must be at least 8 characters long, contain at least 1 uppercase letter and 1 special character.',
+                              'Password must be at least 8 characters, contain 1 uppercase, 1 lowercase, and 1 special character.',
                             );
                             return;
                           }

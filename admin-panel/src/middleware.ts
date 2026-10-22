@@ -1,16 +1,20 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
+const PUBLIC_STATIC_EXTENSIONS = ['.png', '.svg', '.ico', '.css', '.js', '.map', '.woff2'];
+
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  const isPublicStatic = PUBLIC_STATIC_EXTENSIONS.some(ext => pathname.endsWith(ext));
 
   // Paths excluded from authentication check
   if (
     pathname.startsWith('/login') ||
-    pathname.startsWith('/_next') ||
-    pathname.startsWith('/api/admin/login') ||
+    pathname.startsWith('/_next/') ||
     pathname === '/favicon.ico' ||
-    pathname.includes('.')
+    pathname.startsWith('/api/admin/login') ||
+    isPublicStatic
   ) {
     // If authenticated user visits /login, redirect to dashboard
     if (pathname === '/login' && request.cookies.get('admin_token')?.value) {

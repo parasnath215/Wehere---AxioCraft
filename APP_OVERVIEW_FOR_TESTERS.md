@@ -14,8 +14,8 @@ The Wehere ecosystem consists of three main components:
 ### 1. Onboarding & Registration
 - Users can sign up via Email/Password or proceed Anonymously.
 - **Anonymous Mode:** Does not require email but restricts certain profile fields.
-- **Email Registration:** Requires 2 profile photos (mock uploading any images for now) and basic bio data.
-- **OTP Verification:** For testing, you can input `123456` if `TEST_OTP_ENABLED` is active in the backend environment.
+- **Email Registration:** Requires 2 profile photos and basic bio data.
+- **OTP Verification:** The code `123456` works only on a QA server started with `NODE_ENV=staging` and `TEST_OTP_ENABLED=true`; never on production.
 
 ### 2. Discovery & Match Deck (Tinder-style)
 - The Home/Discover screen presents a deck of peer profiles.
@@ -39,13 +39,13 @@ The Wehere ecosystem consists of three main components:
 - Supports liking and commenting.
 
 ### 6. Admin Panel (Moderation)
-- Requires login using the credentials in `admin-panel/.env.local`.
+- Requires login using admin credentials.
 - Admins can view aggregate app statistics.
-- Admins can moderate user reports and view active user counts (partially implemented in UI, verify backend endpoints via OpenAPI spec).
+- Admins can moderate user reports and manage users (bans, deletions, roles).
 
 ## Known Technical Constraints (DO NOT FAIL QA FOR THESE)
 1. **Voice Notes:** Voice notes are simulated UI blocks and do not actually record audio.
-2. **Email/SMS Gateway:** Not integrated. Use `123456` for OTPs.
+2. **Email OTP Gateway:** In staging/testing, `123456` works when `TEST_OTP_ENABLED=true` and `NODE_ENV=staging`. In production, real transactional email delivery is enforced.
 3. **Admin Panel Metrics:** Some charts and metrics on the admin panel dashboard may display placeholder zeros or static layouts.
 
 ## References

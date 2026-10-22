@@ -8,7 +8,8 @@ export default async function UsersPage() {
       cache: 'no-store',
     });
     if (res.ok) {
-      users = await res.json();
+      const data = await res.json();
+      users = Array.isArray(data) ? data : (data.users || []);
     }
   } catch (err) {
     console.error("Failed to fetch admin users", err);

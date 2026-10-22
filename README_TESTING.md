@@ -16,7 +16,7 @@ You can spin up the entire application stack using Docker Compose for an isolate
    ```bash
    docker-compose exec backend node reset_data.js
    ```
-   This clears existing data and populates it with a predefined `QA Tester` account, a `Helpful Peer` account, config options, and initial chat/match data.
+   This clears existing data and populates it with a predefined `QA Tester` account, a `Helpful Peer` account, config options, and initial chat/match data. (Note: `reset_data.js` refuses to run in production).
 
 3. **Configure the App:**
    Ensure the Flutter app points to your local network IP (e.g. `http://192.168.1.100:4000/api`) or the deployed test server instead of `localhost`. 
@@ -45,8 +45,7 @@ The `reset_data.js` script creates the following accounts:
 
 ## Testing OTP (Bypassing SMS/Email)
 
-The backend has a built-in test bypass for OTP.
-When `NODE_ENV` is NOT `production` and `TEST_OTP_ENABLED=true` in `backend/.env`, you can use the code **`123456`** for any OTP verification screen in the app. This allows testers to verify signup and login flows without an actual SMS gateway.
+The bypass code **`123456`** works ONLY on a QA server started with `NODE_ENV=staging` (or non-production) and `TEST_OTP_ENABLED=true`; it will NEVER work on production. In production (`NODE_ENV=production`), setting `TEST_OTP_ENABLED=true` triggers an immediate fatal startup error and server exit.
 
 ## Automated Checks
 
