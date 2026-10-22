@@ -5,6 +5,7 @@ import '../core/utils/storage_helper.dart';
 import '../core/network/api_client.dart';
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 enum AuthStatus { initializing, unauthenticated, unverified, authenticated }
 
@@ -154,6 +155,72 @@ class AuthNotifier extends ChangeNotifier {
       return false;
     } catch (e) {
       _authError = 'An unexpected error occurred';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> loginWithGoogle() async {
+    _isLoading = true;
+    _authError = null;
+    notifyListeners();
+
+    try {
+      final GoogleSignIn googleSignIn = GoogleSignIn(
+        serverClientId: '477223765836-9t4oml9khj3jelnlqc33r093uupa08cr.apps.googleusercontent.com',
+      );
+
+      final GoogleSignInAccount? account = await googleSignIn.signIn();
+      if (account == null) {
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
+
+      final GoogleSignInAuthentication auth = await account.authentication;
+      final String? idToken = auth.idToken;
+
+      if (idToken == null || idToken.isEmpty) {
+        _authError = 'Failed to retrieve Google identity token.';
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
+
+      final response = await apiClient.post('/auth/google', data: {
+        'idToken': idToken,
+      });
+
+      final token = response.data['token'];
+      final user = response.data['user'];
+
+      await StorageHelper.write(key: 'jwt_token', value: token);
+      await StorageHelper.write(key: 'user_id', value: user['id']);
+      await StorageHelper.write(key: 'user_email', value: user['email']);
+
+      _userId = user['id'];
+      _registeredEmail = user['email'] ?? '';
+      _registeredName = user['displayName'] ?? user['pseudonym'] ?? 'Explorer';
+      _needsDob = response.data['requiresDob'] == true || user['dateOfBirth'] == null;
+      _status = AuthStatus.authenticated;
+
+      final savedOnboarding = await StorageHelper.read(key: 'onboarding_completed');
+      _hasCompletedOnboarding = savedOnboarding == 'true' || (user['interests'] != null && user['interests'].isNotEmpty);
+
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } on DioException catch (e) {
+      final resData = e.response?.data;
+      _authError = (resData is Map)
+          ? (resData['message'] ?? resData['error'] ?? 'Google sign-in failed.')
+          : 'Google sign-in failed.';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    } catch (e) {
+      _authError = 'Google sign-in error: ${e.toString()}';
       _isLoading = false;
       notifyListeners();
       return false;

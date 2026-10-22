@@ -67,6 +67,8 @@ model User {
   emailVerifiedAt DateTime?
   tokenVersion   Int     @default(0)
   underageBlockedAt DateTime?
+  googleId      String?  @unique
+  appleId       String?  @unique
 
   scheduledDeletionDate DateTime?
   deletionRequestedAt   DateTime?

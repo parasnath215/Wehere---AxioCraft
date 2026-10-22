@@ -349,6 +349,101 @@ class _LoginScreenState extends State<LoginScreen> {
 
               const SizedBox(height: 24),
 
+              // OR divider
+              const Row(
+                children: [
+                  Expanded(child: Divider(color: AppColors.cardBorder, thickness: 1)),
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16),
+                    child: Text(
+                      'OR CONTINUE WITH',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        letterSpacing: 0.8,
+                        color: AppColors.textMuted,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  Expanded(child: Divider(color: AppColors.cardBorder, thickness: 1)),
+                ],
+              ),
+
+              const SizedBox(height: 18),
+
+              // Google Sign-In Button
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.textPrimary,
+                    side: const BorderSide(color: AppColors.cardBorder, width: 1.2),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                  ),
+                  onPressed: auth.isLoading
+                      ? null
+                      : () async {
+                          final success = await context.read<AuthNotifier>().loginWithGoogle();
+                          if (!context.mounted) return;
+                          final authNotifier = context.read<AuthNotifier>();
+                          if (success && authNotifier.status == AuthStatus.authenticated) {
+                            if (authNotifier.needsDob) {
+                              Navigator.pushReplacementNamed(context, AppRoutes.dobGate);
+                            } else if (!authNotifier.hasCompletedOnboarding) {
+                              Navigator.pushReplacementNamed(context, AppRoutes.onboarding);
+                            } else {
+                              context.read<AppState>().setTabIndex(0);
+                              Navigator.pushNamedAndRemoveUntil(context, AppRoutes.main, (route) => false);
+                            }
+                          } else if (authNotifier.authError != null) {
+                            UiUtils.showTopSnackBar(context, authNotifier.authError!);
+                          }
+                        },
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        width: 22,
+                        height: 22,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(4),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.06),
+                              blurRadius: 4,
+                              offset: const Offset(0, 1),
+                            ),
+                          ],
+                        ),
+                        alignment: Alignment.center,
+                        child: const Text(
+                          'G',
+                          style: TextStyle(
+                            color: Color(0xFF4285F4),
+                            fontWeight: FontWeight.w900,
+                            fontSize: 15,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      const Text(
+                        'Continue with Google',
+                        style: TextStyle(
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 24),
+
             ],
           ),
         ),

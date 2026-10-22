@@ -5,6 +5,11 @@ const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const { z } = require('zod');
 const multer = require('multer');
+const { OAuth2Client } = require('google-auth-library');
+
+const googleClient = new OAuth2Client(
+  process.env.GOOGLE_CLIENT_ID || '477223765836-9t4oml9khj3jelnlqc33r093uupa08cr.apps.googleusercontent.com'
+);
 
 // F10: Shared Prisma client
 const prisma = require('../lib/prisma');
@@ -291,6 +296,245 @@ router.post('/login', loginLimiter, async (req, res) => {
     if (error instanceof z.ZodError) {
       return res.status(401).json({ error: 'INVALID_CREDENTIALS', message: 'Invalid email or password.' });
     }
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// POST /auth/google - Social login with Google ID token
+router.post('/google', async (req, res) => {
+  try {
+    const { idToken } = req.body;
+    if (!idToken || typeof idToken !== 'string') {
+      return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Google idToken is required' });
+    }
+
+    // Verify token with Google
+    let payload;
+    try {
+      const ticket = await googleClient.verifyIdToken({
+        idToken,
+        audience: [
+          '477223765836-9t4oml9khj3jelnlqc33r093uupa08cr.apps.googleusercontent.com',
+          '477223765836-s04n00edhkkoj7hlkc76qqs52iotkfa0.apps.googleusercontent.com',
+          process.env.GOOGLE_CLIENT_ID,
+        ].filter(Boolean),
+      });
+      payload = ticket.getPayload();
+    } catch (verifyErr) {
+      console.error('Google token verification failed:', verifyErr.message);
+      return res.status(401).json({ error: 'INVALID_CREDENTIALS', message: 'Invalid or expired Google token.' });
+    }
+
+    const { sub: googleId, email, name, picture } = payload;
+    if (!email) {
+      return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Google account has no email address.' });
+    }
+    const normalizedEmail = email.trim().toLowerCase();
+
+    // Find existing user by googleId or email
+    let user = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { googleId },
+          { email: normalizedEmail },
+        ]
+      }
+    });
+
+    // F2: Ban check
+    if (user && user.isBanned) {
+      return res.status(403).json({ error: 'ACCOUNT_BANNED', message: 'This account has been suspended.' });
+    }
+
+    // F12: Underage blocked check
+    if (user && user.underageBlockedAt) {
+      return res.status(403).json({
+        error: 'UNDERAGE',
+        message: 'You must be at least 18 years old to use Wehere.',
+      });
+    }
+
+    // If user doesn't exist, create them
+    if (!user) {
+      user = await prisma.user.create({
+        data: {
+          email: normalizedEmail,
+          googleId,
+          pseudonym: name || 'Explorer',
+          displayName: name,
+          avatar: picture,
+          emailVerified: true,
+          emailVerifiedAt: new Date(),
+          role: 'USER',
+        }
+      });
+    } else {
+      // Link googleId or update email verification if needed
+      const updateData = {};
+      if (!user.googleId) updateData.googleId = googleId;
+      if (!user.emailVerified) {
+        updateData.emailVerified = true;
+        updateData.emailVerifiedAt = new Date();
+      }
+      if (user.scheduledDeletionDate) {
+        updateData.scheduledDeletionDate = null;
+        updateData.deletionRequestedAt = null;
+      }
+      if (Object.keys(updateData).length > 0) {
+        user = await prisma.user.update({
+          where: { id: user.id },
+          data: updateData,
+        });
+      }
+    }
+
+    // Evaluate streak
+    const streakResult = evaluateStreak(user);
+    if (streakResult && streakResult.shouldUpdate) {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          currentStreak: streakResult.currentStreak,
+          lastLoginDate: streakResult.lastLoginDate,
+        }
+      });
+      user.currentStreak = streakResult.currentStreak;
+      user.lastLoginDate = streakResult.lastLoginDate;
+    }
+
+    // Issue 7-day session token (with no purpose claim)
+    const token = jwt.sign(
+      { id: user.id, role: user.role, tokenVersion: user.tokenVersion },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    res.json({
+      success: true,
+      token,
+      user: {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        pseudonym: user.pseudonym,
+        displayName: user.displayName,
+        avatar: user.avatar,
+        emailVerified: user.emailVerified,
+        currentStreak: user.currentStreak,
+      },
+      requiresDob: !user.dateOfBirth,
+    });
+  } catch (error) {
+    console.error('Google auth error:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// POST /auth/apple - Social login with Apple
+router.post('/apple', async (req, res) => {
+  try {
+    const { identityToken, appleId: clientAppleId, email: clientEmail, givenName, familyName } = req.body;
+    if (!identityToken || typeof identityToken !== 'string') {
+      return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Apple identityToken is required' });
+    }
+
+    const decoded = jwt.decode(identityToken, { complete: true });
+    if (!decoded || !decoded.payload) {
+      return res.status(401).json({ error: 'INVALID_CREDENTIALS', message: 'Invalid Apple identity token.' });
+    }
+
+    const { sub: appleId, email: tokenEmail } = decoded.payload;
+    const finalEmail = (tokenEmail || clientEmail || '').trim().toLowerCase();
+    const finalAppleId = appleId || clientAppleId;
+
+    if (!finalAppleId) {
+      return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Apple user identifier not found.' });
+    }
+
+    let user = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { appleId: finalAppleId },
+          ...(finalEmail ? [{ email: finalEmail }] : []),
+        ]
+      }
+    });
+
+    if (user && user.isBanned) {
+      return res.status(403).json({ error: 'ACCOUNT_BANNED', message: 'This account has been suspended.' });
+    }
+
+    if (user && user.underageBlockedAt) {
+      return res.status(403).json({
+        error: 'UNDERAGE',
+        message: 'You must be at least 18 years old to use Wehere.',
+      });
+    }
+
+    const displayName = (givenName || familyName) ? `${givenName || ''} ${familyName || ''}`.trim() : 'Apple User';
+
+    if (!user) {
+      user = await prisma.user.create({
+        data: {
+          email: finalEmail || `${finalAppleId}@privaterelay.appleid.com`,
+          appleId: finalAppleId,
+          pseudonym: displayName || 'Explorer',
+          displayName,
+          emailVerified: true,
+          emailVerifiedAt: new Date(),
+          role: 'USER',
+        }
+      });
+    } else {
+      const updateData = {};
+      if (!user.appleId) updateData.appleId = finalAppleId;
+      if (!user.emailVerified) {
+        updateData.emailVerified = true;
+        updateData.emailVerifiedAt = new Date();
+      }
+      if (Object.keys(updateData).length > 0) {
+        user = await prisma.user.update({
+          where: { id: user.id },
+          data: updateData,
+        });
+      }
+    }
+
+    const streakResult = evaluateStreak(user);
+    if (streakResult && streakResult.shouldUpdate) {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          currentStreak: streakResult.currentStreak,
+          lastLoginDate: streakResult.lastLoginDate,
+        }
+      });
+      user.currentStreak = streakResult.currentStreak;
+      user.lastLoginDate = streakResult.lastLoginDate;
+    }
+
+    const token = jwt.sign(
+      { id: user.id, role: user.role, tokenVersion: user.tokenVersion },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    res.json({
+      success: true,
+      token,
+      user: {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        pseudonym: user.pseudonym,
+        displayName: user.displayName,
+        emailVerified: user.emailVerified,
+        currentStreak: user.currentStreak,
+      },
+      requiresDob: !user.dateOfBirth,
+    });
+  } catch (error) {
+    console.error('Apple auth error:', error);
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
