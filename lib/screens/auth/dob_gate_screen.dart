@@ -2,11 +2,9 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/network/api_client.dart';
-import '../../core/routing/app_routes.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../state/auth_notifier.dart';
-import '../../state/app_state.dart';
 import '../../widgets/common/wehere_button.dart';
 
 class DobGateScreen extends StatefulWidget {
@@ -21,14 +19,37 @@ class _DobGateScreenState extends State<DobGateScreen> {
   bool _isSubmitting = false;
   String? _errorMessage;
 
+  static const _monthNames = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  ];
+
+  String _formatDisplayDate(DateTime d) {
+    return '${d.day} ${_monthNames[d.month - 1]} ${d.year}';
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    // If AuthNotifier.suggestedDob is set (A8) pre-select it
+    final auth = context.read<AuthNotifier>();
+    if (auth.suggestedDob != null) {
+      _selectedDate = auth.suggestedDob;
+    }
+  }
+
   Future<void> _pickDate() async {
     final now = DateTime.now();
+    final initialDate = _selectedDate ?? DateTime(now.year - 18, now.month, now.day);
     final picked = await showDatePicker(
       context: context,
-      initialDate: DateTime(now.year - 18, now.month, now.day),
+      initialDate: initialDate,
       firstDate: DateTime(now.year - 100),
       lastDate: now,
-      helpText: 'Select your date of birth',
+      initialEntryMode: DatePickerEntryMode.input,
+      initialDatePickerMode: DatePickerMode.year,
+      fieldHintText: 'dd/mm/yyyy',
+      helpText: 'Enter your date of birth',
     );
     if (picked != null) {
       setState(() {
@@ -40,46 +61,48 @@ class _DobGateScreenState extends State<DobGateScreen> {
 
   Future<void> _submit() async {
     if (_selectedDate == null) {
-      setState(() => _errorMessage = 'Please select your date of birth');
+      setState(() => _errorMessage = 'Please enter your exact date of birth');
       return;
     }
 
-    final now = DateTime.now();
-    int age = now.year - _selectedDate!.year;
-    if (now.month < _selectedDate!.month ||
-        (now.month == _selectedDate!.month && now.day < _selectedDate!.day)) {
-      age--;
-    }
+    final formattedDisplay = _formatDisplayDate(_selectedDate!);
 
-    if (age < 18) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('You must be 18 or older to use Wehere.')),
-      );
-      await context.read<AuthNotifier>().logout();
-      return;
-    }
+    // Confirmation dialog: "You entered 14 Mar 2001. You can't change this later. Is it correct?" with "Edit" and "Yes, confirm"
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Confirm Date of Birth'),
+        content: Text(
+          "You entered $formattedDisplay. You can't change this later. Is it correct?",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Edit'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Yes, confirm'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
 
     setState(() => _isSubmitting = true);
-    final formatted =
+    final formattedApi =
         "${_selectedDate!.year.toString().padLeft(4, '0')}-${_selectedDate!.month.toString().padLeft(2, '0')}-${_selectedDate!.day.toString().padLeft(2, '0')}";
 
     try {
-      final res = await apiClient.put('/users/me/dob', data: {'dateOfBirth': formatted});
+      final res = await apiClient.put('/users/me/dob', data: {'dateOfBirth': formattedApi});
       if (res.statusCode == 200) {
         if (!mounted) return;
         final auth = context.read<AuthNotifier>();
         auth.setNeedsDob(false);
-        final appState = context.read<AppState>();
-        await appState.fetchCurrentUser();
-        await appState.fetchBackendData();
+        await auth.refreshSession(context);
         if (!mounted) return;
-        if (!auth.hasCompletedOnboarding) {
-          Navigator.pushReplacementNamed(context, AppRoutes.onboarding);
-        } else {
-          appState.setTabIndex(0);
-          Navigator.pushNamedAndRemoveUntil(context, AppRoutes.main, (route) => false);
-        }
+        auth.navigateAfterAuth(context);
         return;
       }
     } on DioException catch (e) {
@@ -87,27 +110,16 @@ class _DobGateScreenState extends State<DobGateScreen> {
       final msg = e.response?.data?['message'] ?? 'Failed to update date of birth';
       if (errCode == 'UNDERAGE') {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('You must be 18 or older to use Wehere.')),
-        );
-        await context.read<AuthNotifier>().logout();
+        await context.read<AuthNotifier>().handleUnderage(context);
         return;
       }
       if (e.response?.statusCode == 409) {
-        // DOB is already recorded in the database; treat as verified and proceed
         if (!mounted) return;
         final auth = context.read<AuthNotifier>();
         auth.setNeedsDob(false);
-        final appState = context.read<AppState>();
-        await appState.fetchCurrentUser();
-        await appState.fetchBackendData();
+        await auth.refreshSession(context);
         if (!mounted) return;
-        if (!auth.hasCompletedOnboarding) {
-          Navigator.pushReplacementNamed(context, AppRoutes.onboarding);
-        } else {
-          appState.setTabIndex(0);
-          Navigator.pushNamedAndRemoveUntil(context, AppRoutes.main, (route) => false);
-        }
+        auth.navigateAfterAuth(context);
         return;
       }
       setState(() => _errorMessage = msg.toString());
@@ -122,7 +134,7 @@ class _DobGateScreenState extends State<DobGateScreen> {
   Widget build(BuildContext context) {
     final dateText = _selectedDate == null
         ? 'Select Date of Birth'
-        : "${_selectedDate!.day.toString().padLeft(2, '0')}/${_selectedDate!.month.toString().padLeft(2, '0')}/${_selectedDate!.year}";
+        : _formatDisplayDate(_selectedDate!);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -144,13 +156,13 @@ class _DobGateScreenState extends State<DobGateScreen> {
               ),
               const SizedBox(height: 24),
               Text(
-                'Self-Declared Age',
+                'Your date of birth',
                 style: AppTextStyles.h1,
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 12),
               Text(
-                'We need your self-declared date of birth to confirm you are 18 or older.',
+                'Wehere is only for people aged 18 or older. Enter your exact date of birth. You will not be able to change it later.',
                 style: AppTextStyles.bodyMedium,
                 textAlign: TextAlign.center,
               ),

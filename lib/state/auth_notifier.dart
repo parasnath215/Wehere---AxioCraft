@@ -1,26 +1,85 @@
 import 'dart:async';
 import 'dart:io';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:dio/dio.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import '../core/utils/storage_helper.dart';
 import '../core/network/api_client.dart';
-import 'package:dio/dio.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:google_sign_in/google_sign_in.dart';
+import '../core/routing/app_routes.dart';
+import '../core/routing/app_router.dart';
+import '../services/social_auth_service.dart';
+import 'app_state.dart';
 
 enum AuthStatus { initializing, unauthenticated, unverified, authenticated }
 
-class GoogleUserData {
-  final String name;
-  final String email;
-  final String? photoUrl;
+class SocialRegistrationData {
+  final String provider; // 'google' | 'apple'
   final String idToken;
+  final String? nonce;
+  final String email;
+  final String name;
+  final String? givenName;
+  final String? familyName;
+  final String? pictureUrl;
+  final String? locale;
+  final String? suggestedPhone;
 
-  GoogleUserData({
-    required this.name,
-    required this.email,
-    this.photoUrl,
+  SocialRegistrationData({
+    required this.provider,
     required this.idToken,
+    this.nonce,
+    required this.email,
+    required this.name,
+    this.givenName,
+    this.familyName,
+    this.pictureUrl,
+    this.locale,
+    this.suggestedPhone,
   });
+}
+
+class SocialOutcome {
+  final bool isLoggedIn;
+  final bool isNeedsRegistration;
+  final bool isUnderage;
+  final bool isAccountBanned;
+  final bool isError;
+  final SocialRegistrationData? registrationData;
+  final String? errorMessage;
+
+  const SocialOutcome._({
+    this.isLoggedIn = false,
+    this.isNeedsRegistration = false,
+    this.isUnderage = false,
+    this.isAccountBanned = false,
+    this.isError = false,
+    this.registrationData,
+    this.errorMessage,
+  });
+
+  factory SocialOutcome.loggedIn() => const SocialOutcome._(isLoggedIn: true);
+  factory SocialOutcome.needsRegistration(SocialRegistrationData data) =>
+      SocialOutcome._(isNeedsRegistration: true, registrationData: data);
+  factory SocialOutcome.underage() => const SocialOutcome._(isUnderage: true);
+  factory SocialOutcome.accountBanned(String msg) =>
+      SocialOutcome._(isAccountBanned: true, errorMessage: msg);
+  factory SocialOutcome.error(String msg) =>
+      SocialOutcome._(isError: true, errorMessage: msg);
+}
+
+/// Pure routing decision function for testability
+String resolveNextRoute({
+  required bool isAuthenticated,
+  required bool emailVerified,
+  required bool needsDob,
+  required bool onboardingCompleted,
+}) {
+  if (!isAuthenticated) return AppRoutes.login;
+  if (!emailVerified) return AppRoutes.otp;
+  if (needsDob) return AppRoutes.dobGate;
+  if (!onboardingCompleted) return AppRoutes.onboarding;
+  return AppRoutes.main;
 }
 
 class AuthNotifier extends ChangeNotifier {
@@ -34,6 +93,12 @@ class AuthNotifier extends ChangeNotifier {
   String? _authError;
   bool _isLoading = false;
 
+  DateTime? _suggestedDob;
+  DateTime? get suggestedDob => _suggestedDob;
+
+  String? _suggestedPhone;
+  String? get suggestedPhone => _suggestedPhone;
+
   late final StreamSubscription _authSubscription;
 
   AuthNotifier() {
@@ -46,6 +111,8 @@ class AuthNotifier extends ChangeNotifier {
       } else if (event == AuthEvent.ageRequired) {
         _needsDob = true;
         notifyListeners();
+      } else if (event == AuthEvent.underage) {
+        handleUnderage();
       }
     });
   }
@@ -72,6 +139,25 @@ class AuthNotifier extends ChangeNotifier {
   String get registeredName => _registeredName;
   String get registeredEmail => _registeredEmail;
 
+  String nextRoute() {
+    return resolveNextRoute(
+      isAuthenticated: isAuthenticated,
+      emailVerified: _status == AuthStatus.authenticated,
+      needsDob: _needsDob,
+      onboardingCompleted: _hasCompletedOnboarding,
+    );
+  }
+
+  void navigateAfterAuth(BuildContext context) {
+    final target = nextRoute();
+    if (target == AppRoutes.main) {
+      try {
+        Provider.of<AppState>(context, listen: false).setTabIndex(0);
+      } catch (_) {}
+    }
+    Navigator.pushNamedAndRemoveUntil(context, target, (r) => false);
+  }
+
   Future<void> initializeSession() async {
     _status = AuthStatus.initializing;
     notifyListeners();
@@ -88,21 +174,26 @@ class AuthNotifier extends ChangeNotifier {
         _userId = savedId;
         _registeredEmail = savedEmail ?? '';
         
-        // Check if verified by hitting /me
+        // Fetch current user from server
         try {
           final res = await apiClient.get('/users/me');
-          final isVerified = res.data['emailVerified'] == true;
-          _needsDob = res.data['needsDob'] == true;
+          final data = res.data;
+          final isVerified = data['emailVerified'] == true;
+          _needsDob = data['needsDob'] == true;
+          _hasCompletedOnboarding = data['onboardingCompleted'] == true;
           _status = isVerified ? AuthStatus.authenticated : AuthStatus.unverified;
-          
-          final savedOnboarding = await StorageHelper.read(key: 'onboarding_completed');
-          _hasCompletedOnboarding = savedOnboarding == 'true' || res.data['interests']?.isNotEmpty == true;
-        } catch (e) {
-           _status = AuthStatus.authenticated; // optimistic, interceptor will downgrade if 403
-           final savedOnboarding = await StorageHelper.read(key: 'onboarding_completed');
-           _hasCompletedOnboarding = savedOnboarding == 'true';
-        }
+          if (data['pseudonym'] != null) _registeredName = data['pseudonym'];
+          if (data['email'] != null) _registeredEmail = data['email'];
 
+          // Cache onboarding completed flag
+          if (_hasCompletedOnboarding) {
+            await StorageHelper.write(key: 'onboarding_completed', value: 'true');
+          }
+        } catch (e) {
+          _status = AuthStatus.authenticated;
+          _needsDob = false;
+          _hasCompletedOnboarding = true;
+        }
       } else {
         _status = AuthStatus.unauthenticated;
       }
@@ -110,6 +201,69 @@ class AuthNotifier extends ChangeNotifier {
       _status = AuthStatus.unauthenticated;
     }
     notifyListeners();
+  }
+
+  Future<void> refreshSession([BuildContext? context]) async {
+    try {
+      final res = await apiClient.get('/users/me');
+      if (res.statusCode == 200) {
+        final data = res.data;
+        final isVerified = data['emailVerified'] == true;
+        _needsDob = data['needsDob'] == true;
+        _hasCompletedOnboarding = data['onboardingCompleted'] == true;
+        _status = isVerified ? AuthStatus.authenticated : AuthStatus.unverified;
+        if (data['pseudonym'] != null) _registeredName = data['pseudonym'];
+        if (data['email'] != null) _registeredEmail = data['email'];
+
+        if (_hasCompletedOnboarding) {
+          await StorageHelper.write(key: 'onboarding_completed', value: 'true');
+        }
+
+        notifyListeners();
+
+        if (context != null && context.mounted) {
+          final appState = Provider.of<AppState>(context, listen: false);
+          await appState.fetchCurrentUser();
+          await appState.fetchBackendData();
+          final token = await StorageHelper.read(key: 'jwt_token');
+          if (token != null) {
+            appState.initSocket(token);
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('refreshSession error: $e');
+    }
+  }
+
+  Future<void> handleUnderage([BuildContext? context]) async {
+    await StorageHelper.delete(key: 'jwt_token');
+    await StorageHelper.delete(key: 'user_id');
+    await StorageHelper.delete(key: 'user_email');
+    await StorageHelper.delete(key: 'user_age');
+    await StorageHelper.delete(key: 'user_dob');
+    await StorageHelper.delete(key: 'onboarding_completed');
+
+    try {
+      await GoogleSignIn().signOut();
+    } catch (_) {}
+
+    _status = AuthStatus.unauthenticated;
+    _userId = null;
+    _registeredEmail = '';
+    _needsDob = false;
+    _hasCompletedOnboarding = false;
+    notifyListeners();
+
+    if (context != null && context.mounted) {
+      try {
+        Provider.of<AppState>(context, listen: false).resetAllData();
+      } catch (_) {}
+      Navigator.pushNamedAndRemoveUntil(context, AppRoutes.underage, (r) => false);
+    } else {
+      final nav = AppRouter.navigatorKey.currentState;
+      nav?.pushNamedAndRemoveUntil(AppRoutes.underage, (r) => false);
+    }
   }
 
   Future<bool> login(String email, String password) async {
@@ -135,9 +289,12 @@ class AuthNotifier extends ChangeNotifier {
       
       final isVerified = user['emailVerified'] == true || user['role'] == 'ADMIN';
       _status = isVerified ? AuthStatus.authenticated : AuthStatus.unverified;
-      
-      final savedOnboarding = await StorageHelper.read(key: 'onboarding_completed');
-      _hasCompletedOnboarding = savedOnboarding == 'true' || (user['interests'] != null && user['interests'].isNotEmpty);
+      _needsDob = response.data['needsDob'] == true;
+      _hasCompletedOnboarding = response.data['onboardingCompleted'] == true;
+
+      if (_hasCompletedOnboarding) {
+        await StorageHelper.write(key: 'onboarding_completed', value: 'true');
+      }
       
       _isLoading = false;
       notifyListeners();
@@ -160,6 +317,10 @@ class AuthNotifier extends ChangeNotifier {
         notifyListeners();
         return false;
       }
+      if (e.response?.data?['error'] == 'UNDERAGE') {
+        await handleUnderage();
+        return false;
+      }
       final resData = e.response?.data;
       _authError = (resData is Map)
           ? (resData['message'] ?? resData['error'] ?? 'Login failed. Please check credentials.')
@@ -175,38 +336,125 @@ class AuthNotifier extends ChangeNotifier {
     }
   }
 
-  Future<bool> loginWithGoogle([String? providedIdToken]) async {
+  Future<SocialOutcome> continueWithProvider(String provider) async {
     _isLoading = true;
     _authError = null;
     notifyListeners();
 
     try {
-      String? idToken = providedIdToken;
-      if (idToken == null || idToken.isEmpty) {
-        final GoogleSignIn googleSignIn = GoogleSignIn(
-          serverClientId: '477223765836-9t4oml9khj3jelnlqc33r093uupa08cr.apps.googleusercontent.com',
-        );
-
-        final GoogleSignInAccount? account = await googleSignIn.signIn();
-        if (account == null) {
-          _isLoading = false;
-          notifyListeners();
-          return false;
-        }
-
-        final GoogleSignInAuthentication auth = await account.authentication;
-        idToken = auth.idToken;
-      }
-
-      if (idToken == null || idToken.isEmpty) {
-        _authError = 'Failed to retrieve Google identity token.';
+      SocialCredential? cred;
+      if (provider == 'google') {
+        cred = await SocialAuthService.signInWithGoogle();
+      } else if (provider == 'apple') {
+        cred = await SocialAuthService.signInWithApple();
+      } else {
         _isLoading = false;
         notifyListeners();
-        return false;
+        return SocialOutcome.error('Unsupported provider: $provider');
       }
 
-      final response = await apiClient.post('/auth/google', data: {
+      if (cred == null) {
+        _isLoading = false;
+        notifyListeners();
+        return SocialOutcome.error('Sign-in cancelled');
+      }
+
+      if (cred.suggestedDob != null) {
+        _suggestedDob = cred.suggestedDob;
+      }
+      if (cred.suggestedPhone != null) {
+        _suggestedPhone = cred.suggestedPhone;
+      }
+
+      final checkRes = await socialCheck(
+        provider: cred.provider,
+        idToken: cred.idToken,
+        nonce: cred.nonce,
+        givenName: cred.givenName,
+        familyName: cred.familyName,
+      );
+
+      if (checkRes['exists'] == true) {
+        final loginSuccess = await socialLogin(
+          provider: cred.provider,
+          idToken: cred.idToken,
+          nonce: cred.nonce,
+        );
+        _isLoading = false;
+        notifyListeners();
+        if (loginSuccess) {
+          return SocialOutcome.loggedIn();
+        } else {
+          return SocialOutcome.error(_authError ?? 'Failed to log in with $provider');
+        }
+      } else {
+        _isLoading = false;
+        notifyListeners();
+        final profile = checkRes['profile'] as Map<String, dynamic>? ?? {};
+        final regData = SocialRegistrationData(
+          provider: cred.provider,
+          idToken: cred.idToken,
+          nonce: cred.nonce,
+          email: profile['email'] ?? cred.email ?? '',
+          name: profile['name'] ?? cred.displayName ?? '',
+          givenName: profile['givenName'] ?? cred.givenName,
+          familyName: profile['familyName'] ?? cred.familyName,
+          pictureUrl: profile['pictureUrl'] ?? cred.photoUrl,
+          locale: profile['locale'],
+          suggestedPhone: cred.suggestedPhone,
+        );
+        return SocialOutcome.needsRegistration(regData);
+      }
+    } on DioException catch (e) {
+      _isLoading = false;
+      final errCode = e.response?.data?['error'];
+      final message = e.response?.data?['message'] ?? 'Social sign-in failed.';
+      if (errCode == 'UNDERAGE') {
+        await handleUnderage();
+        return SocialOutcome.underage();
+      } else if (errCode == 'ACCOUNT_BANNED') {
+        _authError = message;
+        notifyListeners();
+        return SocialOutcome.accountBanned(message);
+      }
+      _authError = message;
+      notifyListeners();
+      return SocialOutcome.error(message);
+    } catch (e) {
+      _isLoading = false;
+      _authError = e.toString();
+      notifyListeners();
+      return SocialOutcome.error(e.toString());
+    }
+  }
+
+  Future<Map<String, dynamic>> socialCheck({
+    required String provider,
+    required String idToken,
+    String? nonce,
+    String? givenName,
+    String? familyName,
+  }) async {
+    final res = await apiClient.post('/auth/social/check', data: {
+      'provider': provider,
+      'idToken': idToken,
+      if (nonce != null && nonce.isNotEmpty) 'nonce': nonce,
+      if (givenName != null && givenName.isNotEmpty) 'givenName': givenName,
+      if (familyName != null && familyName.isNotEmpty) 'familyName': familyName,
+    });
+    return Map<String, dynamic>.from(res.data);
+  }
+
+  Future<bool> socialLogin({
+    required String provider,
+    required String idToken,
+    String? nonce,
+  }) async {
+    try {
+      final response = await apiClient.post('/auth/social/login', data: {
+        'provider': provider,
         'idToken': idToken,
+        if (nonce != null && nonce.isNotEmpty) 'nonce': nonce,
       });
 
       final token = response.data['token'];
@@ -214,53 +462,47 @@ class AuthNotifier extends ChangeNotifier {
 
       await StorageHelper.write(key: 'jwt_token', value: token);
       await StorageHelper.write(key: 'user_id', value: user['id']);
-      await StorageHelper.write(key: 'user_email', value: user['email']);
+      await StorageHelper.write(key: 'user_email', value: user['email'] ?? '');
 
       _userId = user['id'];
       _registeredEmail = user['email'] ?? '';
       _registeredName = user['displayName'] ?? user['pseudonym'] ?? 'Explorer';
-      _needsDob = response.data['requiresDob'] == true;
+      _needsDob = response.data['needsDob'] == true;
+      _hasCompletedOnboarding = response.data['onboardingCompleted'] == true;
       _status = AuthStatus.authenticated;
+      _authError = null;
 
-      final savedOnboarding = await StorageHelper.read(key: 'onboarding_completed');
-      _hasCompletedOnboarding = savedOnboarding == 'true' || (user['interests'] != null && (user['interests'] as List).isNotEmpty);
+      if (_hasCompletedOnboarding) {
+        await StorageHelper.write(key: 'onboarding_completed', value: 'true');
+      }
 
-      _isLoading = false;
       notifyListeners();
       return true;
     } on DioException catch (e) {
-      final resData = e.response?.data;
-      _authError = (resData is Map)
-          ? (resData['message'] ?? resData['error'] ?? 'Google sign-in failed.')
-          : 'Google sign-in failed.';
-      _isLoading = false;
-      notifyListeners();
-      return false;
-    } catch (e) {
-      _authError = 'Google sign-in error: ${e.toString()}';
-      _isLoading = false;
-      notifyListeners();
-      return false;
-    }
-  }
-
-  Future<Map<String, dynamic>?> checkGoogleUser(String idToken) async {
-    try {
-      final res = await apiClient.post('/auth/google/check', data: {'idToken': idToken});
-      if (res.statusCode == 200 && res.data is Map) {
-        return Map<String, dynamic>.from(res.data);
+      final errCode = e.response?.data?['error'];
+      final message = e.response?.data?['message'] ?? 'Social login failed.';
+      if (errCode == 'UNDERAGE') {
+        await handleUnderage();
       }
+      _authError = message;
+      notifyListeners();
+      return false;
     } catch (e) {
-      debugPrint('checkGoogleUser error: $e');
+      _authError = e.toString();
+      notifyListeners();
+      return false;
     }
-    return null;
   }
 
-  Future<bool> registerWithGoogle({
+  Future<bool> socialRegister({
+    required String provider,
     required String idToken,
+    String? nonce,
     required String pseudonym,
     String? password,
     String? phone,
+    String? givenName,
+    String? familyName,
     required List<String> imagePaths,
   }) async {
     _isLoading = true;
@@ -269,13 +511,23 @@ class AuthNotifier extends ChangeNotifier {
 
     try {
       final formData = FormData();
+      formData.fields.add(MapEntry('provider', provider));
       formData.fields.add(MapEntry('idToken', idToken));
+      if (nonce != null && nonce.isNotEmpty) {
+        formData.fields.add(MapEntry('nonce', nonce));
+      }
       formData.fields.add(MapEntry('pseudonym', pseudonym));
       if (password != null && password.isNotEmpty) {
         formData.fields.add(MapEntry('password', password));
       }
       if (phone != null && phone.isNotEmpty) {
         formData.fields.add(MapEntry('phone', phone));
+      }
+      if (givenName != null && givenName.isNotEmpty) {
+        formData.fields.add(MapEntry('givenName', givenName));
+      }
+      if (familyName != null && familyName.isNotEmpty) {
+        formData.fields.add(MapEntry('familyName', familyName));
       }
 
       for (final path in imagePaths) {
@@ -286,35 +538,35 @@ class AuthNotifier extends ChangeNotifier {
         ));
       }
 
-      final response = await apiClient.post('/auth/register-google', data: formData);
+      final response = await apiClient.post('/auth/social/register', data: formData);
       final token = response.data['token'];
       final user = response.data['user'];
 
       await StorageHelper.write(key: 'jwt_token', value: token);
       await StorageHelper.write(key: 'user_id', value: user['id']);
-      await StorageHelper.write(key: 'user_email', value: user['email']);
+      await StorageHelper.write(key: 'user_email', value: user['email'] ?? '');
 
       _userId = user['id'];
       _registeredEmail = user['email'] ?? '';
       _registeredName = user['displayName'] ?? user['pseudonym'] ?? 'Explorer';
-      _needsDob = response.data['requiresDob'] == true;
-      _hasCompletedOnboarding = false;
+      _needsDob = response.data['needsDob'] == true;
+      _hasCompletedOnboarding = response.data['onboardingCompleted'] == true;
       _status = AuthStatus.authenticated;
 
       _isLoading = false;
       notifyListeners();
       return true;
     } on DioException catch (e) {
+      _isLoading = false;
       final resData = e.response?.data;
       _authError = (resData is Map)
-          ? (resData['message'] ?? resData['error'] ?? 'Google registration failed.')
-          : 'Google registration failed.';
-      _isLoading = false;
+          ? (resData['message'] ?? resData['error'] ?? 'Social registration failed.')
+          : 'Social registration failed.';
       notifyListeners();
       return false;
     } catch (e) {
-      _authError = 'Google registration error: ${e.toString()}';
       _isLoading = false;
+      _authError = 'Social registration error: ${e.toString()}';
       notifyListeners();
       return false;
     }
@@ -378,9 +630,6 @@ class AuthNotifier extends ChangeNotifier {
       _userHandle = customHandle ?? name;
       _status = AuthStatus.unverified;
 
-      // Notice: Do NOT write jwt_token or user_id yet!
-      // The user record in DB will only be created once email OTP is verified.
-
       _isLoading = false;
       notifyListeners();
       return true;
@@ -440,7 +689,8 @@ class AuthNotifier extends ChangeNotifier {
 
         _pendingSignupToken = null;
         _status = AuthStatus.authenticated;
-        _hasCompletedOnboarding = false; // Need to do onboarding after verify
+        _needsDob = res.data['needsDob'] == true;
+        _hasCompletedOnboarding = res.data['onboardingCompleted'] == true;
         _isLoading = false;
         notifyListeners();
         return true;
@@ -481,7 +731,6 @@ class AuthNotifier extends ChangeNotifier {
     required List<String> feelings,
     required List<String> supportTypes,
     required bool isAnonymous,
-    String? dateOfBirth,
   }) async {
     _isLoading = true;
     notifyListeners();
@@ -499,7 +748,6 @@ class AuthNotifier extends ChangeNotifier {
         'feelings': feelings,
         'supportTypes': supportTypes,
         'isAnonymous': isAnonymous,
-        if (dateOfBirth != null && dateOfBirth.isNotEmpty) 'dateOfBirth': dateOfBirth,
       });
       await StorageHelper.write(key: 'onboarding_completed', value: 'true');
       _hasCompletedOnboarding = true;
@@ -518,14 +766,18 @@ class AuthNotifier extends ChangeNotifier {
     await StorageHelper.delete(key: 'user_email');
     await StorageHelper.delete(key: 'user_age');
     await StorageHelper.delete(key: 'user_dob');
+    await StorageHelper.delete(key: 'onboarding_completed');
+
     try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove('user_age');
-      await prefs.remove('user_dob');
+      await GoogleSignIn().signOut();
     } catch (_) {}
+
     _userId = null;
-    _status = AuthStatus.unauthenticated;
+    _registeredEmail = '';
+    _needsDob = false;
     _hasCompletedOnboarding = false;
+    _status = AuthStatus.unauthenticated;
+    _authError = null;
     notifyListeners();
   }
 }

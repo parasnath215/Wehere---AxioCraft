@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const prisma = require('../lib/prisma');
+const { assertAccountAllowed } = require('../services/authSession');
 
 function checkApiKey(providedKey, expectedKey) {
   if (!providedKey || !expectedKey) return false;
@@ -39,9 +40,13 @@ function authenticateToken(req, res, next) {
       
       if (!user) return res.status(401).json({ error: 'TOKEN_INVALID', message: 'Session invalid' });
 
-      // F2: Ban check
-      if (user.isBanned) {
-        return res.status(403).json({ error: 'ACCOUNT_BANNED', message: 'This account has been suspended.' });
+      try {
+        assertAccountAllowed(user);
+      } catch (err) {
+        return res.status(err.status || 403).json({
+          error: err.code || 'FORBIDDEN',
+          message: err.message,
+        });
       }
       
       // F2: Legacy token check (no tokenVersion)

@@ -32,7 +32,8 @@ services:
       SMTP_USER: ${SMTP_USER}
       SMTP_PASS: ${SMTP_PASS}
       SMTP_FROM: ${SMTP_FROM}
-      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_IDS: ${GOOGLE_CLIENT_IDS}
+      APPLE_CLIENT_IDS: ${APPLE_CLIENT_IDS}
     ports:
       - "4000:4000"
     depends_on:

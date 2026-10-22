@@ -5,14 +5,15 @@ const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const { z } = require('zod');
 const multer = require('multer');
-const { OAuth2Client } = require('google-auth-library');
-
-const googleClient = new OAuth2Client(
-  process.env.GOOGLE_CLIENT_ID || '477223765836-9t4oml9khj3jelnlqc33r093uupa08cr.apps.googleusercontent.com'
-);
-
 // F10: Shared Prisma client
 const prisma = require('../lib/prisma');
+const { verifySocialToken } = require('../services/socialAuth');
+const {
+  assertAccountAllowed,
+  isOnboardingComplete,
+  serializeAuthUser,
+  completeLogin,
+} = require('../services/authSession');
 
 const {
   signupLimiter,
@@ -20,6 +21,7 @@ const {
   otpRequestLimiter,
   resetPasswordLimiter,
   loginLimiter,
+  socialLimiter,
 } = require('../middleware/rateLimits');
 const { authenticateToken, requireVerified } = require('../middleware/auth');
 const { sendEmail } = require('../services/email');
@@ -199,10 +201,8 @@ router.post('/login', loginLimiter, async (req, res) => {
       return res.status(401).json({ error: 'INVALID_CREDENTIALS', message: 'Invalid email or password.' });
     }
 
-    // F2: Ban check
-    if (user.isBanned) {
-      return res.status(403).json({ error: 'ACCOUNT_BANNED', message: 'This account has been suspended.' });
-    }
+    // Call assertAccountAllowed after password check (A4)
+    assertAccountAllowed(user);
 
     // F5: Enforce email verification before logging in
     if (!user.emailVerified && !user.isAnonymous) {
@@ -250,137 +250,126 @@ router.post('/login', loginLimiter, async (req, res) => {
           error: 'ACCOUNT_DELETED',
           message: 'This account was permanently deleted after the 30-day grace period.'
         });
-      } else {
-        await prisma.user.update({
-          where: { id: user.id },
-          data: {
-            scheduledDeletionDate: null,
-            deletionRequestedAt: null,
-          }
-        });
-        user.scheduledDeletionDate = null;
-        user.deletionRequestedAt = null;
       }
     }
 
-    // Evaluate streak on login
-    const streakResult = evaluateStreak(user);
-    if (streakResult.shouldUpdate) {
-      await prisma.user.update({
-        where: { id: user.id },
-        data: {
-          currentStreak: streakResult.currentStreak,
-          lastLoginDate: streakResult.lastLoginDate,
-        }
-      });
-      user.currentStreak = streakResult.currentStreak;
-      user.lastLoginDate = streakResult.lastLoginDate;
-    }
-
-    const token = jwt.sign(
-      { id: user.id, role: user.role, tokenVersion: user.tokenVersion },
-      process.env.JWT_SECRET,
-      { expiresIn: '7d' }
-    );
-    res.json({
-      token,
-      user: {
-        id: user.id,
-        email: user.email,
-        role: user.role,
-        emailVerified: user.emailVerified,
-        currentStreak: user.currentStreak
-      }
-    });
+    return await completeLogin(res, user);
   } catch (error) {
     if (error instanceof z.ZodError) {
       return res.status(401).json({ error: 'INVALID_CREDENTIALS', message: 'Invalid email or password.' });
     }
+    if (error.code === 'ACCOUNT_BANNED' || error.code === 'UNDERAGE') {
+      return res.status(error.status || 403).json({ error: error.code, message: error.message });
+    }
+    console.error('Login error:', error);
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
 
-// POST /auth/google - Social login with Google ID token
-router.post('/google', async (req, res) => {
+// POST /api/auth/social/check
+router.post('/social/check', socialLimiter, async (req, res) => {
   try {
-    const { idToken } = req.body;
-    if (!idToken || typeof idToken !== 'string') {
-      return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Google idToken is required' });
+    const { provider, idToken, nonce, givenName, familyName } = req.body || {};
+    if (!provider || !idToken) {
+      return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'provider and idToken are required' });
     }
 
-    // Verify token with Google
-    let payload;
+    let profile;
     try {
-      const ticket = await googleClient.verifyIdToken({
-        idToken,
-        audience: [
-          '477223765836-9t4oml9khj3jelnlqc33r093uupa08cr.apps.googleusercontent.com',
-          '477223765836-s04n00edhkkoj7hlkc76qqs52iotkfa0.apps.googleusercontent.com',
-          process.env.GOOGLE_CLIENT_ID,
-        ].filter(Boolean),
+      profile = await verifySocialToken({ provider, idToken, nonce, givenName, familyName });
+    } catch (tokenErr) {
+      return res.status(tokenErr.statusCode || 401).json({
+        error: tokenErr.code || 'INVALID_CREDENTIALS',
+        message: tokenErr.message || 'Invalid social credentials',
       });
-      payload = ticket.getPayload();
-    } catch (verifyErr) {
-      console.error('Google token verification failed:', verifyErr.message);
-      return res.status(401).json({ error: 'INVALID_CREDENTIALS', message: 'Invalid or expired Google token.' });
     }
 
-    const { sub: googleId, email, name, picture } = payload;
-    if (!email) {
-      return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Google account has no email address.' });
-    }
-    const normalizedEmail = email.trim().toLowerCase();
-
-    // Find existing user by googleId or email
-    let user = await prisma.user.findFirst({
+    const normalizedProvider = provider.trim().toLowerCase();
+    const existingUser = await prisma.user.findFirst({
       where: {
         OR: [
-          { googleId },
-          { email: normalizedEmail },
+          ...(normalizedProvider === 'google' ? [{ googleId: profile.subject }] : []),
+          ...(normalizedProvider === 'apple' ? [{ appleId: profile.subject }] : []),
+          ...(profile.email ? [{ email: profile.email }] : []),
         ]
       }
     });
 
-    // F2: Ban check
-    if (user && user.isBanned) {
-      return res.status(403).json({ error: 'ACCOUNT_BANNED', message: 'This account has been suspended.' });
+    if (existingUser) {
+      if (existingUser.isBanned) {
+        return res.status(403).json({ error: 'ACCOUNT_BANNED', message: 'This account has been suspended.' });
+      }
+      if (existingUser.underageBlockedAt) {
+        return res.status(403).json({ error: 'UNDERAGE', message: 'You must be at least 18 years old to use Wehere.' });
+      }
     }
 
-    // F12: Underage blocked check
-    if (user && user.underageBlockedAt) {
-      return res.status(403).json({
-        error: 'UNDERAGE',
-        message: 'You must be at least 18 years old to use Wehere.',
+    res.json({
+      success: true,
+      exists: Boolean(existingUser),
+      profile: {
+        email: (existingUser ? existingUser.email : null) || profile.email,
+        emailVerified: profile.emailVerified,
+        name: (existingUser ? (existingUser.displayName || existingUser.pseudonym) : null) || profile.name || '',
+        givenName: profile.givenName || '',
+        familyName: profile.familyName || '',
+        pictureUrl: profile.pictureUrl || null,
+        locale: profile.locale || null,
+      }
+    });
+  } catch (err) {
+    console.error('social/check error:', err);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// POST /api/auth/social/login - Login existing user via social provider
+router.post('/social/login', socialLimiter, async (req, res) => {
+  try {
+    const { provider, idToken, nonce } = req.body || {};
+    if (!provider || !idToken) {
+      return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'provider and idToken are required' });
+    }
+
+    let profile;
+    try {
+      profile = await verifySocialToken({ provider, idToken, nonce });
+    } catch (tokenErr) {
+      return res.status(tokenErr.statusCode || 401).json({
+        error: tokenErr.code || 'INVALID_CREDENTIALS',
+        message: tokenErr.message || 'Invalid social credentials',
       });
     }
 
-    // If user doesn't exist, create them
-    if (!user) {
-      user = await prisma.user.create({
-        data: {
-          email: normalizedEmail,
-          googleId,
-          pseudonym: name || 'Explorer',
-          displayName: name,
-          avatar: picture,
-          emailVerified: true,
-          emailVerifiedAt: new Date(),
-          role: 'USER',
+    const normalizedProvider = (provider || '').trim().toLowerCase();
+    const subjectField = normalizedProvider === 'google' ? 'googleId' : 'appleId';
+
+    // 1. Look up by provider subject first
+    let user = await prisma.user.findFirst({
+      where: { [subjectField]: profile.subject }
+    });
+
+    if (!user && profile.email) {
+      // 2. If none, look up by verified email
+      user = await prisma.user.findFirst({
+        where: { email: profile.email }
+      });
+
+      if (user) {
+        // If that user already has a DIFFERENT subject for the same provider -> 409 CONFLICT
+        if (user[subjectField] && user[subjectField] !== profile.subject) {
+          return res.status(409).json({
+            error: 'CONFLICT',
+            message: `This account is already linked to a different ${normalizedProvider === 'google' ? 'Google' : 'Apple'} account.`
+          });
         }
-      });
-    } else {
-      // Link googleId or update email verification if needed
-      const updateData = {};
-      if (!user.googleId) updateData.googleId = googleId;
-      if (!user.emailVerified) {
-        updateData.emailVerified = true;
-        updateData.emailVerifiedAt = new Date();
-      }
-      if (user.scheduledDeletionDate) {
-        updateData.scheduledDeletionDate = null;
-        updateData.deletionRequestedAt = null;
-      }
-      if (Object.keys(updateData).length > 0) {
+
+        // Link the provider subject to the user
+        const updateData = { [subjectField]: profile.subject };
+        if (!user.emailVerified) {
+          updateData.emailVerified = true;
+          updateData.emailVerifiedAt = new Date();
+        }
         user = await prisma.user.update({
           where: { id: user.id },
           data: updateData,
@@ -388,155 +377,91 @@ router.post('/google', async (req, res) => {
       }
     }
 
-    // Evaluate streak
-    const streakResult = evaluateStreak(user);
-    if (streakResult && streakResult.shouldUpdate) {
-      await prisma.user.update({
-        where: { id: user.id },
-        data: {
-          currentStreak: streakResult.currentStreak,
-          lastLoginDate: streakResult.lastLoginDate,
-        }
+    if (!user) {
+      return res.status(404).json({
+        error: 'ACCOUNT_NOT_FOUND',
+        message: 'No account found. Please register first.'
       });
-      user.currentStreak = streakResult.currentStreak;
-      user.lastLoginDate = streakResult.lastLoginDate;
     }
 
-    // Issue 7-day session token (with no purpose claim)
-    const token = jwt.sign(
-      { id: user.id, role: user.role, tokenVersion: user.tokenVersion },
-      process.env.JWT_SECRET,
-      { expiresIn: '7d' }
-    );
-
-    res.json({
-      success: true,
-      token,
-      user: {
-        id: user.id,
-        email: user.email,
-        role: user.role,
-        pseudonym: user.pseudonym,
-        displayName: user.displayName,
-        avatar: user.avatar,
-        images: user.images || [],
-        interests: user.interests || [],
-        emailVerified: user.emailVerified,
-        currentStreak: user.currentStreak,
-        dateOfBirth: user.dateOfBirth,
-      },
-      requiresDob: !user.dateOfBirth,
-    });
-  } catch (error) {
-    console.error('Google auth error:', error);
-    res.status(500).json({ error: 'Internal Server Error' });
-  }
-});
-
-// POST /auth/google/check - Check if Google account already exists in DB
-router.post('/google/check', async (req, res) => {
-  try {
-    const { idToken } = req.body;
-    if (!idToken || typeof idToken !== 'string') {
-      return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Google idToken is required' });
-    }
-
-    let payload;
-    try {
-      const ticket = await googleClient.verifyIdToken({
-        idToken,
-        audience: [
-          '477223765836-9t4oml9khj3jelnlqc33r093uupa08cr.apps.googleusercontent.com',
-          '477223765836-s04n00edhkkoj7hlkc76qqs52iotkfa0.apps.googleusercontent.com',
-          process.env.GOOGLE_CLIENT_ID,
-        ].filter(Boolean),
-      });
-      payload = ticket.getPayload();
-    } catch (verifyErr) {
-      return res.status(401).json({ error: 'INVALID_CREDENTIALS', message: 'Invalid Google token' });
-    }
-
-    const { sub: googleId, email, name, picture } = payload;
-    const normalizedEmail = (email || '').trim().toLowerCase();
-
-    const existingUser = await prisma.user.findFirst({
-      where: {
-        OR: [
-          { googleId },
-          ...(normalizedEmail ? [{ email: normalizedEmail }] : []),
-        ]
-      }
-    });
-
-    res.json({
-      success: true,
-      exists: !!existingUser,
-      email: normalizedEmail,
-      name,
-      picture,
-    });
+    return await completeLogin(res, user);
   } catch (err) {
-    console.error('google/check error:', err);
+    if (err.code === 'ACCOUNT_BANNED' || err.code === 'UNDERAGE' || err.code === 'ACCOUNT_DELETED') {
+      return res.status(err.status || 403).json({ error: err.code, message: err.message });
+    }
+    console.error('social/login error:', err);
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
 
-// POST /auth/register-google - Direct registration with Google verification (skips OTP)
-router.post('/register-google', signupLimiter, upload.array('images', 6), async (req, res) => {
+// POST /api/auth/social/register - Register new user via social provider with images
+router.post('/social/register', signupLimiter, upload.array('images', 6), async (req, res) => {
   try {
-    const { idToken, pseudonym, password, phone } = req.body;
-    if (!idToken || typeof idToken !== 'string') {
-      return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Google idToken is required' });
+    const { provider, idToken, nonce, pseudonym, password, phone, givenName, familyName } = req.body || {};
+    if (!provider || !idToken) {
+      return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'provider and idToken are required' });
     }
 
     if (!req.files || req.files.length < 2) {
       return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'At least 2 profile images are required.' });
     }
 
-    let payload;
+    let profile;
     try {
-      const ticket = await googleClient.verifyIdToken({
-        idToken,
-        audience: [
-          '477223765836-9t4oml9khj3jelnlqc33r093uupa08cr.apps.googleusercontent.com',
-          '477223765836-s04n00edhkkoj7hlkc76qqs52iotkfa0.apps.googleusercontent.com',
-          process.env.GOOGLE_CLIENT_ID,
-        ].filter(Boolean),
+      profile = await verifySocialToken({ provider, idToken, nonce, givenName, familyName });
+    } catch (tokenErr) {
+      return res.status(tokenErr.statusCode || 401).json({
+        error: tokenErr.code || 'INVALID_CREDENTIALS',
+        message: tokenErr.message || 'Invalid social credentials',
       });
-      payload = ticket.getPayload();
-    } catch (verifyErr) {
-      console.error('Google token verification failed in register-google:', verifyErr.message);
-      return res.status(401).json({ error: 'INVALID_CREDENTIALS', message: 'Invalid or expired Google token.' });
     }
 
-    const { sub: googleId, email, name, picture } = payload;
-    if (!email) {
-      return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Google account has no email address.' });
-    }
-    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedProvider = (provider || '').trim().toLowerCase();
+    const subjectField = normalizedProvider === 'google' ? 'googleId' : 'appleId';
 
-    // Check if user already exists
-    const existing = await prisma.user.findFirst({
-      where: {
-        OR: [
-          { googleId },
-          { email: normalizedEmail }
-        ]
-      }
+    if (normalizedProvider === 'apple' && !profile.email) {
+      return res.status(400).json({
+        error: 'VALIDATION_ERROR',
+        message: 'Apple account did not provide an email address'
+      });
+    }
+
+    // Account-linking rule: look up by provider subject first (googleId/appleId); only if none, look up by the provider-verified email.
+    let existingUser = await prisma.user.findFirst({
+      where: { [subjectField]: profile.subject }
     });
 
-    if (existing) {
-      return res.status(409).json({ error: 'CONFLICT', message: 'An account with this email already exists. Please log in.' });
+    if (!existingUser && profile.email) {
+      existingUser = await prisma.user.findFirst({
+        where: { email: profile.email }
+      });
     }
 
-    const imagePaths = await Promise.all(req.files.map(f => processAndSaveImage(f.buffer)));
+    if (existingUser) {
+      return res.status(409).json({
+        error: 'CONFLICT',
+        message: 'An account with this email already exists. Please log in.'
+      });
+    }
 
+    // Password validation: If password is given validate it with the shared passwordSchema and do NOT trim() it; if absent store null.
     let hashedPassword = null;
-    if (password && typeof password === 'string' && password.trim().length > 0) {
-      hashedPassword = await bcrypt.hash(password.trim(), 10);
+    if (password !== undefined && password !== null && password !== '') {
+      const parsed = passwordSchema.safeParse(password);
+      if (!parsed.success) {
+        return res.status(400).json({
+          error: 'VALIDATION_ERROR',
+          message: parsed.error.errors[0]?.message || 'Invalid password'
+        });
+      }
+      hashedPassword = await bcrypt.hash(password, 10);
     }
 
-    let desiredPseudonym = (pseudonym && pseudonym.trim().length > 0) ? pseudonym.trim() : (name || 'Explorer');
+    // pseudonym = unique(pseudonym) (reuse the existing unique-suffix logic)
+    let desiredPseudonym = (pseudonym && pseudonym.trim().length > 0)
+      ? pseudonym.trim()
+      : ((profile.name && profile.name.trim().length > 0) ? profile.name.trim() : 'Explorer');
+
     let uniqueHandle = desiredPseudonym;
     let handleExists = await prisma.user.findFirst({
       where: {
@@ -560,156 +485,36 @@ router.post('/register-google', signupLimiter, upload.array('images', 6), async 
       });
     }
 
+    const imagePaths = await Promise.all(req.files.map(f => processAndSaveImage(f.buffer)));
+
+    const finalRealFirstName = (givenName && givenName.trim().length > 0) ? givenName.trim() : (profile.givenName || null);
+    const finalLegalFullName = [givenName, familyName].filter(Boolean).join(' ').trim() || profile.name || null;
+    const finalDisplayName = (pseudonym && pseudonym.trim().length > 0) ? pseudonym.trim() : uniqueHandle;
+
     const user = await prisma.user.create({
       data: {
-        email: normalizedEmail,
-        googleId,
+        email: profile.email,
+        [subjectField]: profile.subject,
         password: hashedPassword,
         pseudonym: uniqueHandle,
-        displayName: name || desiredPseudonym,
-        avatar: imagePaths[0] || picture,
+        displayName: finalDisplayName,
+        realFirstName: finalRealFirstName,
+        legalFullName: finalLegalFullName,
+        avatar: imagePaths[0],
         images: imagePaths,
-        phone: phone ? phone.trim() : null,
+        phone: phone && phone.trim().length > 0 ? phone.trim() : null,
         emailVerified: true,
         emailVerifiedAt: new Date(),
         role: 'USER',
       }
     });
 
-    const token = jwt.sign(
-      { id: user.id, role: user.role, tokenVersion: user.tokenVersion },
-      process.env.JWT_SECRET,
-      { expiresIn: '7d' }
-    );
-
-    res.json({
-      success: true,
-      token,
-      user: {
-        id: user.id,
-        email: user.email,
-        role: user.role,
-        pseudonym: user.pseudonym,
-        displayName: user.displayName,
-        avatar: user.avatar,
-        images: user.images,
-        emailVerified: user.emailVerified,
-        currentStreak: user.currentStreak,
-        dateOfBirth: user.dateOfBirth,
-      },
-      requiresDob: !user.dateOfBirth,
-    });
-  } catch (error) {
-    console.error('register-google error:', error);
-    res.status(500).json({ error: 'Internal Server Error' });
-  }
-});
-
-// POST /auth/apple - Social login with Apple
-router.post('/apple', async (req, res) => {
-  try {
-    const { identityToken, appleId: clientAppleId, email: clientEmail, givenName, familyName } = req.body;
-    if (!identityToken || typeof identityToken !== 'string') {
-      return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Apple identityToken is required' });
+    return await completeLogin(res, user, { created: true });
+  } catch (err) {
+    if (err.code === 'ACCOUNT_BANNED' || err.code === 'UNDERAGE') {
+      return res.status(err.status || 403).json({ error: err.code, message: err.message });
     }
-
-    const decoded = jwt.decode(identityToken, { complete: true });
-    if (!decoded || !decoded.payload) {
-      return res.status(401).json({ error: 'INVALID_CREDENTIALS', message: 'Invalid Apple identity token.' });
-    }
-
-    const { sub: appleId, email: tokenEmail } = decoded.payload;
-    const finalEmail = (tokenEmail || clientEmail || '').trim().toLowerCase();
-    const finalAppleId = appleId || clientAppleId;
-
-    if (!finalAppleId) {
-      return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Apple user identifier not found.' });
-    }
-
-    let user = await prisma.user.findFirst({
-      where: {
-        OR: [
-          { appleId: finalAppleId },
-          ...(finalEmail ? [{ email: finalEmail }] : []),
-        ]
-      }
-    });
-
-    if (user && user.isBanned) {
-      return res.status(403).json({ error: 'ACCOUNT_BANNED', message: 'This account has been suspended.' });
-    }
-
-    if (user && user.underageBlockedAt) {
-      return res.status(403).json({
-        error: 'UNDERAGE',
-        message: 'You must be at least 18 years old to use Wehere.',
-      });
-    }
-
-    const displayName = (givenName || familyName) ? `${givenName || ''} ${familyName || ''}`.trim() : 'Apple User';
-
-    if (!user) {
-      user = await prisma.user.create({
-        data: {
-          email: finalEmail || `${finalAppleId}@privaterelay.appleid.com`,
-          appleId: finalAppleId,
-          pseudonym: displayName || 'Explorer',
-          displayName,
-          emailVerified: true,
-          emailVerifiedAt: new Date(),
-          role: 'USER',
-        }
-      });
-    } else {
-      const updateData = {};
-      if (!user.appleId) updateData.appleId = finalAppleId;
-      if (!user.emailVerified) {
-        updateData.emailVerified = true;
-        updateData.emailVerifiedAt = new Date();
-      }
-      if (Object.keys(updateData).length > 0) {
-        user = await prisma.user.update({
-          where: { id: user.id },
-          data: updateData,
-        });
-      }
-    }
-
-    const streakResult = evaluateStreak(user);
-    if (streakResult && streakResult.shouldUpdate) {
-      await prisma.user.update({
-        where: { id: user.id },
-        data: {
-          currentStreak: streakResult.currentStreak,
-          lastLoginDate: streakResult.lastLoginDate,
-        }
-      });
-      user.currentStreak = streakResult.currentStreak;
-      user.lastLoginDate = streakResult.lastLoginDate;
-    }
-
-    const token = jwt.sign(
-      { id: user.id, role: user.role, tokenVersion: user.tokenVersion },
-      process.env.JWT_SECRET,
-      { expiresIn: '7d' }
-    );
-
-    res.json({
-      success: true,
-      token,
-      user: {
-        id: user.id,
-        email: user.email,
-        role: user.role,
-        pseudonym: user.pseudonym,
-        displayName: user.displayName,
-        emailVerified: user.emailVerified,
-        currentStreak: user.currentStreak,
-      },
-      requiresDob: !user.dateOfBirth,
-    });
-  } catch (error) {
-    console.error('Apple auth error:', error);
+    console.error('social/register error:', err);
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
@@ -952,26 +757,7 @@ router.post('/otp/verify', otpVerifyLimiter, async (req, res) => {
             })
           ]);
 
-          const authToken = jwt.sign(
-            { id: user.id, role: user.role, tokenVersion: user.tokenVersion },
-            process.env.JWT_SECRET,
-            { expiresIn: '7d' }
-          );
-
-          return res.status(201).json({
-            success: true,
-            message: 'Email verified and account created successfully!',
-            token: authToken,
-            user: {
-              id: user.id,
-              email: user.email,
-              phone: user.phone,
-              pseudonym: user.pseudonym,
-              images: user.images,
-              role: user.role,
-              emailVerified: true
-            }
-          });
+          return await completeLogin(res, user, { created: true });
         }
       } catch (jwtErr) {
         if (!authHeaderToken) {
@@ -1037,25 +823,7 @@ router.post('/otp/verify', otpVerifyLimiter, async (req, res) => {
       prisma.user.update({ where: { id: userId }, data: { emailVerified: true, emailVerifiedAt: new Date() } })
     ]);
 
-    const authToken = jwt.sign(
-      { id: updatedUser.id, role: updatedUser.role, tokenVersion: updatedUser.tokenVersion },
-      process.env.JWT_SECRET,
-      { expiresIn: '7d' }
-    );
-
-    res.json({
-      message: 'Email verified successfully',
-      success: true,
-      token: authToken,
-      user: {
-        id: updatedUser.id,
-        email: updatedUser.email,
-        phone: updatedUser.phone,
-        pseudonym: updatedUser.pseudonym,
-        role: updatedUser.role,
-        emailVerified: true
-      }
-    });
+    return await completeLogin(res, updatedUser);
   } catch (error) {
     console.error('OTP verify error:', error);
     res.status(500).json({ error: 'Internal Server Error' });
@@ -1083,10 +851,8 @@ router.post('/reset-password', resetPasswordLimiter, async (req, res) => {
     });
     if (!user) return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Invalid request' });
 
-    // F2: Ban check
-    if (user.isBanned) {
-      return res.status(403).json({ error: 'ACCOUNT_BANNED', message: 'This account has been suspended.' });
-    }
+    // Ban check & underage check
+    assertAccountAllowed(user);
 
     const record = await prisma.otpRecord.findFirst({
       where: { userId: user.id, purpose: 'reset_password', usedAt: null },
@@ -1133,6 +899,9 @@ router.post('/reset-password', resetPasswordLimiter, async (req, res) => {
 
     res.json({ message: 'Password reset successfully', success: true });
   } catch (error) {
+    if (error.code === 'ACCOUNT_BANNED' || error.code === 'UNDERAGE') {
+      return res.status(error.status || 403).json({ error: error.code, message: error.message });
+    }
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
@@ -1150,42 +919,25 @@ const onboardingSchema = z.object({
   feelings: z.array(z.string()).max(10).optional(),
   supportTypes: z.array(z.string()).max(5).optional(),
   isAnonymous: z.boolean().optional(),
-  dateOfBirth: z.string().optional(),
 });
 
-// Complete Onboarding (F12: underage handling)
+// Complete Onboarding
 router.put('/onboarding', authenticateToken, requireVerified, async (req, res) => {
   try {
     const { 
       name, displayName, realFirstName, legalFullName, handle, nameDisplayPreference,
-      location, profession, interests, feelings, supportTypes, isAnonymous, dateOfBirth
+      location, profession, interests, feelings, supportTypes, isAnonymous
     } = onboardingSchema.parse(req.body);
     const userId = req.user.id; 
 
-    // F12: If user already flagged as underage, return 403 immediately without parsing
+    // Underage check
     if (req.user.underageBlockedAt) {
       return res.status(403).json({ error: 'UNDERAGE', message: 'You must be at least 18 years old to use Wehere.' });
     }
 
-    let dobToSave;
+    // DOB check
     if (!req.user.dateOfBirth) {
-      if (!dateOfBirth) {
-        return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Date of birth is required.' });
-      }
-      const parsedDob = parseDob(dateOfBirth);
-      if (!parsedDob) {
-        return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Invalid date of birth. Must be YYYY-MM-DD.' });
-      }
-      const age = calcAge(parsedDob);
-      if (age < 18) {
-        // F12: Set underageBlockedAt, do not store dateOfBirth, return 403
-        await prisma.user.update({
-          where: { id: userId },
-          data: { underageBlockedAt: new Date() }
-        });
-        return res.status(403).json({ error: 'UNDERAGE', message: 'You must be at least 18 years old to use Wehere.' });
-      }
-      dobToSave = parsedDob;
+      return res.status(403).json({ error: 'AGE_REQUIRED', message: 'Date of birth is required before completing onboarding.' });
     }
 
     const finalAlias = (displayName && displayName.trim().length > 0) 
@@ -1217,11 +969,10 @@ router.put('/onboarding', authenticateToken, requireVerified, async (req, res) =
         feelings: feelings || [],
         supportTypes: supportTypes || [],
         isAnonymous: isAnonymous || false,
-        ...(dobToSave ? { dateOfBirth: dobToSave } : {}),
       },
     });
 
-    res.json({ message: 'Onboarding completed', user: updatedUser });
+    res.json({ message: 'Onboarding completed', user: serializeAuthUser(updatedUser) });
   } catch (error) {
     if (error instanceof z.ZodError) return res.status(400).json({ error: 'VALIDATION_ERROR', message: error.errors[0]?.message || 'Validation failed' });
     console.error('Onboarding Error:', error);

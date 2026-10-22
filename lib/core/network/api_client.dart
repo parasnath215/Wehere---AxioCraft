@@ -3,7 +3,7 @@ import 'package:dio/dio.dart';
 import '../constants/app_constants.dart';
 import '../utils/storage_helper.dart';
 
-enum AuthEvent { loggedOut, emailNotVerified, ageRequired }
+enum AuthEvent { loggedOut, emailNotVerified, ageRequired, underage }
 
 bool shouldForceLogout(int? status, String path, String? code) {
   return (status == 401 && (code == 'TOKEN_INVALID' || code == 'TOKEN_EXPIRED')) ||
@@ -44,6 +44,8 @@ class ApiClient {
           _authEventController.add(AuthEvent.emailNotVerified);
         } else if (status == 403 && code == 'AGE_REQUIRED') {
           _authEventController.add(AuthEvent.ageRequired);
+        } else if (status == 403 && code == 'UNDERAGE') {
+          _authEventController.add(AuthEvent.underage);
         } else if (shouldForceLogout(status, path, code)) {
           await StorageHelper.delete(key: 'jwt_token');
           _authEventController.add(AuthEvent.loggedOut);

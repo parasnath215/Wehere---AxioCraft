@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 import '../../core/routing/app_routes.dart';
 import '../../widgets/common/animated_pulse.dart';
 import '../../state/auth_notifier.dart';
-import '../../state/app_state.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -45,16 +44,11 @@ class _SplashScreenState extends State<SplashScreen> {
       }
 
       if (auth.isAuthenticated) {
-        if (!auth.hasCompletedOnboarding) {
-          Navigator.pushReplacementNamed(context, AppRoutes.onboarding);
-        } else {
-          context.read<AppState>().setTabIndex(0);
-          Navigator.pushNamedAndRemoveUntil(context, AppRoutes.main, (route) => false);
-        }
+        auth.navigateAfterAuth(context);
       } else if (!auth.hasSeenWalkthrough) {
         Navigator.pushReplacementNamed(context, AppRoutes.walkthrough);
       } else {
-        Navigator.pushReplacementNamed(context, AppRoutes.login);
+        auth.navigateAfterAuth(context);
       }
     });
   }

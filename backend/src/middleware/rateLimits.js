@@ -187,6 +187,13 @@ const adminApiLimiter = createStandardLimiter({
   message: 'Too many admin requests. Please try again later.'
 });
 
+// 30 per 15 min per IP (socialLimiter)
+const socialLimiter = createStandardLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  message: 'Too many social authentication requests. Please try again later.'
+});
+
 module.exports = {
   apiLimiter,
   signupLimiter,
@@ -199,4 +206,5 @@ module.exports = {
   reportLimiter,
   communityLimiter,
   adminApiLimiter,
+  socialLimiter,
 };

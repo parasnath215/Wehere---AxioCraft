@@ -11,6 +11,7 @@ import '../../screens/auth/signup_screen.dart';
 import '../../screens/auth/otp_verification_screen.dart';
 import '../../screens/auth/reset_password_screen.dart';
 import '../../screens/auth/dob_gate_screen.dart';
+import '../../screens/auth/underage_blocked_screen.dart';
 import '../../screens/onboarding/onboarding_flow_screen.dart';
 import '../../screens/main_navigation_shell.dart';
 import '../../screens/chat/chat_conversation_screen.dart';
@@ -27,6 +28,8 @@ import '../../models/journal_entry.dart';
 enum PageTransitionType { fade, slideRight, slideUp }
 
 class AppRouter {
+  static final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
   static Route<dynamic> onGenerateRoute(RouteSettings settings) {
     switch (settings.name) {
       case AppRoutes.splash:
@@ -59,6 +62,9 @@ class AppRouter {
 
       case AppRoutes.dobGate:
         return _buildPageRoute(const DobGateScreen(), settings);
+
+      case AppRoutes.underage:
+        return _buildPageRoute(const UnderageBlockedScreen(), settings);
 
       // Protected Route: Onboarding Flow
       case AppRoutes.onboarding:

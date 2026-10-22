@@ -1,342 +1,201 @@
 # Wehere Authentication & Account Lifecycle Architecture
 
-This technical specification provides an end-to-end reference for all authentication, registration, social login, account creation, age gating, and administrative access mechanisms in the Wehere platform.
+This technical specification provides an end-to-end reference for all authentication, registration, unified social login (Google & Apple), age verification gating, underage protection mechanisms, and administrative access in the Wehere platform.
 
 ---
 
-## 1. High-Level System Architecture & Flow Tree
+## 1. The Target Flow Contract
 
-The following diagram illustrates the complete routing and decision tree for users interacting with the authentication system:
+The entire authentication and routing lifecycle across mobile (Flutter), web, and backend conforms to a single, deterministic contract:
 
 ```mermaid
 graph TD
-    A[App Launch / Splash Screen] --> B{Authenticated?}
-    B -- Yes --> C{Needs DOB Gate?}
-    C -- Yes --> D[DobGateScreen /auth/dob-gate]
-    C -- No --> E{Onboarding Completed?}
-    E -- Yes --> F[Main App Shell /main]
-    E -- No --> G[Onboarding Wizard /onboarding/wizard]
-    
-    B -- No --> H[LoginScreen /auth/login]
+    A[App Start / Any Login Method] --> B{Authenticated?}
+    B -- No --> C[LoginScreen]
+    B -- Yes --> D{emailVerified?}
+    D -- No --> E[OtpVerificationScreen]
+    D -- Yes --> F{needsDob?}
+    F -- Yes --> G[DobGateScreen]
+    F -- No --> H{onboardingCompleted?}
+    H -- No --> I[OnboardingFlowScreen]
+    H -- Yes --> J[MainNavigationShell]
 
-    %% Login Screen Options
-    H --> I[Input Email & Password]
-    H --> J[Continue with Google]
-    H --> K[Continue with Apple]
-    H --> L[Navigate to Sign Up Screen]
-    H --> M[Forgot Password Flow]
-
-    %% Standard Email Login
-    I --> N{POST /api/auth/login}
-    N -- Invalid Credentials --> H
-    N -- Banned User --> O[Show Banned Dialog / Logout]
-    N -- Email Unverified --> P[Redirect to OtpScreen /auth/otp]
-    N -- Success 200 --> C
-
-    %% Google Flow (Login Screen)
-    J --> Q[Google SDK signIn]
-    Q --> R{POST /api/auth/google/check}
-    R -- Exists: True --> S[POST /api/auth/google]
-    S --> C
-    R -- Exists: False --> T[Auto-fill Google Data & Forward to SignUpScreen]
-
-    %% Sign Up Screen Flow
-    L --> U[SignUpScreen /auth/signup]
-    T --> U
-    U --> V{Google Verified?}
-    
-    %% Path 1: Standard Sign Up
-    V -- No --> W[Fill Name, Email, Password, Phone, 2+ Photos]
-    W --> X[POST /api/auth/signup]
-    X --> Y[Created PendingSignup in DB + Send 6-Digit Email OTP]
-    Y --> Z[OtpVerificationScreen /auth/otp]
-    Z --> AA{POST /api/auth/otp/verify}
-    AA -- Success --> AB[Convert Pending to Verified User + Issue 7d JWT]
-    AB --> G
-
-    %% Path 2: Google Verified Sign Up
-    V -- Yes --> AC[Auto-filled Name, Email locked, Avatar downloaded]
-    AC --> AD[User adds 2nd Photo, Password, Phone, Terms]
-    AD --> AE[POST /api/auth/register-google]
-    AE --> AF[Verify Google ID Token + Create Verified User + Issue 7d JWT]
-    AF -- Skip OTP Completely --> C
+    style G fill:#ffeedd,stroke:#f59e0b,stroke-width:2px
+    style I fill:#e0f2fe,stroke:#0284c7,stroke-width:2px
+    style J fill:#dcfce7,stroke:#16a34a,stroke-width:2px
 ```
+
+### Deterministic Routing Rules
+1. **One Route Decision Function**: `AuthNotifier.nextRoute()` and `resolveNextRoute({ isAuthenticated, emailVerified, needsDob, onboardingCompleted })` define route transitions for the entire app. Email login, Google, Apple, OTP success, DOB confirmation, and the splash screen all use this function. No screen contains its own copy of this routing logic.
+2. **Single Date of Birth Entry**: Date of birth is collected exactly once via `DobGateScreen`, as a real calendar date (day, month, year). Onboarding never asks for date of birth or age. Free-text age fabrication is forbidden.
+3. **Immediate & Permanent Underage Blocking**: Anyone under 18 is immediately blocked: the server writes `underageBlockedAt = now`, wipes uploaded images, deletes avatar/bio/interests, nullifies display name, bumps `tokenVersion` (invalidates all sessions), disconnects live sockets, and responds `403 UNDERAGE`. Any subsequent login attempt (email, Google, Apple) answers `403 UNDERAGE`.
 
 ---
 
 ## 2. Core Security & Authentication Principles
 
-1. **Stateless JWT Tokens**:
-   - User sessions are governed by 7-day HMAC-SHA256 JWT tokens containing `{ id, role, tokenVersion }`.
-   - Admin sessions use separate 12-hour tokens tagged with `{ id, tokenVersion, purpose: 'admin' }`.
-   - Revocation is instantaneous across all active devices via atomic increments to `user.tokenVersion`.
-2. **Zero Plaintext Passwords**:
-   - Passwords must meet strict entropy requirements (minimum 8 characters, at least 1 uppercase letter, 1 lowercase letter, and 1 special symbol).
-   - All passwords are encrypted with `bcrypt` (cost factor 10).
-3. **Production OTP Hardening**:
-   - Production OTPs are strictly cryptographic 6-digit random integers generated using `crypto.randomInt(100000, 1000000)`.
-   - Hardcoded test codes (e.g. `123456`) are forbidden in production; any attempt to run with `TEST_OTP_ENABLED=true` in `NODE_ENV=production` immediately triggers a fatal startup crash.
-4. **Rate Limiting & Anti-Abuse**:
-   - Signup: 15 requests/hour per IP.
-   - Login: 10 attempts/15 minutes per IP.
-   - OTP Requests: 5 requests/hour per IP with a minimum 60-second cooldown.
-   - Admin Login: 5 requests/15 minutes per IP.
+1. **Stateless 7-Day JWT Sessions**:
+   - Issued by `completeLogin` in `backend/src/services/authSession.js`.
+   - Payload: `{ id, role, tokenVersion }` signed with `JWT_SECRET` (7-day expiry).
+   - Atomic revocation across all devices on logout, password reset, or underage block via `tokenVersion` increment.
+2. **Standardized Error Envelope**:
+   - Every backend error adheres to `{ "error": "<UPPER_SNAKE_CODE>", "message": "<text>" }`.
+   - Core codes:
+     - `INVALID_CREDENTIALS` (401)
+     - `TOKEN_INVALID` / `TOKEN_EXPIRED` (401)
+     - `ACCOUNT_BANNED` (403)
+     - `UNDERAGE` (403)
+     - `AGE_REQUIRED` (403)
+     - `EMAIL_NOT_VERIFIED` (403)
+     - `ACCOUNT_NOT_FOUND` (404)
+     - `CONFLICT` (409)
+     - `VALIDATION_ERROR` (400)
+     - `RATE_LIMITED` (429)
+3. **Unified User Serializer (`serializeAuthUser`)**:
+   - Returns `{ id, email, role, pseudonym, displayName, avatar, images, age, needsDob, onboardingCompleted, emailVerified, currentStreak }`.
+   - Never exposes the raw `dateOfBirth` over the wire.
+4. **Account Lifecycle & Graceful Recovery**:
+   - If a returning user has a pending deletion request (`scheduledDeletionDate`), logging in automatically cancels the deletion, clears deletion timestamps, and marks `accountRestored: true`.
 
 ---
 
-## 3. Standard Email & Password Registration Flow
+## 3. Email & Password Authentication Lifecycle
 
-### 3.1 Step-by-Step Overview
-Standard registration uses a two-stage transactional pattern to ensure that unverified accounts cannot pollute the main user table or claim pseudonyms.
-
+### 3.1 Registration (Two-Stage Pending Signup)
 ```mermaid
 sequenceDiagram
     autonumber
     actor User
-    participant Flutter as Flutter App (SignUpScreen)
+    participant Flutter as Flutter App
     participant API as Backend (/api/auth)
     participant DB as PostgreSQL
-    participant Mail as SMTP Service
+    participant Mail as SMTP
 
-    User->>Flutter: Enter Name, Email, Password, Phone & 2+ Photos
+    User->>Flutter: Enter Display Name, Email, Password & 2+ Photos
     Flutter->>API: POST /api/auth/signup (multipart/form-data)
-    Note over API: Validates inputs, email format, password complexity, & >=2 images
+    Note over API: Validates password (min 8, 1 uppercase, 1 lowercase, 1 special), 2-6 images
     API->>API: Generate 6-digit OTP & bcrypt hash
-    API->>DB: Upsert PendingSignup (10 min TTL, passwordHash, codeHash, images)
+    API->>DB: Upsert PendingSignup (10 min expiry)
     API->>Mail: sendOtpEmail(email, otpCode, 'verify_email')
     API-->>Flutter: 200 OK { success: true, pendingVerification: true, signupToken }
-    Flutter->>User: Route to OtpVerificationScreen (starts 60s countdown)
-    User->>Flutter: Enter 6-digit code
-    Flutter->>API: POST /api/auth/otp/verify { email, code, signupToken }
-    API->>DB: Validate PendingSignup codeHash & expiration
-    API->>DB: CREATE User (emailVerified: true) + DELETE PendingSignup
-    API-->>Flutter: 200 OK { success: true, token: JWT, user: {...} }
-    Flutter->>User: Route to Onboarding Wizard
+    Flutter->>User: Route to OtpVerificationScreen
+    User->>Flutter: Enter 6-digit OTP
+    Flutter->>API: POST /api/auth/otp/verify { otp, signupToken }
+    API->>DB: Verify OTP hash & convert PendingSignup to User
+    API-->>Flutter: 200 OK { success: true, token, user, needsDob: true, onboardingCompleted: false }
+    Flutter->>User: Route via nextRoute() -> DobGateScreen
 ```
 
-### 3.2 Technical Implementation Details
-* **Route**: `POST /api/auth/signup`
-* **Form Data**:
-  - `email` (string, validated by Zod)
-  - `password` (string, validated by `passwordSchema`)
-  - `pseudonym` (optional string; if taken, suffixed with random 4-digit integer)
-  - `phone` (optional string)
-  - `images` (array of `multipart/form-data` files, minimum 2 required)
-* **PendingSignup Entity (`prisma/schema.prisma`)**:
-  - Stores `email`, `passwordHash`, `codeHash`, `attempts` (locked at 5), and `expiresAt` (10 minutes).
-  - Stored temporary photos are automatically cleaned up if a signup is cancelled or renewed.
-* **Verification Route**: `POST /api/auth/otp/verify`
-  - Validates `bcrypt.compare(code, pending.codeHash)`.
-  - Promotes user to persistent `User` record with `role: 'USER'`, `emailVerified: true`, and `emailVerifiedAt: new Date()`.
-  - Generates 7-day session token.
+### 3.2 Login
+* **Route**: `POST /api/auth/login`
+* **Body**: `{ email, password }`
+* **Handling**:
+  - Compares password hash via `bcrypt.compare`.
+  - Runs `assertAccountAllowed(user)`: blocked minor $\rightarrow$ `403 UNDERAGE`, banned user $\rightarrow$ `403 ACCOUNT_BANNED`.
+  - Returns `{ success: true, token, user: serializeAuthUser(user), needsDob, onboardingCompleted }`.
+
+### 3.3 Password Reset
+* **Step 1 - Request OTP**: `POST /api/auth/otp/request` body `{ email, purpose: 'reset_password' }`. Returns `200 OK` (anti-enumeration).
+* **Step 2 - Verify Code & Reset**: `POST /api/auth/reset-password` body `{ email, code, newPassword }`.
+  - Validates `newPassword` against `passwordSchema`.
+  - Validates OTP in `OtpRecord`.
+  - Runs `assertAccountAllowed`.
+  - Hashes new password, increments `tokenVersion` (invalidates all devices), and marks OTP record as used.
 
 ---
 
-## 4. Google Social Authentication & Registration
+## 4. Unified Social Authentication (Google & Apple)
 
-The Google integration supports both seamless login for existing users and instant, OTP-exempt onboarding for new users.
+All social identity flows are consolidated under `backend/src/services/socialAuth.js` and three endpoints:
 
-### 4.1 Decision Tree for Google Authentication
-
-```mermaid
-flowchart TD
-    Start([User clicks 'Continue with Google']) --> SDK[GoogleSignIn.signIn]
-    SDK --> Token[Retrieve Google idToken & User Metadata]
-    Token --> CheckAPI[POST /api/auth/google/check]
-    
-    CheckAPI --> UserExists{Account Exists in DB?}
-    
-    UserExists -- Yes --> DirectLogin[POST /api/auth/google]
-    DirectLogin --> IssueJWT[Issue 7-Day Session JWT]
-    IssueJWT --> CheckDOB{requiresDob == true?}
-    CheckDOB -- Yes --> DobGate[Route to DobGateScreen]
-    CheckDOB -- No --> CheckOnboarding{Onboarding complete?}
-    CheckOnboarding -- Yes --> MainApp[Route to Main App]
-    CheckOnboarding -- No --> Wizard[Route to Onboarding Wizard]
-
-    UserExists -- No --> Prefill[Navigate to SignUpScreen with GoogleUserData]
-    Prefill --> AutoFill[Auto-fill Name & Email, Download Avatar into slot 1]
-    AutoFill --> LockEmail[Set _isGoogleVerified = true & Lock Email input]
-    LockEmail --> UserFillsRemaining[User adds 2nd photo, sets password, optional phone]
-    UserFillsRemaining --> SubmitReg[Click 'Create ID & Continue']
-    SubmitReg --> RegisterAPI[POST /api/auth/register-google]
-    RegisterAPI --> VerifyToken[Server verifies idToken with Google OAuth2Client]
-    VerifyToken --> CreateUser[Create User directly: emailVerified: true]
-    CreateUser --> DirectSession[Issue 7-Day Session JWT]
-    DirectSession --> SkipOTP[Skip OtpVerificationScreen Completely]
-    SkipOTP --> DobGate
+```
+POST /api/auth/social/check      (Checks existence, pre-validates tokens & claims)
+POST /api/auth/social/login      (Logs in existing accounts ONLY; never creates)
+POST /api/auth/social/register   (Creates new account from verified profile + 2+ images)
 ```
 
-### 4.2 Endpoint Details
+### 4.1 Token Verification Matrix
+| Provider | Verification Engine | Signature & Issuer | Audience | Nonce Verification |
+| :--- | :--- | :--- | :--- | :--- |
+| **Google** | `google-auth-library` (`OAuth2Client`) | Google public keys | Comma-separated `GOOGLE_CLIENT_IDS` env | Optional |
+| **Apple** | `jwks-rsa` + `jsonwebtoken` | `RS256`, `https://appleid.apple.com/auth/keys` | Comma-separated `APPLE_CLIENT_IDS` env (iOS bundle ID) | Mandatory SHA-256 match: `payload.nonce === sha256(rawNonce)` |
 
-#### A. Pre-Check Endpoint: `POST /api/auth/google/check`
-* **Purpose**: Determine if the Google account or email is already registered without creating orphaned records.
-* **Payload**: `{ idToken: string }`
-* **Backend Processing**:
-  - Validates `idToken` using `googleClient.verifyIdToken({ audience: [CLIENT_ID] })`.
-  - Searches database for matching `googleId` or normalized `email`.
-* **Response**:
-  ```json
-  {
-    "success": true,
-    "exists": true | false,
-    "email": "user@gmail.com",
-    "name": "Jane Doe",
-    "picture": "https://lh3.googleusercontent.com/..."
-  }
-  ```
+### 4.2 Endpoint Specifications
 
-#### B. Direct Social Login: `POST /api/auth/google`
-* **Purpose**: Authenticate existing users.
-* **Payload**: `{ idToken: string }`
-* **Backend Processing**:
+#### A. POST `/api/auth/social/check`
+* **Rate Limit**: `socialLimiter` (30 requests per 15 minutes per IP).
+* **Body**: `{ provider: 'google' | 'apple', idToken: string, nonce?: string, givenName?: string, familyName?: string }`
+* **Behavior**:
+  - Verifies token signature and claims.
+  - Queries user by provider subject (`googleId` or `appleId`), fallback by verified email.
+  - If user exists and is banned $\rightarrow$ `403 ACCOUNT_BANNED`.
+  - If user exists and is underage-blocked $\rightarrow$ `403 UNDERAGE`.
+  - If token invalid $\rightarrow$ `401 INVALID_CREDENTIALS`.
+  - Response: `{ success: true, exists: boolean, profile: { email, emailVerified, name, givenName, familyName, pictureUrl, locale } }`.
+  - High-res photo upgrade: Google picture URLs trailing `=s96-c` are automatically rewritten to `=s512-c`.
+
+#### B. POST `/api/auth/social/login`
+* **Body**: `{ provider, idToken, nonce? }`
+* **Behavior**:
   - Verifies token.
-  - Checks if user is banned (`isBanned`) or underage-locked (`underageBlockedAt`).
-  - Auto-heals legacy accounts: links `googleId` and marks `emailVerified: true`.
-  - Calculates daily login streaks (`evaluateStreak`).
-  - Returns `requiresDob: !user.dateOfBirth`.
+  - Finds account by subject or verified email.
+  - If not found $\rightarrow$ `404 ACCOUNT_NOT_FOUND` (NEVER creates a phantom user).
+  - Subject linking: If found by verified email without a subject, attaches `googleId` / `appleId`. If user already has a different subject for that provider $\rightarrow$ `409 CONFLICT`.
+  - Completes session with `completeLogin`.
 
-#### C. Google-Verified Registration: `POST /api/auth/register-google`
-* **Purpose**: Onboard brand new Google users without requiring email OTP verification.
-* **Payload** (`multipart/form-data`):
-  - `idToken`: Google JWT
-  - `pseudonym`: Chosen or auto-filled display name
-  - `password`: Optional or user-entered password (enabling dual login mode)
+#### C. POST `/api/auth/social/register`
+* **Body** (`multipart/form-data`):
+  - `provider`: `'google'` | `'apple'`
+  - `idToken`: Provider identity token
+  - `nonce`: Client raw nonce (for Apple)
+  - `pseudonym`: Chosen public display name
+  - `password`: Optional un-trimmed password (if provided, validated with `passwordSchema`)
   - `phone`: Optional phone number
-  - `images`: 2 to 6 image files (includes downloaded Google photo + user-provided photos)
-* **Execution**:
-  - Re-verifies `idToken` server-side against Google's public keys.
-  - Ensures at least 2 profile photos are provided.
-  - Hashes user password with `bcrypt` (if provided).
-  - Directly creates `User` with `emailVerified: true` and `role: 'USER'`.
-  - Issues 7-day session token, skipping `PendingSignup` and `OtpRecord` entirely.
+  - `givenName` / `familyName`: Real name hints from provider (stored privately as `realFirstName` and `legalFullName`)
+  - `images`: 2 to 6 image files
+* **Behavior**:
+  - Re-verifies provider token.
+  - Enforces account-linking rule: look up by provider subject first; if none, look up by verified email. If account already exists $\rightarrow$ `409 CONFLICT`.
+  - Creates user with `emailVerified: true`, `emailVerifiedAt: now`, and invokes `completeLogin`.
+  - Transitions via `nextRoute()` directly to `DobGateScreen` (skipping OTP completely).
 
 ---
 
-## 5. Apple Social Authentication Flow
+## 5. Single Date of Birth Entry & Underage Enforcement
 
-* **Route**: `POST /api/auth/apple`
-* **Payload**:
-  ```json
-  {
-    "identityToken": "JWT from Apple Sign-In",
-    "appleId": "Apple sub identifier",
-    "email": "user@privaterelay.appleid.com",
-    "givenName": "Jane",
-    "familyName": "Doe"
-  }
-  ```
-* **Processing**:
-  - Decodes Apple JWT and verifies subject match.
-  - Queries user by `appleId` or `email`.
-  - If new user: Provisions verified account with private relay email or real email.
-  - If existing user: Associates `appleId`, activates `emailVerified = true`.
-  - Evaluates streaks and issues 7-day session token.
-
----
-
-## 6. Password Reset Lifecycle
-
-The password recovery workflow prevents user enumeration attacks and enforces single-use token invalidation:
-
-```mermaid
-sequenceDiagram
-    autonumber
-    actor User
-    participant Flutter as App / Web
-    participant API as /api/auth
-    participant Mail as SMTP
-    participant DB as Database
-
-    User->>Flutter: Enter Email on Forgot Password Screen
-    Flutter->>API: POST /api/auth/otp/request { email, purpose: 'reset_password' }
-    API->>API: Always return 200 OK (Prevents user enumeration)
-    opt If User Exists
-        API->>DB: Store OtpRecord (purpose: 'reset_password', 10m expiry)
-        API->>Mail: Send Password Reset Code
-    end
-    API-->>Flutter: 200 OK { success: true, cooldown: 60 }
-    
-    User->>Flutter: Enter 6-digit Code
-    Flutter->>API: POST /api/auth/otp/verify { email, code, purpose: 'reset_password' }
-    API->>DB: Verify codeHash & Mark OtpRecord used
-    API-->>Flutter: 200 OK { success: true, resetToken: JWT (15m expiry) }
-    
-    User->>Flutter: Enter New Password & Confirm Password
-    Flutter->>API: POST /api/auth/password/reset { resetToken, newPassword }
-    Note over API: Verifies resetToken purpose === 'reset_password'
-    API->>DB: Hash new password + Increment tokenVersion
-    Note over DB: All prior sessions on all devices are now invalidated
-    API-->>Flutter: 200 OK { success: true, message: 'Password reset successful' }
-    Flutter->>User: Route to LoginScreen
-```
+### 5.1 Enforcement Rules
+1. `PUT /api/auth/onboarding`:
+   - `dateOfBirth` is rejected / stripped from schema.
+   - If `user.dateOfBirth == null` $\rightarrow$ `403 AGE_REQUIRED`.
+   - If `user.underageBlockedAt != null` $\rightarrow$ `403 UNDERAGE`.
+2. `PUT /api/users/me/dob`:
+   - The **ONLY** endpoint that sets date of birth.
+   - Validates format (`YYYY-MM-DD`), real calendar date, not in the future, max age 100.
+   - Idempotency: If `dateOfBirth` is already set, returns `200 OK { alreadySet: true, age }`.
+   - Under 18:
+     - Atomic transaction: records `underageBlockedAt = now`, leaves `dateOfBirth = null`, deletes user's uploaded images, sets `images = []`, `avatar = null`, `bio = null`, `interests = []`, `displayName = null`, increments `tokenVersion`.
+     - Disconnects live socket connections.
+     - Responds `403 { error: 'UNDERAGE', message: 'You must be at least 18 years old to use Wehere.' }`.
+3. Flutter `DobGateScreen`:
+   - Input date picker (`dd/mm/yyyy`) with year selector.
+   - Shows formatted confirmation dialog: *"You entered 14 Mar 2001. You can't change this later. Is it correct?"*.
+   - Never evaluates age locally to log out; always calls `PUT /users/me/dob`.
+   - On 403 `UNDERAGE` $\rightarrow$ triggers `AuthNotifier.handleUnderage()` which clears storage, signs out Google, resets `AppState`, and locks UI on `/auth/underage`.
 
 ---
 
-## 7. Age Gate & Date of Birth Enforcement (`DobGateScreen`)
-
-Wehere strictly enforces an 18+ age limit. Date of birth is self-declared once and cannot be modified by the user afterwards.
-
-### 7.1 Backend Rules (`PUT /api/users/me/dob`)
-1. **Underage Check**:
-   - If user's age $< 18$:
-     - Immediately writes `underageBlockedAt: new Date()` to the database.
-     - Leaves `dateOfBirth: null` to avoid storing minor data.
-     - Returns HTTP 403 `UNDERAGE`.
-     - App immediately clears credentials and logs the user out.
-2. **Idempotency**:
-   - If `user.dateOfBirth != null` already:
-     - Returns HTTP 200 OK `{ success: true, alreadySet: true, age, message: 'Date of birth is already set.' }`.
-     - Prevents UI blocking loops when navigating through authentication gates.
-3. **Valid Declaration**:
-   - Parses `YYYY-MM-DD`. If age $\ge 18$, stores `dateOfBirth` and returns 200 OK.
-
-### 7.2 Frontend Handling (`lib/screens/auth/dob_gate_screen.dart`)
-* The screen checks `auth.needsDob`.
-* On submit:
-  - Calls `apiClient.put('/users/me/dob', data: { 'dateOfBirth': formatted })`.
-  - On 200 OK (or 409 fallback):
-    - Sets `auth.setNeedsDob(false)`.
-    - Refreshes current user state.
-    - If onboarding is completed $\rightarrow$ navigates to `AppRoutes.main`.
-    - If onboarding is pending $\rightarrow$ navigates to `AppRoutes.onboarding`.
-
----
-
-## 8. Admin Panel Authentication
-
-The Admin Panel (`admin-panel/`) uses a separate, elevated authentication pipeline:
-
-```mermaid
-flowchart LR
-    Browser[Next.js Admin Panel /login] --> ServerAction[loginAction in actions.ts]
-    ServerAction --> BackendAPI[POST /api/admin/login]
-    
-    BackendAPI --> VerifyAdmin{role === 'ADMIN' && emailVerified && !isBanned?}
-    VerifyAdmin -- No --> Deny[Return 401 INVALID_CREDENTIALS]
-    VerifyAdmin -- Yes --> SignAdminJWT[Sign JWT: purpose: 'admin', 12h expiry]
-    
-    SignAdminJWT --> SetCookie[Set HTTP-only Cookie: admin_token]
-    SetCookie --> Redirect[Redirect to / Dashboard]
-    Redirect --> Guard[Middleware & adminGuard validate purpose === 'admin']
-```
-
-* **Backend Guard**: `adminGuard` in [backend/src/middleware/auth.js](file:///e:/Websites/Wehere/backend/src/middleware/auth.js) ensures regular user tokens (even valid 7-day tokens) cannot access `/api/admin/*` routes.
-* **Session Cookie**: Stored as an HTTP-only, SameSite=Lax cookie valid for 12 hours.
-
----
-
-## 9. Comprehensive API Endpoint Reference Table
+## 6. Comprehensive API Endpoint Matrix
 
 | Method | Endpoint | Protection | Rate Limit | Request Body | Success Response | Error Codes |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| `POST` | `/api/auth/signup` | Public | 15 / hr | Multipart: `email`, `password`, `pseudonym`, `phone`, `images` (min 2) | `200 OK` `{ success, pendingVerification, signupToken }` | `VALIDATION_ERROR`, `CONFLICT` |
-| `POST` | `/api/auth/otp/verify` | Public | 10 / min | `{ email, code, signupToken, purpose }` | `200 OK` `{ success, token, user }` | `INVALID_CODE`, `EXPIRED_CODE`, `MAX_ATTEMPTS` |
-| `POST` | `/api/auth/otp/request` | Public | 5 / hr | `{ email, purpose, signupToken }` | `200 OK` `{ success, message, cooldown }` | `RATE_LIMITED` |
-| `POST` | `/api/auth/login` | Public | 10 / 15m | `{ email, password }` | `200 OK` `{ success, token, user, requiresDob }` | `INVALID_CREDENTIALS`, `ACCOUNT_BANNED`, `EMAIL_NOT_VERIFIED` |
-| `POST` | `/api/auth/google/check` | Public | - | `{ idToken }` | `200 OK` `{ success, exists, email, name, picture }` | `VALIDATION_ERROR`, `INVALID_CREDENTIALS` |
-| `POST` | `/api/auth/google` | Public | - | `{ idToken }` | `200 OK` `{ success, token, user, requiresDob }` | `INVALID_CREDENTIALS`, `ACCOUNT_BANNED`, `UNDERAGE` |
-| `POST` | `/api/auth/register-google`| Public | 15 / hr | Multipart: `idToken`, `pseudonym`, `password`, `phone`, `images` (min 2) | `200 OK` `{ success, token, user, requiresDob }` | `VALIDATION_ERROR`, `CONFLICT`, `INVALID_CREDENTIALS` |
-| `POST` | `/api/auth/apple` | Public | - | `{ identityToken, appleId, email, givenName, familyName }` | `200 OK` `{ success, token, user, requiresDob }` | `VALIDATION_ERROR`, `INVALID_CREDENTIALS` |
-| `PUT` | `/api/users/me/dob` | `Bearer JWT` | 10 / hr | `{ dateOfBirth: 'YYYY-MM-DD' }` | `200 OK` `{ success, age, alreadySet, message }` | `VALIDATION_ERROR`, `UNDERAGE` |
-| `POST` | `/api/admin/login` | Public | 5 / 15m | `{ email, password }` | `200 OK` `{ success, token }` | `INVALID_CREDENTIALS` |
+| `POST` | `/api/auth/signup` | Public | 15 / hr | Multipart: `email`, `password`, `pseudonym`, `phone`, `images` (2-6) | `200 OK` `{ success, pendingVerification, signupToken }` | `VALIDATION_ERROR`, `CONFLICT` |
+| `POST` | `/api/auth/otp/verify` | Public | 10 / min | `{ otp, signupToken }` | `200 OK` `{ success, token, user, needsDob, onboardingCompleted }` | `VALIDATION_ERROR`, `INVALID_CREDENTIALS` |
+| `POST` | `/api/auth/otp/request` | Public | 5 / hr | `{ email, purpose }` | `200 OK` `{ success, message, cooldown }` | `RATE_LIMITED`, `VALIDATION_ERROR` |
+| `POST` | `/api/auth/reset-password`| Public | 10 / 15m | `{ email, code, newPassword }` | `200 OK` `{ success, message }` | `INVALID_CREDENTIALS`, `UNDERAGE`, `ACCOUNT_BANNED` |
+| `POST` | `/api/auth/login` | Public | 10 / 15m | `{ email, password }` | `200 OK` `{ success, token, user, needsDob, onboardingCompleted }` | `INVALID_CREDENTIALS`, `ACCOUNT_BANNED`, `UNDERAGE` |
+| `POST` | `/api/auth/social/check` | Public | 30 / 15m | `{ provider, idToken, nonce?, givenName?, familyName? }` | `200 OK` `{ success, exists, profile }` | `INVALID_CREDENTIALS`, `ACCOUNT_BANNED`, `UNDERAGE` |
+| `POST` | `/api/auth/social/login` | Public | 30 / 15m | `{ provider, idToken, nonce? }` | `200 OK` `{ success, token, user, needsDob, onboardingCompleted }` | `ACCOUNT_NOT_FOUND`, `INVALID_CREDENTIALS`, `CONFLICT`, `UNDERAGE` |
+| `POST` | `/api/auth/social/register`| Public | 15 / hr | Multipart: `provider`, `idToken`, `pseudonym`, `images` (2-6), etc. | `200 OK` `{ success, token, user, needsDob, onboardingCompleted }` | `CONFLICT`, `INVALID_CREDENTIALS`, `VALIDATION_ERROR` |
+| `PUT` | `/api/users/me/dob` | `Bearer JWT`| 10 / hr | `{ dateOfBirth: 'YYYY-MM-DD' }` | `200 OK` `{ success, age, alreadySet? }` | `VALIDATION_ERROR`, `UNDERAGE` |
+| `PUT` | `/api/auth/onboarding` | `Bearer JWT`| Standard | `{ location, profession, interests, feelings, supportTypes }` | `200 OK` `{ success, user }` | `AGE_REQUIRED`, `UNDERAGE`, `VALIDATION_ERROR` |
+| `GET` | `/api/users/me` | `Bearer JWT`| Standard | None | `200 OK` User profile with `needsDob` and `onboardingCompleted` | `TOKEN_INVALID`, `TOKEN_EXPIRED`, `UNDERAGE`, `ACCOUNT_BANNED` |

@@ -1,7 +1,9 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:dio/dio.dart';
-import 'package:google_sign_in/google_sign_in.dart';
+import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/routing/app_routes.dart';
@@ -23,6 +25,36 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _obscurePassword = true;
   bool _rememberMe = true;
   bool _isResetting = false;
+
+  Future<void> _handleSocialAuth(String provider) async {
+    final authNotifier = context.read<AuthNotifier>();
+    if (provider == 'google' && AppConstants.googleServerClientId.isEmpty) {
+      if (kDebugMode) {
+        debugPrint('[Google Sign-In] GOOGLE_SERVER_CLIENT_ID is not configured.');
+      }
+      UiUtils.showTopSnackBar(context, 'Google sign-in is not configured');
+      return;
+    }
+
+    final outcome = await authNotifier.continueWithProvider(provider);
+    if (!mounted) return;
+
+    if (outcome.isLoggedIn) {
+      authNotifier.navigateAfterAuth(context);
+    } else if (outcome.isNeedsRegistration && outcome.registrationData != null) {
+      Navigator.pushNamed(
+        context,
+        AppRoutes.signup,
+        arguments: outcome.registrationData,
+      );
+    } else if (outcome.isUnderage) {
+      // Handled by handleUnderage() -> /auth/underage
+    } else if (outcome.isAccountBanned) {
+      UiUtils.showTopSnackBar(context, outcome.errorMessage ?? 'This account has been suspended.');
+    } else if (outcome.isError && outcome.errorMessage != 'Sign-in cancelled') {
+      UiUtils.showTopSnackBar(context, outcome.errorMessage ?? '$provider sign-in failed.');
+    }
+  }
 
   Future<void> _handleForgotPassword() async {
     String input = _loginController.text.trim();
@@ -321,11 +353,10 @@ class _LoginScreenState extends State<LoginScreen> {
                           if (context.mounted) {
                             final authNotifier = context.read<AuthNotifier>();
                             if (success && authNotifier.status == AuthStatus.authenticated) {
-                              context.read<AppState>().setTabIndex(0);
-                              Navigator.pushNamedAndRemoveUntil(context, AppRoutes.main, (route) => false);
+                              authNotifier.navigateAfterAuth(context);
                             } else if (authNotifier.status == AuthStatus.unverified) {
                               UiUtils.showTopSnackBar(context, 'Please verify your email address to continue.');
-                              Navigator.pushNamed(context, AppRoutes.otp);
+                              authNotifier.navigateAfterAuth(context);
                             } else if (authNotifier.authError != null) {
                               UiUtils.showTopSnackBar(context, authNotifier.authError!);
                             }
@@ -385,59 +416,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   onPressed: auth.isLoading
                       ? null
-                      : () async {
-                          try {
-                            final GoogleSignIn googleSignIn = GoogleSignIn(
-                              serverClientId: '477223765836-9t4oml9khj3jelnlqc33r093uupa08cr.apps.googleusercontent.com',
-                            );
-                            final account = await googleSignIn.signIn();
-                            if (account == null) return;
-
-                            final googleAuth = await account.authentication;
-                            final idToken = googleAuth.idToken;
-                            if (idToken == null || idToken.isEmpty) {
-                              if (context.mounted) UiUtils.showTopSnackBar(context, 'Failed to retrieve Google identity token.');
-                              return;
-                            }
-
-                            if (!context.mounted) return;
-                            final authNotifier = context.read<AuthNotifier>();
-                            final check = await authNotifier.checkGoogleUser(idToken);
-
-                            if (check != null && check['exists'] == true) {
-                              // Existing user -> login directly using retrieved token!
-                              final success = await authNotifier.loginWithGoogle(idToken);
-                              if (!context.mounted) return;
-                              if (success && authNotifier.status == AuthStatus.authenticated) {
-                                if (authNotifier.needsDob) {
-                                  Navigator.pushReplacementNamed(context, AppRoutes.dobGate);
-                                } else if (!authNotifier.hasCompletedOnboarding) {
-                                  Navigator.pushReplacementNamed(context, AppRoutes.onboarding);
-                                } else {
-                                  context.read<AppState>().setTabIndex(0);
-                                  Navigator.pushNamedAndRemoveUntil(context, AppRoutes.main, (route) => false);
-                                }
-                              } else if (authNotifier.authError != null) {
-                                UiUtils.showTopSnackBar(context, authNotifier.authError!);
-                              }
-                            } else {
-                              // Brand new user from login screen -> forward to SignUpScreen with prefilled Google details!
-                              if (!context.mounted) return;
-                              Navigator.pushNamed(
-                                context,
-                                AppRoutes.signup,
-                                arguments: GoogleUserData(
-                                  name: account.displayName ?? '',
-                                  email: account.email,
-                                  photoUrl: account.photoUrl,
-                                  idToken: idToken,
-                                ),
-                              );
-                            }
-                          } catch (e) {
-                            if (context.mounted) UiUtils.showTopSnackBar(context, 'Google sign-in error: $e');
-                          }
-                        },
+                      : () => _handleSocialAuth('google'),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -478,6 +457,41 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
               ),
+
+              if (Platform.isIOS) ...[
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.black,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      elevation: 0,
+                    ),
+                    onPressed: auth.isLoading
+                        ? null
+                        : () => _handleSocialAuth('apple'),
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.apple, size: 22, color: Colors.white),
+                        SizedBox(width: 10),
+                        Text(
+                          'Continue with Apple',
+                          style: TextStyle(
+                            fontSize: 14.5,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
 
               const SizedBox(height: 24),
 

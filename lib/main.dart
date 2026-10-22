@@ -47,6 +47,7 @@ class WehereApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => AppState()),
       ],
       child: MaterialApp(
+        navigatorKey: AppRouter.navigatorKey,
         title: 'Wehere',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.lightTheme,

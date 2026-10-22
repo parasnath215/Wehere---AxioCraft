@@ -25,6 +25,11 @@ class AppConstants {
     }
     return base;
   }
+
+  static const googleServerClientId = String.fromEnvironment('GOOGLE_SERVER_CLIENT_ID');
+  static const googlePeopleApi = bool.fromEnvironment('GOOGLE_PEOPLE_API', defaultValue: false);
+  static const bool useProviderNameAsDisplayName = true;
+
   static const String appName = 'Wehere';
   static const String appTagline = 'A safe place to talk, connect and heal.';
   static const String safeSpaceNotice =

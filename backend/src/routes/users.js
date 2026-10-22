@@ -34,6 +34,8 @@ const updateProfileSchema = z.object({
   isAnonymous: z.boolean().optional(),
 }).strict();
 
+const { serializeAuthUser } = require('../services/authSession');
+
 // GET /users/me - Get current user profile
 router.get('/me', authenticateToken, async (req, res, next) => {
   try {
@@ -43,23 +45,22 @@ router.get('/me', authenticateToken, async (req, res, next) => {
         id: true, email: true, pseudonym: true, displayName: true, realFirstName: true,
         legalFullName: true, handle: true, nameDisplayPreference: true, images: true, xp: true, isAnonymous: true,
         bio: true, location: true, profession: true, interests: true, feelings: true, supportTypes: true, emailVerified: true,
-        scheduledDeletionDate: true, dateOfBirth: true, underageBlockedAt: true
+        scheduledDeletionDate: true, dateOfBirth: true, underageBlockedAt: true, role: true, currentStreak: true,
       }
     });
     if (!user) return res.status(401).json({ error: 'TOKEN_INVALID', message: 'User not found (Session invalid)' });
     
-    const computedAge = user.dateOfBirth ? calcAge(user.dateOfBirth) : null;
-    const needsDob = user.dateOfBirth == null;
+    const serialized = serializeAuthUser(user);
+    const { dateOfBirth: _rawDob, ...safeUser } = user;
 
     res.json({
-      ...user,
-      age: computedAge,
-      needsDob,
+      ...safeUser,
+      ...serialized,
       displayName: user.displayName || user.pseudonym,
       name: (user.nameDisplayPreference === 'FIRST_NAME_PUBLIC' && user.realFirstName) 
         ? user.realFirstName 
         : (user.displayName || user.pseudonym || 'User'),
-      avatarUrl: user.images.length > 0 ? user.images[0] : null
+      avatarUrl: user.images && user.images.length > 0 ? user.images[0] : null
     });
   } catch (error) {
     next(error);
@@ -71,7 +72,7 @@ router.put('/me/dob', dobLimiter, authenticateToken, requireVerified, async (req
   try {
     const user = await prisma.user.findUnique({
       where: { id: req.user.id },
-      select: { id: true, dateOfBirth: true, underageBlockedAt: true }
+      select: { id: true, dateOfBirth: true, underageBlockedAt: true, images: true }
     });
 
     if (!user) return res.status(401).json({ error: 'TOKEN_INVALID', message: 'User not found' });
@@ -102,11 +103,45 @@ router.put('/me/dob', dobLimiter, authenticateToken, requireVerified, async (req
 
     const age = calcAge(parsed);
     if (age < 18) {
-      // F12: Set underageBlockedAt, do not store dateOfBirth, return 403
-      await prisma.user.update({
-        where: { id: req.user.id },
-        data: { underageBlockedAt: new Date() }
-      });
+      // Underage: In ONE transaction, record block, wipe profile data, increment tokenVersion
+      if (user.images && Array.isArray(user.images)) {
+        user.images.forEach(img => {
+          try { deleteImage(img); } catch (_) {}
+        });
+      }
+
+      await prisma.$transaction([
+        prisma.user.update({
+          where: { id: req.user.id },
+          data: {
+            underageBlockedAt: new Date(),
+            images: [],
+            avatar: null,
+            bio: null,
+            interests: [],
+            feelings: [],
+            supportTypes: [],
+            displayName: null,
+            tokenVersion: { increment: 1 },
+          }
+        })
+      ]);
+
+      // Disconnect live sockets
+      const io = req.app.get('io');
+      if (io && typeof io.fetchSockets === 'function') {
+        try {
+          const sockets = await io.fetchSockets();
+          for (const s of sockets) {
+            if (s.user?.id === req.user.id || s.userId === req.user.id) {
+              s.disconnect(true);
+            }
+          }
+        } catch (sockErr) {
+          console.error('Error disconnecting underage sockets:', sockErr);
+        }
+      }
+
       return res.status(403).json({ error: 'UNDERAGE', message: 'You must be at least 18 years old to use Wehere.' });
     }
 

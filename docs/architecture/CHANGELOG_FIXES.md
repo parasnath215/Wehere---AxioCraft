@@ -172,3 +172,69 @@ This document records the exact, verified code and architecture modifications ac
   - Architecture documents updated to reflect 7-day session JWT lifetimes, `PendingSignup` table, email-only auth, 23 app screens, and 63 verified backend endpoints.
 - **F15 (Verification)**:
   - Syntax check, Prisma validation, Flutter analyzer (0 errors), and Next.js admin panel production build verified.
+
+---
+
+## Phase 2 — Social Auth Unification, Single DOB Gate & Underage Hardening (Tasks A1–A10)
+
+### 2.1 Backend Social Auth & Token Verification (A1, A2)
+- **Deleted Insecure Apple Route**: Removed legacy `POST /api/auth/apple` which relied on `jwt.decode()` without signature checks and trusted body claims.
+- **Unified Social Auth Service (`backend/src/services/socialAuth.js`)**:
+  - `verifySocialToken({ provider, idToken, nonce, givenName, familyName, appleKeyGetter })`: Returns a normalised profile `{ provider, subject, email, emailVerified, name, givenName, familyName, pictureUrl, locale }` or throws 401 `INVALID_CREDENTIALS`.
+  - **Google**: Verifies `idToken` using `google-auth-library` (`OAuth2Client`) against comma-separated `GOOGLE_CLIENT_IDS` env var. Requires `email_verified === true`. Upgrades Google avatar URL from `=s96-c` to high-resolution `=s512-c`.
+  - **Apple**: Verifies `idToken` using `jwks-rsa` public keys (`https://appleid.apple.com/auth/keys`, cached) with `jsonwebtoken` algorithms `['RS256']`, issuer `https://appleid.apple.com`, and audience from `APPLE_CLIENT_IDS`. Strictly validates SHA-256 hash match: `payload.nonce === sha256(rawNonce)`. Uses verified claims (`sub`, `email`, `email_verified`). Injectable `appleKeyGetter` allows isolated unit testing.
+- **Unified Endpoints (`backend/src/routes/auth.js`)**:
+  - `POST /api/auth/social/check`: Pre-validates token claims and determines if user exists. Blocked minors return 403 `UNDERAGE`, banned users return 403 `ACCOUNT_BANNED`, invalid tokens return 401 `INVALID_CREDENTIALS`. Rate limited by `socialLimiter` (30/15m per IP).
+  - `POST /api/auth/social/login`: Logs in existing accounts only. Returns 404 `ACCOUNT_NOT_FOUND` if user does not exist (never creates phantom users). Seamlessly links provider subject if user exists with verified email.
+  - `POST /api/auth/social/register`: Multipart registration with 2–6 images. Validates optional un-trimmed password against shared `passwordSchema`. Creates verified account (`emailVerified: true`), maps private names (`realFirstName`, `legalFullName`), and establishes 7-day session.
+  - Deleted legacy routes: `/google`, `/google/check`, `/register-google`, `/apple`.
+
+### 2.2 Auth Session Service & Serializer (A3)
+- **Created `backend/src/services/authSession.js`**:
+  - `assertAccountAllowed(user)`: Throws 403 `ACCOUNT_BANNED` if `user.isBanned`, or 403 `UNDERAGE` if `user.underageBlockedAt`. Used in login, social auth, reset password, and `authenticateToken` middleware.
+  - `isOnboardingComplete(user)`: Evaluates `Boolean(user.location) && Array.isArray(user.interests) && user.interests.length > 0`.
+  - `serializeAuthUser(user)`: Serializes user into `{ id, email, role, pseudonym, displayName, avatar, images, age, needsDob, onboardingCompleted, emailVerified, currentStreak }`. Never exposes raw `dateOfBirth`.
+  - `completeLogin(res, user, { created })`: Validates account permissions, auto-restores scheduled deletion accounts (clearing deletion dates and setting `accountRestored: true`), evaluates daily streaks, signs 7-day session JWT `{ id, role, tokenVersion }`, and returns standardized response envelope.
+  - Replaced legacy `requiresDob` field with `needsDob` across all API responses and Flutter client readers.
+
+### 2.3 Single Date of Birth Entry & Permanent Underage Blocking (A4)
+- **`PUT /api/auth/onboarding`**: Completely removed `dateOfBirth` from schema and handler. Rejects with 403 `AGE_REQUIRED` if `user.dateOfBirth == null`, or 403 `UNDERAGE` if `user.underageBlockedAt` is set.
+- **`PUT /api/users/me/dob`**: The single endpoint for DOB entry.
+  - Retains calendar date validation (YYYY-MM-DD, non-future, max age 100) and idempotent `alreadySet: true` behavior.
+  - Under 18: In an atomic transaction, sets `underageBlockedAt = now`, deletes all uploaded photos via `deleteImage`, purges `images = []`, `avatar = null`, `bio = null`, `interests = []`, nullifies `displayName`, increments `tokenVersion`, and disconnects live user sockets via `io.fetchSockets()`. Responds 403 `UNDERAGE`.
+  - Email `/login` now invokes `assertAccountAllowed` so blocked minors cannot log in.
+
+### 2.4 Flutter Target Flow Contract & Single Route Decision (A5, A6)
+- **Centralized Route Navigation**:
+  - Implemented pure function `resolveNextRoute({ isAuthenticated, emailVerified, needsDob, onboardingCompleted })` and `AuthNotifier.nextRoute()`.
+  - Created `AuthNotifier.navigateAfterAuth(context)` using `pushNamedAndRemoveUntil` and resetting tab index.
+  - Removed all duplicated if/else routing branches from `login_screen.dart`, `signup_screen.dart`, `otp_verification_screen.dart`, `dob_gate_screen.dart`, and `splash_screen.dart`.
+- **Underage Quarantine Screen (`AppRoutes.underage` / `/auth/underage`)**:
+  - Created `UnderageBlockedScreen` with `PopScope(canPop: false)`, clear messaging, and a Close button.
+  - `ApiClient` emits `AuthEvent.underage` on HTTP 403 `UNDERAGE`; `AuthNotifier.handleUnderage()` clears all credentials, signs out of Google, resets `AppState`, and navigates to the underage screen.
+- **`DobGateScreen`**:
+  - Rewritten with title "Your date of birth", typed input date picker (`dd/mm/yyyy`), formatted date display (`14 Mar 2001`), and confirmation dialog.
+  - Removed local age calculation shortcut; always defers enforcement to `PUT /users/me/dob`.
+  - On 403 `UNDERAGE` $\rightarrow$ calls `handleUnderage()`. On success/409 $\rightarrow$ calls `refreshSession()` and `navigateAfterAuth()`.
+- **`OnboardingFlowScreen`**:
+  - Stripped all date-of-birth and age inputs, controllers, formatters, and free-text year parsing from step 1.
+  - Purged legacy draft keys `onboarding_draft_dob` and `onboarding_draft_age`.
+  - Prefills `_firstNameController` from server `realFirstName` and `_nameController` from `displayName`.
+
+### 2.5 Unified Social Login in Flutter (A7, A8, A9)
+- **Social Auth Service (`lib/services/social_auth_service.dart`)**:
+  - `signInWithGoogle()`: Uses `GoogleSignIn` with `serverClientId = AppConstants.googleServerClientId`.
+  - `signInWithApple()`: Generates 32-character cryptographically secure raw nonce, computes SHA-256 hex digest, and requests credentials via `SignInWithApple.getAppleIDCredential`.
+- **`AuthNotifier.continueWithProvider()`**:
+  - Single social entry point. Calls `POST /auth/social/check`, then executes `socialLogin()` if user exists or forwards `SocialRegistrationData` to `signup_screen.dart` if new.
+  - Handles 403 `UNDERAGE` and `ACCOUNT_BANNED` explicitly. Failed checks never treat users as new.
+- **`SignUpScreen` Social Auto-Fill**:
+  - Email field locked and marked with "Verified by Google" / "Verified by Apple" badge.
+  - Password marked optional: `"Optional: set a password to also log in with email"`.
+  - Display name prefilled from provider `givenName` (fallback: first word of name) gated by `AppConstants.useProviderNameAsDisplayName`.
+  - Slot 1 profile photo downloaded from provider high-res URL with caption `"From your Google account"`.
+  - Private real names (`givenName`, `familyName`) forwarded to server for mutual identity reveal.
+  - If locale begins with `hi`, stored in `suggested_locale`.
+- **Google People API (A9, Default OFF)**:
+  - Added `AppConstants.googlePeopleApi` flag. When enabled, queries `https://people.googleapis.com/v1/people/me` using isolated Dio instance for DOB and phone suggestions.
+

@@ -70,6 +70,11 @@ class AppState extends ChangeNotifier {
         _currentUser = UserProfile(
           id: data['id'],
           name: data['pseudonym'] ?? 'Anonymous',
+          displayName: data['displayName'],
+          realFirstName: data['realFirstName'],
+          legalFullName: data['legalFullName'],
+          handle: data['handle'],
+          nameDisplayPreference: data['nameDisplayPreference'] ?? 'DISPLAY_NAME_ONLY',
           age: effectiveAge,
           location: data['location'] ?? '',
           profession: data['profession'],
@@ -194,8 +199,10 @@ class AppState extends ChangeNotifier {
   // Unread counts
   int _unreadNotifications = 0;
   int get unreadNotifications {
-    if (_notifications.isEmpty) return 0;
-    return _notifications.where((n) => !n.isRead).length;
+    if (_notifications.isNotEmpty) {
+      return _notifications.where((n) => !n.isRead).length;
+    }
+    return _unreadNotifications;
   }
   
   int _unreadMessages = 0;
@@ -1761,9 +1768,21 @@ class AppState extends ChangeNotifier {
           createdAt: _notifications[i].createdAt,
         );
       }
-      _unreadNotifications = 0;
       notifyListeners();
     } catch (e) {
     }
+  }
+
+  void resetAllData() {
+    try {
+      _socket?.disconnect();
+      _socket?.dispose();
+    } catch (_) {}
+    _socket = null;
+    _messages.clear();
+    _matchedUsers.clear();
+    _conversationIds.clear();
+    _notifications.clear();
+    notifyListeners();
   }
 }

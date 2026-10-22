@@ -6,6 +6,7 @@ class AppRoutes {
   static const String otp = '/auth/otp';
   static const String resetPassword = '/auth/reset';
   static const String dobGate = '/auth/dob-gate';
+  static const String underage = '/auth/underage';
   static const String onboarding = '/onboarding/wizard';
 
   // Primary navigation shell

@@ -1,18 +1,20 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dio/dio.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:google_sign_in/google_sign_in.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/routing/app_routes.dart';
 import '../../state/auth_notifier.dart';
 import '../../state/app_state.dart';
-import 'package:image_picker/image_picker.dart';
-import 'dart:io';
-import 'package:flutter/gestures.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../../core/utils/ui_utils.dart';
 
 class SignUpScreen extends StatefulWidget {
@@ -33,13 +35,15 @@ class _SignUpScreenState extends State<SignUpScreen> {
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   bool _agreedToTerms = false;
-  
+
   final List<String> _imagePaths = [];
   final ImagePicker _picker = ImagePicker();
 
-  bool _isGoogleVerified = false;
-  String? _googleIdToken;
-  bool _didInitGoogleData = false;
+  SocialRegistrationData? _socialData;
+  bool get _isSocial => _socialData != null;
+  String get _providerName => _socialData?.provider == 'apple' ? 'Apple' : 'Google';
+  bool _isSocialPhotoDownloaded = false;
+  bool _didInitSocialData = false;
 
   // Password criteria getters
   bool get _hasMinLength => _password.length >= 8;
@@ -57,101 +61,89 @@ class _SignUpScreenState extends State<SignUpScreen> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (!_didInitGoogleData) {
-      _didInitGoogleData = true;
+    if (!_didInitSocialData) {
+      _didInitSocialData = true;
       final args = ModalRoute.of(context)?.settings.arguments;
-      if (args is GoogleUserData) {
-        _applyGoogleData(args);
+      if (args is SocialRegistrationData) {
+        _applySocialData(args);
       }
     }
   }
 
-  void _applyGoogleData(GoogleUserData data) {
+  void _applySocialData(SocialRegistrationData data) {
     setState(() {
-      _isGoogleVerified = true;
-      _googleIdToken = data.idToken;
-      if (_nameController.text.isEmpty) {
-        _nameController.text = data.name;
-      }
+      _socialData = data;
       _emailController.text = data.email;
+
+      if (_nameController.text.isEmpty) {
+        if (AppConstants.useProviderNameAsDisplayName) {
+          final prefill = (data.givenName != null && data.givenName!.trim().isNotEmpty)
+              ? data.givenName!.trim()
+              : (data.name.trim().split(RegExp(r'\s+')).firstOrNull ?? data.name.trim());
+          _nameController.text = prefill;
+        } else {
+          _nameController.text = 'Explorer${DateTime.now().millisecondsSinceEpoch % 10000}';
+        }
+      }
+
+      if (data.suggestedPhone != null && data.suggestedPhone!.isNotEmpty && _phoneController.text.isEmpty) {
+        _phoneController.text = data.suggestedPhone!;
+      }
     });
 
-    if (data.photoUrl != null && data.photoUrl!.isNotEmpty && _imagePaths.isEmpty) {
-      _downloadGooglePhoto(data.photoUrl!);
+    if (data.pictureUrl != null && data.pictureUrl!.isNotEmpty && _imagePaths.isEmpty) {
+      _downloadSocialPhoto(data.pictureUrl!);
+    }
+
+    if (data.locale != null && data.locale!.toLowerCase().startsWith('hi')) {
+      SharedPreferences.getInstance().then((prefs) {
+        prefs.setString('suggested_locale', data.locale!);
+      });
     }
   }
 
-  Future<void> _downloadGooglePhoto(String url) async {
+  Future<void> _downloadSocialPhoto(String url) async {
     try {
       final dio = Dio();
       final tempDir = await getTemporaryDirectory();
-      final filePath = '${tempDir.path}/google_avatar_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final filePath = '${tempDir.path}/social_avatar_${DateTime.now().millisecondsSinceEpoch}.jpg';
       await dio.download(url, filePath);
       if (File(filePath).existsSync() && mounted) {
         setState(() {
           if (!_imagePaths.contains(filePath)) {
             _imagePaths.insert(0, filePath);
+            _isSocialPhotoDownloaded = true;
           }
         });
       }
     } catch (e) {
-      debugPrint('Error downloading Google photo: $e');
+      debugPrint('Error downloading social photo: $e');
     }
   }
 
-  Future<void> _handleGoogleSignIn() async {
-    try {
-      final GoogleSignIn googleSignIn = GoogleSignIn(
-        serverClientId: '477223765836-9t4oml9khj3jelnlqc33r093uupa08cr.apps.googleusercontent.com',
-      );
-      final account = await googleSignIn.signIn();
-      if (account == null) return;
-
-      final auth = await account.authentication;
-      final idToken = auth.idToken;
-      if (idToken == null || idToken.isEmpty) {
-        if (mounted) UiUtils.showTopSnackBar(context, 'Failed to retrieve Google identity token.');
-        return;
+  Future<void> _handleSocialAuth(String provider) async {
+    final authNotifier = context.read<AuthNotifier>();
+    if (provider == 'google' && AppConstants.googleServerClientId.isEmpty) {
+      if (kDebugMode) {
+        debugPrint('[Google Sign-In] GOOGLE_SERVER_CLIENT_ID is not configured.');
       }
+      UiUtils.showTopSnackBar(context, 'Google sign-in is not configured');
+      return;
+    }
 
-      if (!mounted) return;
-      final authNotifier = context.read<AuthNotifier>();
-      final check = await authNotifier.checkGoogleUser(idToken);
+    final outcome = await authNotifier.continueWithProvider(provider);
+    if (!mounted) return;
 
-      if (check != null && check['exists'] == true) {
-        // Existing user -> login directly using retrieved token!
-        final success = await authNotifier.loginWithGoogle(idToken);
-        if (!mounted) return;
-        if (success && authNotifier.status == AuthStatus.authenticated) {
-          if (authNotifier.needsDob) {
-            Navigator.pushReplacementNamed(context, AppRoutes.dobGate);
-          } else if (!authNotifier.hasCompletedOnboarding) {
-            Navigator.pushReplacementNamed(context, AppRoutes.onboarding);
-          } else {
-            context.read<AppState>().setTabIndex(0);
-            Navigator.pushNamedAndRemoveUntil(context, AppRoutes.main, (route) => false);
-          }
-        } else if (authNotifier.authError != null) {
-          UiUtils.showTopSnackBar(context, authNotifier.authError!);
-        }
-      } else {
-        // Brand new Google user: auto-fill the form and skip OTP!
-        _applyGoogleData(GoogleUserData(
-          name: account.displayName ?? '',
-          email: account.email,
-          photoUrl: account.photoUrl,
-          idToken: idToken,
-        ));
-        if (mounted) {
-          UiUtils.showTopSnackBar(
-            context,
-            'Google account connected. Profile details auto-filled! (OTP will be skipped)',
-            isError: false,
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) UiUtils.showTopSnackBar(context, 'Google sign-in error: $e');
+    if (outcome.isLoggedIn) {
+      authNotifier.navigateAfterAuth(context);
+    } else if (outcome.isNeedsRegistration && outcome.registrationData != null) {
+      _applySocialData(outcome.registrationData!);
+    } else if (outcome.isUnderage) {
+      // Handled by handleUnderage() -> /auth/underage
+    } else if (outcome.isAccountBanned) {
+      UiUtils.showTopSnackBar(context, outcome.errorMessage ?? 'This account has been suspended.');
+    } else if (outcome.isError && outcome.errorMessage != 'Sign-in cancelled') {
+      UiUtils.showTopSnackBar(context, outcome.errorMessage ?? '$provider sign-in failed.');
     }
   }
 
@@ -203,6 +195,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
   void _removeImage(int index) {
     setState(() {
+      if (index == 0 && _isSocialPhotoDownloaded) {
+        _isSocialPhotoDownloaded = false;
+      }
       _imagePaths.removeAt(index);
     });
   }
@@ -261,6 +256,26 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             image: DecorationImage(image: FileImage(File(e.value)), fit: BoxFit.cover),
                           ),
                         ),
+                        if (e.key == 0 && _isSocialPhotoDownloaded)
+                          Positioned(
+                            bottom: 0,
+                            left: 0,
+                            right: 8,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 2),
+                              decoration: const BoxDecoration(
+                                color: Colors.black54,
+                                borderRadius: BorderRadius.vertical(bottom: Radius.circular(12)),
+                              ),
+                              child: const Text(
+                                'From your Google account',
+                                textAlign: TextAlign.center,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.w500),
+                              ),
+                            ),
+                          ),
                         Positioned(
                           top: 4,
                           right: 12,
@@ -294,18 +309,20 @@ class _SignUpScreenState extends State<SignUpScreen> {
               ),
               const SizedBox(height: 10),
 
-              // Full Name
+              // Display Name
               TextField(
                 controller: _nameController,
-                decoration: const InputDecoration(
-                  prefixIcon: Icon(Icons.person_outline_rounded, color: AppColors.primary),
-                  hintText: 'Full Name',
+                decoration: InputDecoration(
+                  prefixIcon: const Icon(Icons.person_outline_rounded, color: AppColors.primary),
+                  hintText: 'Display Name',
+                  helperText: _isSocial ? 'This is shown to others. You can change it.' : null,
+                  helperStyle: const TextStyle(fontSize: 12, color: AppColors.textMuted),
                 ),
               ),
               const SizedBox(height: 14),
 
               // Email
-              if (_isGoogleVerified)
+              if (_isSocial)
                 Container(
                   margin: const EdgeInsets.only(bottom: 8),
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
@@ -314,14 +331,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.3)),
                   ),
-                  child: const Row(
+                  child: Row(
                     children: [
-                      Icon(Icons.verified_rounded, color: Color(0xFF10B981), size: 16),
-                      SizedBox(width: 8),
+                      const Icon(Icons.verified_rounded, color: Color(0xFF10B981), size: 16),
+                      const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          'Verified via Google — Email OTP verification skipped',
-                          style: TextStyle(
+                          'Verified by $_providerName',
+                          style: const TextStyle(
                             color: Color(0xFF10B981),
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
@@ -333,12 +350,12 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 ),
               TextField(
                 controller: _emailController,
-                readOnly: _isGoogleVerified,
+                readOnly: _isSocial,
                 keyboardType: TextInputType.emailAddress,
                 decoration: InputDecoration(
                   prefixIcon: Icon(
-                    _isGoogleVerified ? Icons.check_circle_rounded : Icons.email_outlined,
-                    color: _isGoogleVerified ? const Color(0xFF10B981) : AppColors.primary,
+                    _isSocial ? Icons.check_circle_rounded : Icons.email_outlined,
+                    color: _isSocial ? const Color(0xFF10B981) : AppColors.primary,
                   ),
                   hintText: 'Email',
                 ),
@@ -362,7 +379,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 obscureText: _obscurePassword,
                 decoration: InputDecoration(
                   prefixIcon: const Icon(Icons.lock_outline_rounded, color: AppColors.primary),
-                  hintText: 'Password',
+                  hintText: _isSocial ? 'Optional: set a password to also log in with email' : 'Password',
+                  helperText: _isSocial ? 'Optional: set a password to also log in with email' : null,
+                  helperMaxLines: 2,
+                  helperStyle: const TextStyle(fontSize: 12, color: AppColors.textMuted),
                   suffixIcon: IconButton(
                     icon: Icon(
                       _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
@@ -377,30 +397,33 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 ),
               ),
               const SizedBox(height: 8),
-              _buildPasswordRequirementsCard(),
-              const SizedBox(height: 14),
 
-              // Confirm Password
-              TextField(
-                controller: _confirmPasswordController,
-                obscureText: _obscureConfirmPassword,
-                decoration: InputDecoration(
-                  prefixIcon: const Icon(Icons.lock_outline_rounded, color: AppColors.primary),
-                  hintText: 'Confirm Password',
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      _obscureConfirmPassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                      color: AppColors.textMuted,
+              if (!_isSocial || _password.isNotEmpty) ...[
+                _buildPasswordRequirementsCard(),
+                const SizedBox(height: 14),
+
+                // Confirm Password
+                TextField(
+                  controller: _confirmPasswordController,
+                  obscureText: _obscureConfirmPassword,
+                  decoration: InputDecoration(
+                    prefixIcon: const Icon(Icons.lock_outline_rounded, color: AppColors.primary),
+                    hintText: 'Confirm Password',
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _obscureConfirmPassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                        color: AppColors.textMuted,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _obscureConfirmPassword = !_obscureConfirmPassword;
+                        });
+                      },
                     ),
-                    onPressed: () {
-                      setState(() {
-                        _obscureConfirmPassword = !_obscureConfirmPassword;
-                      });
-                    },
                   ),
                 ),
-              ),
-              const SizedBox(height: 16),
+                const SizedBox(height: 16),
+              ],
 
               // Agree to terms checkbox
               Row(
@@ -471,19 +494,26 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           final name = _nameController.text.trim();
                           final email = _emailController.text.trim();
                           final phone = _phoneController.text.trim();
-                          final pass = _passwordController.text.trim();
-                          final confirmPass = _confirmPasswordController.text.trim();
+                          final pass = _passwordController.text;
+                          final confirmPass = _confirmPasswordController.text;
 
-                          if (name.isEmpty || email.isEmpty || pass.isEmpty) {
-                            UiUtils.showTopSnackBar(context, 'Please fill all the required fields.');
+                          if (name.isEmpty) {
+                            UiUtils.showTopSnackBar(context, 'Please enter your display name.');
                             return;
                           }
 
-                          // Email Validation
-                          final emailRegExp = RegExp(r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+-/=?^_`{|}~]+@[a-zA-Z0-9]+\.[a-zA-Z]+");
-                          if (!emailRegExp.hasMatch(email)) {
-                            UiUtils.showTopSnackBar(context, 'Please enter a valid email address.');
-                            return;
+                          if (!_isSocial) {
+                            if (email.isEmpty || pass.isEmpty) {
+                              UiUtils.showTopSnackBar(context, 'Please fill all the required fields.');
+                              return;
+                            }
+
+                            // Email Validation
+                            final emailRegExp = RegExp(r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+-/=?^_`{|}~]+@[a-zA-Z0-9]+\.[a-zA-Z]+");
+                            if (!emailRegExp.hasMatch(email)) {
+                              UiUtils.showTopSnackBar(context, 'Please enter a valid email address.');
+                              return;
+                            }
                           }
 
                           // Phone Validation (if entered)
@@ -496,27 +526,33 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             }
                           }
 
-                          // Password Criteria Validation: 8 chars, 1 caps, 1 lower, 1 special
-                          if (!_hasMinLength || !_hasCaps || !_hasLower || !_hasSpecial) {
-                            UiUtils.showTopSnackBar(
-                              context,
-                              'Password must be at least 8 characters, contain 1 uppercase, 1 lowercase, and 1 special character.',
-                            );
-                            return;
-                          }
+                          // Password Criteria Validation (if required or entered)
+                          if (!_isSocial || pass.isNotEmpty) {
+                            if (!_hasMinLength || !_hasCaps || !_hasLower || !_hasSpecial) {
+                              UiUtils.showTopSnackBar(
+                                context,
+                                'Password must be at least 8 characters, contain 1 uppercase, 1 lowercase, and 1 special character.',
+                              );
+                              return;
+                            }
 
-                          if (pass != confirmPass) {
-                            UiUtils.showTopSnackBar(context, 'Passwords do not match.');
-                            return;
+                            if (pass != confirmPass) {
+                              UiUtils.showTopSnackBar(context, 'Passwords do not match.');
+                              return;
+                            }
                           }
 
                           final appState = context.read<AppState>();
-                          if (_isGoogleVerified && _googleIdToken != null) {
-                            final success = await auth.registerWithGoogle(
-                              idToken: _googleIdToken!,
+                          if (_isSocial && _socialData != null) {
+                            final success = await auth.socialRegister(
+                              provider: _socialData!.provider,
+                              idToken: _socialData!.idToken,
+                              nonce: _socialData!.nonce,
                               pseudonym: name,
                               password: pass.isNotEmpty ? pass : null,
                               phone: phone.isNotEmpty ? phone : null,
+                              givenName: _socialData!.givenName,
+                              familyName: _socialData!.familyName,
                               imagePaths: _imagePaths,
                             );
 
@@ -528,14 +564,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                 email: auth.registeredEmail,
                               );
                               if (context.mounted) {
-                                if (auth.needsDob) {
-                                  Navigator.pushNamedAndRemoveUntil(context, AppRoutes.dobGate, (route) => false);
-                                } else if (!auth.hasCompletedOnboarding) {
-                                  Navigator.pushNamedAndRemoveUntil(context, AppRoutes.onboarding, (route) => false);
-                                } else {
-                                  context.read<AppState>().setTabIndex(0);
-                                  Navigator.pushNamedAndRemoveUntil(context, AppRoutes.main, (route) => false);
-                                }
+                                auth.navigateAfterAuth(context);
                               }
                             } else if (context.mounted && auth.authError != null) {
                               UiUtils.showTopSnackBar(context, auth.authError!);
@@ -615,7 +644,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                   ),
-                  onPressed: auth.isLoading ? null : () => _handleGoogleSignIn(),
+                  onPressed: auth.isLoading ? null : () => _handleSocialAuth('google'),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -657,6 +686,39 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 ),
               ),
 
+              if (Platform.isIOS) ...[
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.black,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      elevation: 0,
+                    ),
+                    onPressed: auth.isLoading ? null : () => _handleSocialAuth('apple'),
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.apple, size: 22, color: Colors.white),
+                        SizedBox(width: 10),
+                        Text(
+                          'Continue with Apple',
+                          style: TextStyle(
+                            fontSize: 14.5,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+
               const SizedBox(height: 20),
 
               // Already have an account? Log In
@@ -680,7 +742,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
               ),
 
               const SizedBox(height: 24),
-
             ],
           ),
         ),

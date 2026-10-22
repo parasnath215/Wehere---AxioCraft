@@ -6,6 +6,10 @@ if (process.env.NODE_ENV === 'production' && process.env.TEST_OTP_ENABLED === 't
   process.exit(1);
 }
 
+if (!process.env.GOOGLE_CLIENT_IDS && !process.env.GOOGLE_CLIENT_ID) {
+  console.warn('[Startup Warning] GOOGLE_CLIENT_IDS is empty. Google sign-in verification will fail unless configured.');
+}
+
 const express = require('express');
 const cors = require('cors');
 const compression = require('compression');

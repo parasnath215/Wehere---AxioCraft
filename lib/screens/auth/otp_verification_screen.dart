@@ -372,7 +372,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> with Widg
         name: auth.registeredName,
         email: auth.registeredEmail,
       );
-      Navigator.pushReplacementNamed(context, AppRoutes.onboarding);
+      auth.navigateAfterAuth(context);
     } else if (context.mounted && auth.authError != null) {
       UiUtils.showTopSnackBar(context, auth.authError!);
     }
