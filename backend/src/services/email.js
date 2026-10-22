@@ -1,12 +1,19 @@
 const nodemailer = require('nodemailer');
 
+const mailHost = process.env.SMTP_HOST || process.env.MAIL_HOST;
+const mailFrom = process.env.SMTP_FROM || process.env.MAIL_FROM;
+const mailPort = parseInt(process.env.SMTP_PORT || process.env.MAIL_PORT || '587', 10);
+const mailSecure = (process.env.SMTP_SECURE || process.env.MAIL_SECURE) === 'true';
+const mailUser = process.env.SMTP_USER || process.env.MAIL_USER;
+const mailPass = process.env.SMTP_PASS || process.env.MAIL_PASS;
+
 const mailConfig = {
-  host: process.env.MAIL_HOST || 'localhost',
-  port: parseInt(process.env.MAIL_PORT || '1025', 10),
-  secure: process.env.MAIL_SECURE === 'true',
-  auth: process.env.MAIL_USER ? {
-    user: process.env.MAIL_USER,
-    pass: process.env.MAIL_PASS,
+  host: mailHost || 'localhost',
+  port: mailPort,
+  secure: mailSecure,
+  auth: mailUser ? {
+    user: mailUser,
+    pass: mailPass,
   } : undefined,
 };
 
@@ -14,8 +21,8 @@ const transporter = nodemailer.createTransport(mailConfig);
 
 async function verifyMailConfig() {
   if (process.env.NODE_ENV === 'production' && process.env.TEST_OTP_ENABLED !== 'true') {
-    if (!process.env.MAIL_HOST || !process.env.MAIL_FROM) {
-      console.error('FATAL ERROR: MAIL_HOST and MAIL_FROM must be configured in production.');
+    if (!mailHost || !mailFrom) {
+      console.error('FATAL ERROR: SMTP_HOST (or MAIL_HOST) and SMTP_FROM (or MAIL_FROM) must be configured in production.');
       process.exit(1);
     }
   }
@@ -37,7 +44,7 @@ async function verifyMailConfig() {
 async function sendEmail({ to, subject, text, html }) {
   try {
     const info = await transporter.sendMail({
-      from: process.env.MAIL_FROM || '"Wehere" <noreply@wehere.com>',
+      from: mailFrom || '"Wehere" <noreply@wehere.com>',
       to,
       subject,
       text,
