@@ -40,6 +40,7 @@ erDiagram
         int xp
         int level
         int currentStreak
+        datetime dateOfBirth
         boolean emailVerified
         int tokenVersion
         datetime scheduledDeletionDate
@@ -190,6 +191,7 @@ erDiagram
   - `level`: `Int`, `@default(1)`
   - `currentStreak`: `Int`, `@default(0)`
   - `lastLoginDate`: `DateTime?`
+  - `dateOfBirth`: `DateTime?` (Added in migration `20261022000000_add_date_of_birth`; required for 18+ enforcement)
   - `createdAt`: `DateTime`, `@default(now())`
   - `updatedAt`: `DateTime`, `@updatedAt`
   - `isBanned`: `Boolean`, `@default(false)`

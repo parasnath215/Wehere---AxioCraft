@@ -5,7 +5,9 @@
 The networking foundation is built on **`Dio` (v5.11.1)** encapsulated inside [api_client.dart](file:///e:/Websites/Wehere/lib/core/network/api_client.dart).
 
 ### Base Configuration
-- **Base URL**: `http://200.97.165.22:4000/api` (Default production VPS IP address). Overridable at compile time using `--dart-define=API_URL=...` ([api_client.dart](file:///e:/Websites/Wehere/lib/core/network/api_client.dart#L15)).
+- **Base URL**: `AppConstants.apiBaseUrl` configured via `String.fromEnvironment('API_URL')` ([app_constants.dart](file:///e:/Websites/Wehere/lib/core/constants/app_constants.dart)).
+  - Startup Guard in `main.dart`: In release builds (`kReleaseMode`), throws a `StateError` if `apiBaseUrl` does not start with `https://`.
+  - Development Fallback: Defaults to `http://10.0.2.2:4000/api` on Android emulator and `http://localhost:4000/api` elsewhere.
 - **Connect Timeout**: `10 seconds` ([api_client.dart](file:///e:/Websites/Wehere/lib/core/network/api_client.dart#L16)).
 - **Receive Timeout**: `10 seconds` ([api_client.dart](file:///e:/Websites/Wehere/lib/core/network/api_client.dart#L17)).
 - **Default Headers**: `{'Content-Type': 'application/json'}` ([api_client.dart](file:///e:/Websites/Wehere/lib/core/network/api_client.dart#L19)).
@@ -15,11 +17,15 @@ The `ApiClient` registers an `InterceptorsWrapper` that executes on every reques
 1. **`onRequest` Interceptor** ([api_client.dart](file:///e:/Websites/Wehere/lib/core/network/api_client.dart#L24-L30)):
    - Asynchronously queries `StorageHelper.read(key: 'jwt_token')`.
    - If present, injects the header `Authorization: Bearer <token>`.
-2. **`onError` Interceptor** ([api_client.dart](file:///e:/Websites/Wehere/lib/core/network/api_client.dart#L31-L45)):
-   - **HTTP 401 Unauthorized**: Automatically purges the cached `jwt_token` from hardware storage and broadcasts `AuthEvent.loggedOut` across `authEventStream`.
-   - **HTTP 403 Forbidden**:
-     - If `response.data['error'] == 'EMAIL_NOT_VERIFIED'`: Broadcasts `AuthEvent.emailNotVerified`.
-     - Otherwise: Purges `jwt_token` and broadcasts `AuthEvent.loggedOut`.
+2. **`onError` Interceptor & `shouldForceLogout`** ([api_client.dart](file:///e:/Websites/Wehere/lib/core/network/api_client.dart)):
+   - Pure function `shouldForceLogout(status, path, code)` evaluates whether a session must terminate:
+     - Returns `true` if `status == 401 && !path.startsWith('/auth/')`.
+     - Returns `true` if `status == 403 && code == 'ACCOUNT_BANNED'`.
+     - Otherwise returns `false`.
+   - **HTTP 403 Forbidden with `EMAIL_NOT_VERIFIED`**: Broadcasts `AuthEvent.emailNotVerified`.
+   - **HTTP 403 Forbidden with `AGE_REQUIRED`**: Broadcasts `AuthEvent.ageRequired`, transitioning `AuthNotifier.needsDob = true` and prompting `DobGateScreen`.
+   - **Forced Logout Triggered**: Purges `jwt_token` from secure storage and broadcasts `AuthEvent.loggedOut`.
+   - **Auth Validation Errors (401/400 on `/auth/*`)**: Passed directly to caller without wiping tokens or forcing navigation.
 
 ---
 
@@ -34,8 +40,9 @@ The `ApiClient` registers an `InterceptorsWrapper` that executes on every reques
 | `POST` | `/api/auth/reset-password`| `{ email, otp, newPassword }` | `{ success: bool, message: String }` | `_handleReset()` | [reset_password_screen.dart](file:///e:/Websites/Wehere/lib/screens/auth/reset_password_screen.dart#L51) |
 | `PUT` | `/api/auth/onboarding`| `{ name, displayName, realFirstName, handle, nameDisplayPreference, location, profession, interests, feelings, supportTypes, isAnonymous }` | `{ success: bool, user: User }` | `AuthNotifier.completeOnboarding()` | [auth_notifier.dart](file:///e:/Websites/Wehere/lib/state/auth_notifier.dart#L298) |
 | `POST` | `/api/auth/change-password`| `{ currentPassword, newPassword }` | `{ success: bool, message: String }` | `AppState.changePassword()` | [app_state.dart](file:///e:/Websites/Wehere/lib/state/app_state.dart#L1645) |
-| `GET` | `/api/users/me` | None (`Bearer Token`) | Full user object (`id`, `email`, `pseudonym`, `realFirstName`, `images`, `interests`, etc.) | `AuthNotifier.initializeSession()`, `AppState.fetchCurrentUser()` | [auth_notifier.dart](file:///e:/Websites/Wehere/lib/state/auth_notifier.dart#L68), [app_state.dart](file:///e:/Websites/Wehere/lib/state/app_state.dart#L70) |
-| `PUT` | `/api/users/me` | `{ bio?, pseudonym?, location?, profession?, nameDisplayPreference?, isAnonymous? }` | `{ user: User }` | `AppState.updateNameDisplayPreference()`, `AppState.setAnonymity()`, `_saveProfile()` | [app_state.dart](file:///e:/Websites/Wehere/lib/state/app_state.dart#L1255), [edit_profile_screen.dart](file:///e:/Websites/Wehere/lib/screens/profile/edit_profile_screen.dart#L365) |
+| `GET` | `/api/users/me` | None (`Bearer Token`) | Full user object (`id`, `email`, `pseudonym`, `realFirstName`, `images`, `interests`, `age`, `needsDob`, etc.) | `AuthNotifier.initializeSession()`, `AppState.fetchCurrentUser()` | [auth_notifier.dart](file:///e:/Websites/Wehere/lib/state/auth_notifier.dart), [app_state.dart](file:///e:/Websites/Wehere/lib/state/app_state.dart) |
+| `PUT` | `/api/users/me` | `{ bio?, pseudonym?, location?, profession?, nameDisplayPreference?, isAnonymous? }` (rejects `dateOfBirth`/`age`) | `{ user: User }` | `AppState.updateNameDisplayPreference()`, `AppState.setAnonymity()`, `_saveProfile()` | [app_state.dart](file:///e:/Websites/Wehere/lib/state/app_state.dart), [edit_profile_screen.dart](file:///e:/Websites/Wehere/lib/screens/profile/edit_profile_screen.dart) |
+| `PUT` | `/api/users/me/dob` | `{ dateOfBirth: 'YYYY-MM-DD' }` | `{ success: bool, age: int, user: User }` | `DobGateScreen._submit()` | [dob_gate_screen.dart](file:///e:/Websites/Wehere/lib/screens/auth/dob_gate_screen.dart) |
 | `POST` | `/api/users/me/photos`| `FormData` (`photo: MultipartFile`) | `{ success: bool, images: String[] }` | `PhotoGrid._pickAndCropImage()` | [photo_grid.dart](file:///e:/Websites/Wehere/lib/widgets/profile/photo_grid.dart#L141) |
 | `DELETE` | `/api/users/me/photos`| `{ photoUrl: String }` | `{ success: bool, images: String[] }` | `PhotoGrid._deletePhoto()` | [photo_grid.dart](file:///e:/Websites/Wehere/lib/widgets/profile/photo_grid.dart#L201) |
 | `PUT` | `/api/users/me/photos/order`| `{ images: String[] }` | `{ success: bool, images: String[] }` | `PhotoGrid._reorderPhotos()` | [photo_grid.dart](file:///e:/Websites/Wehere/lib/widgets/profile/photo_grid.dart#L240) |
@@ -82,14 +89,11 @@ Used exclusively for sensitive credentials:
 - `'user_email'`: Verified user email.
 - `'onboarding_completed'`: Flag indicating whether user completed the wizard.
 - `'has_seen_walkthrough'`: Flag indicating whether introduction slides were viewed.
-- `'user_age'`: Cache of user age (persisted securely to prevent resetting).
 
 ### SharedPreferences Fallback & Cache
-Used when `FlutterSecureStorage` encounters a `PlatformException` (notably on unsigned iOS Simulator Keychain environments):
-- `'jwt_token'`, `'user_id'`, `'user_email'` (Mirror fallback).
-- `'user_age'`: Integer age storage.
-- `'user_dob'`: Cached Date of Birth string (`DD / MM / YYYY`).
+- **Debug-Only Fallback**: In `kDebugMode` only, if `FlutterSecureStorage` encounters a platform exception (e.g. simulator without keychain entitlements), `jwt_token`, `user_id`, and `user_email` fall back to `SharedPreferences`. In release builds, this fallback is disabled and treated as logged out.
 - `'persisted_milestone_keys'`: String list of unlocked badge IDs.
+- Ephemeral wizard draft state: `onboarding_draft_*` keys.
 
 ---
 
@@ -97,8 +101,8 @@ Used when `FlutterSecureStorage` encounters a `PlatformException` (notably on un
 1. **Google Fonts Runtime Delivery**:
    - `google_fonts` fetches Newsreader serif and Plus Jakarta Sans font binaries over HTTPS on first launch.
 2. **Socket.IO Server (WebSockets)**:
-   - Hosted directly on the Express server instance (`ws://200.97.165.22:4000/socket.io/`).
-   - Uses JWT handshake authorization.
+   - Hosted on the backend instance (`ws://` or `wss://` derived dynamically from `AppConstants.apiBaseUrl`).
+   - Uses JWT handshake authorization and checks 18+ requirement.
 3. **Email Delivery (Nodemailer / SMTP)**:
    - Configured in [backend/src/services/email.js](file:///e:/Websites/Wehere/backend/src/services/email.js) for 6-digit OTP delivery.
 4. **Firebase / Push Services**:

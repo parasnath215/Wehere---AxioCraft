@@ -13,7 +13,7 @@ This directory contains the exhaustive technical audit and architectural bluepri
 |                                                                                       |
 |   FLUTTER CLIENT (Android / iOS)                     NODE.JS / EXPRESS BACKEND        |
 |   +----------------------------+                     +----------------------------+   |
-|   | 63 Dart Source Files       |                     | REST API (42 Endpoints)    |   |
+|   | 64 Dart Source Files       |                     | REST API (43 Endpoints)    |   |
 |   | Provider State Management  |                     | Socket.IO WebSockets       |   |
 |   | Material 3 + Custom Tokens | <--- HTTPS/WSS ---> | Rate Limiting & Helmet     |   |
 |   | SecureStorage (Keychain)   |                     | Background Cleanup Workers |   |
@@ -58,15 +58,17 @@ This directory contains the exhaustive technical audit and architectural bluepri
 | **08** | [PLATFORM_AND_BUILD.md](file:///e:/Websites/Wehere/docs/architecture/PLATFORM_AND_BUILD.md) | Android Gradle and Manifest setup, iOS Info.plist privacy audit, native plugins, signing, and background services status. |
 | **09** | [DEPENDENCY_MAP.md](file:///e:/Websites/Wehere/docs/architecture/DEPENDENCY_MAP.md) | Architectural layer hierarchy rules, structural Mermaid dependency diagram, and architectural coupling smell analysis. |
 | **10** | [ISSUES_AND_GAPS.md](file:///e:/Websites/Wehere/docs/architecture/ISSUES_AND_GAPS.md) | Senior audit of fake/mocked data, runtime bugs, performance bottlenecks, dead code, and a prioritized P0–P3 remediation roadmap. |
-| **11** | [BACKEND_API.md](file:///e:/Websites/Wehere/docs/architecture/BACKEND_API.md) | Backend route reference for all 42 endpoints, middleware security rules, Admin panel API mapping, and Socket.IO WebSocket event matrix. |
+| **11** | [BACKEND_API.md](file:///e:/Websites/Wehere/docs/architecture/BACKEND_API.md) | Backend route reference for all endpoints, middleware security rules, Admin panel API mapping, and Socket.IO WebSocket event matrix. |
 | **12** | [DATABASE.md](file:///e:/Websites/Wehere/docs/architecture/DATABASE.md) | Complete PostgreSQL Prisma schema specification: 17 models, column constraints, indexes, ER diagram, and Flutter feature mappings. |
+| **13** | [CHANGELOG_FIXES.md](file:///e:/Websites/Wehere/docs/architecture/CHANGELOG_FIXES.md) | Phase-by-phase implementation changelog of production hardening fixes, migrations, and architecture changes. |
 
 ---
 
-## 3. Immediate Action Items for the Engineering Team
+## 3. Immediate Action Items & Phase 1 Status
 
-Before publishing or deploying updates to Google Play or Apple App Store, the engineering team must resolve these top priorities detailed in [ISSUES_AND_GAPS.md](file:///e:/Websites/Wehere/docs/architecture/ISSUES_AND_GAPS.md):
-1. **Fix Backend Admin Route Crash**: In [backend/src/routes/admin.js:L157](file:///e:/Websites/Wehere/backend/src/routes/admin.js#L157), correct `prisma.journal.count` to `prisma.journalEntry.count({ where: { userId: id } })`.
-2. **Add iOS Privacy Keys**: Add `NSCameraUsageDescription`, `NSPhotoLibraryUsageDescription`, and `NSMicrophoneUsageDescription` to [ios/Runner/Info.plist](file:///e:/Websites/Wehere/ios/Runner/Info.plist) to prevent App Store rejections.
-3. **Fix Hardcoded Windows Path**: Replace `C:/Users/paras/...` in [subscription_sheet.dart:L222](file:///e:/Websites/Wehere/lib/widgets/subscription/subscription_sheet.dart#L222) with a bundled asset path.
-4. **Enforce HTTPS / WSS**: Migrate `http://200.97.165.22:4000/api` to an encrypted SSL/TLS domain and disable cleartext traffic flags.
+Priorities from Phase 1 of Production Hardening:
+1. **[COMPLETED] Backend Admin Route Crash**: In [backend/src/routes/admin.js](file:///e:/Websites/Wehere/backend/src/routes/admin.js), corrected `prisma.journal.count` to `prisma.journalEntry.count({ where: { userId: id } })`.
+2. **[COMPLETED] Enforce HTTPS / WSS**: Dynamic `API_URL` environment variable support added; release mode startup guard requires HTTPS; cleartext disabled in main manifest. Runbook at [docs/ops/HTTPS_SETUP.md](file:///e:/Websites/Wehere/docs/ops/HTTPS_SETUP.md).
+3. **[COMPLETED] Admin Panel Hardening**: `adminGuard` timing-safe check, `POST /api/admin/login`, Next.js middleware + httpOnly cookie authentication, 120 req/min rate limit.
+4. **[COMPLETED] 18+ Date of Birth Guard**: Schema migration, `requireAdult` middleware, and `DobGateScreen` added.
+5. **[PENDING Phase 6] iOS Keystore & Asset Path**: Add release signing and replace local Windows image path in subscription sheet.

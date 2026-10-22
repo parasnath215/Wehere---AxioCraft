@@ -31,7 +31,7 @@ Key pillars of the platform:
 | `intl` | `^0.19.0` | Date formatting and timestamp stringification (`DateFormat`). | [home_screen.dart](file:///e:/Websites/Wehere/lib/screens/home/home_screen.dart#L4), [journal_home_screen.dart](file:///e:/Websites/Wehere/lib/screens/journal/journal_home_screen.dart#L3) |
 | `dio` | `^5.11.1` | Robust HTTP networking client with custom interceptors for JWT token injection and 401/403 event handling. | [api_client.dart](file:///e:/Websites/Wehere/lib/core/network/api_client.dart#L2) |
 | `flutter_secure_storage` | `^11.2.0` | Hardware-backed encrypted keychain/keystore storage for sensitive JWT session tokens and user credentials. | [storage_helper.dart](file:///e:/Websites/Wehere/lib/core/utils/storage_helper.dart#L2) |
-| `shared_preferences` | `^2.5.5` | Key-value disk persistence fallback for user age, walkthrough status, and draft form states. | [storage_helper.dart](file:///e:/Websites/Wehere/lib/core/utils/storage_helper.dart#L3) |
+| `shared_preferences` | `^2.5.5` | Key-value disk persistence for walkthrough status and draft form states; token fallback restricted to `kDebugMode`. | [storage_helper.dart](file:///e:/Websites/Wehere/lib/core/utils/storage_helper.dart#L3) |
 | `image_picker` | `^1.2.3` | Camera and gallery photo selection for signup identification, profile pictures, and journal memories. | [signup_screen.dart](file:///e:/Websites/Wehere/lib/screens/auth/signup_screen.dart#L9), [new_journal_screen.dart](file:///e:/Websites/Wehere/lib/screens/journal/new_journal_screen.dart#L4) |
 | `socket_io_client` | `^3.1.6` | Real-time WebSocket connection for 1-on-1 instant messaging, typing indicators, and mutual identity reveal handshakes. | [app_state.dart](file:///e:/Websites/Wehere/lib/state/app_state.dart#L10) |
 | `image_cropper` | `^12.2.1` | Native Android/iOS image crop activity for squaring and optimizing profile avatar uploads. | [AndroidManifest.xml](file:///e:/Websites/Wehere/android/app/src/main/AndroidManifest.xml#L30) |
@@ -111,6 +111,7 @@ lib/
 ├── screens/
 │   ├── main_navigation_shell.dart      # Root bottom navigation shell (IndexedStack for 5 tabs + double-back exit)
 │   ├── auth/
+│   │   ├── dob_gate_screen.dart        # Date of birth verification gate enforcing 18+ requirement for existing accounts
 │   │   ├── login_screen.dart           # Credential login, forgot password OTP trigger
 │   │   ├── otp_verification_screen.dart# 6-box OTP entry with 60s cooldown timer and auto-paste
 │   │   ├── reset_password_screen.dart  # OTP-backed password reset screen
@@ -196,7 +197,7 @@ flutter run --dart-define=API_URL=http://localhost:4000/api  # iOS Simulator / m
 
 #### Running against Production VPS:
 ```bash
-flutter run
+flutter run --dart-define=API_URL=https://YOUR_DOMAIN/api
 ```
 
 ### How to Build
@@ -206,28 +207,28 @@ flutter run
 # Debug APK
 flutter build apk --debug
 
-# Production Split APKs (optimizes size per architecture)
-flutter build apk --release --split-per-abi
+# Production Split APKs
+flutter build apk --release --split-per-abi --dart-define=API_URL=https://YOUR_DOMAIN/api
 
 # Production Android App Bundle (.aab) for Google Play Store
-flutter build appbundle --release
+flutter build appbundle --release --dart-define=API_URL=https://YOUR_DOMAIN/api
 ```
 - **Android Configuration Notes**:
   - Application ID: `com.wehere.app` ([android/app/build.gradle.kts](file:///e:/Websites/Wehere/android/app/build.gradle.kts#L19))
   - Minimum SDK: Managed by Flutter SDK default (minSdk 21+)
   - Java/Kotlin: Java 17, Kotlin 2.4.0 JVM Target 17 ([android/app/build.gradle.kts](file:///e:/Websites/Wehere/android/app/build.gradle.kts#L43))
   - Permissions: `android.permission.INTERNET` declared in [AndroidManifest.xml](file:///e:/Websites/Wehere/android/app/src/main/AndroidManifest.xml#L2)
-  - Cleartext HTTP allowed: `android:usesCleartextTraffic="true"` ([AndroidManifest.xml](file:///e:/Websites/Wehere/android/app/src/main/AndroidManifest.xml#L6))
+  - Cleartext HTTP: Removed from main manifest; enabled only in `debug/AndroidManifest.xml` for local testing.
 
 #### 2. iOS Build
 ```bash
 # iOS Archive for App Store Connect
-flutter build ipa --release
+flutter build ipa --release --dart-define=API_URL=https://YOUR_DOMAIN/api
 ```
 - **iOS Configuration Notes**:
   - Bundle Identifier: Default Runner identifier (`com.wehere.app`)
-  - Transport Security: `NSAllowsArbitraryLoads: true` enabled in [Info.plist](file:///e:/Websites/Wehere/ios/Runner/Info.plist#L44)
-  - **Critical Build Warning**: [Info.plist](file:///e:/Websites/Wehere/ios/Runner/Info.plist) currently lacks `NSCameraUsageDescription` and `NSPhotoLibraryUsageDescription`. Building for physical iOS devices or uploading to TestFlight will be rejected until these permissions keys are added.
+  - Transport Security: `NSAllowsLocalNetworking = true` in [Info.plist](file:///e:/Websites/Wehere/ios/Runner/Info.plist); `NSAllowsArbitraryLoads` removed.
+  - Privacy Permissions: `NSCameraUsageDescription` and `NSPhotoLibraryUsageDescription` configured.
 
 ### Release Checklist
 1. Increment `version: 1.0.0+1` in [pubspec.yaml](file:///e:/Websites/Wehere/pubspec.yaml#L4).

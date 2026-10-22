@@ -6,10 +6,26 @@ The Wehere backend is an Express.js REST and Socket.IO real-time server located 
 
 ## 1. Authentication Middleware & Security Guards
 
-All backend routes are guarded by standard middleware declared in [backend/src/middleware/auth.js](file:///e:/Websites/Wehere/backend/src/middleware/auth.js):
+All backend routes are guarded by standard middleware declared in [backend/src/middleware/auth.js](file:///e:/Websites/Wehere/backend/src/middleware/auth.js) and [backend/src/middleware/rateLimits.js](file:///e:/Websites/Wehere/backend/src/middleware/rateLimits.js):
 - **`authenticateToken(req, res, next)`**: Extracts the `Authorization: Bearer <token>` header, verifies the signature with `JWT_SECRET`, checks `tokenVersion` against the database to enforce revocation, and sets `req.user`.
-- **`requireVerified(req, res, next)`**: Ensures `req.user.emailVerified === true` or `req.user.isAnonymous === true`. Rejects with HTTP 403 Forbidden `{ error: 'EMAIL_NOT_VERIFIED' }` if unverified.
-- **`requireAdmin(req, res, next)`**: Verifies that `req.user.role === 'ADMIN'`.
+- **`requireVerified(req, res, next)`**: Strictly ensures `req.user.emailVerified === true`. Rejects with HTTP 403 Forbidden `{ error: 'EMAIL_NOT_VERIFIED', message: 'Please verify your email address.' }`. (No anonymous bypass).
+- **`requireAdult(req, res, next)`**: Ensures user has verified their date of birth and is at least 18 years old:
+  - If `dateOfBirth == null`: Rejects with HTTP 403 `{ error: 'AGE_REQUIRED', message: 'Date of birth is required.' }`.
+  - If `calcAge(dateOfBirth) < 18`: Rejects with HTTP 403 `{ error: 'UNDERAGE', message: 'You must be at least 18 years old.' }`.
+  - Applied to `/api/match/*`, `/api/conversations/*`, `/api/community/*`, and Socket.IO handshake.
+- **`adminGuard(req, res, next)`**: Protects all `/api/admin/*` endpoints:
+  1. Header `x-api-key` matches `INTERNAL_API_KEY` using `crypto.timingSafeEqual` with length checking.
+  2. Valid Bearer JWT (`authenticateToken`).
+  3. User role equals `ADMIN` and user is not banned.
+- **Rate Limiters (`middleware/rateLimits.js`)**:
+  - `signupLimiter`: 5 per hour per IP.
+  - `otpVerifyLimiter`: 10 per 15 min per IP.
+  - `otpRequestLimiter`: 5 per 15 min per IP, and maximum 3 per 10 min per email address.
+  - `resetPasswordLimiter`: 5 per 15 min per IP.
+  - `loginLimiter`: 10 per 15 min per IP.
+  - `reportLimiter`: 10 per hour per IP.
+  - `communityLimiter`: 20 per hour per user.
+  - `adminApiLimiter`: 120 per minute per IP.
 
 ---
 
@@ -18,32 +34,32 @@ All backend routes are guarded by standard middleware declared in [backend/src/m
 ### A. Authentication & Onboarding Routes (`/api/auth`)
 Mounted from [backend/src/routes/auth.js](file:///e:/Websites/Wehere/backend/src/routes/auth.js).
 
-| Method | Endpoint | Auth Required | Request Body / Form | Response Payload | Consumed By (Feature / Screen) |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| `POST` | `/api/auth/signup` | Public | Multipart form: `email`, `password`, `pseudonym`, `phone` (opt), `images` (2–6 files) | `200 OK { success, signupToken, message }` | [SignUpScreen](file:///e:/Websites/Wehere/lib/screens/auth/signup_screen.dart) (Feature: User Registration) |
-| `POST` | `/api/auth/anonymous` | Public | None | `200 OK { token, user }` | Guest / Anonymous Access |
-| `POST` | `/api/auth/login` | Public (Rate limited) | `{ email, password }` | `200 OK { token, user }` | [LoginScreen](file:///e:/Websites/Wehere/lib/screens/auth/login_screen.dart) (Feature: Credential Login) |
-| `POST` | `/api/auth/otp/request`| Public (Rate limited) | `{ email, purpose }` (`'verify_email'` or `'reset_password'`) | `200 OK { success, email }` | [LoginScreen](file:///e:/Websites/Wehere/lib/screens/auth/login_screen.dart), [OtpVerificationScreen](file:///e:/Websites/Wehere/lib/screens/auth/otp_verification_screen.dart) |
-| `POST` | `/api/auth/otp/verify` | Public (Optionally `signupToken`) | `{ otp, signupToken? }` | `200 OK { success, token, user }` | [OtpVerificationScreen](file:///e:/Websites/Wehere/lib/screens/auth/otp_verification_screen.dart) (Feature: Email Verification) |
-| `POST` | `/api/auth/reset-password`| Public | `{ email, otp, newPassword }` | `200 OK { success, message }` | [ResetPasswordScreen](file:///e:/Websites/Wehere/lib/screens/auth/reset_password_screen.dart) (Feature: Password Recovery) |
-| `PUT` | `/api/auth/onboarding` | `authenticateToken`, `requireVerified` | `{ name, displayName, realFirstName, handle, nameDisplayPreference, location, profession, interests, feelings, supportTypes, isAnonymous }` | `200 OK { success, user }` | [OnboardingFlowScreen](file:///e:/Websites/Wehere/lib/screens/onboarding/onboarding_flow_screen.dart) (Feature: 5-Step Wizard) |
-| `POST` | `/api/auth/change-password`| `authenticateToken`, `requireVerified` | `{ currentPassword, newPassword }` | `200 OK { success, message }` | [ProfileScreen](file:///e:/Websites/Wehere/lib/screens/profile/profile_screen.dart) (Feature: Account Settings) |
+| Method | Endpoint | Auth Required | Rate Limit | Request Body / Form | Response Payload | Consumed By (Feature / Screen) |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| `POST` | `/api/auth/signup` | Public | `signupLimiter` (5/hr) | Multipart form: `email`, `password`, `pseudonym`, `phone` (opt), `images` (2–6 files) | `200 OK { success, signupToken, message }` | [SignUpScreen](file:///e:/Websites/Wehere/lib/screens/auth/signup_screen.dart) (Registration) |
+| `POST` | `/api/auth/login` | Public | `loginLimiter` (10/15m) | `{ email, password }` | `200 OK { token, user }` | [LoginScreen](file:///e:/Websites/Wehere/lib/screens/auth/login_screen.dart) (Credential Login) |
+| `POST` | `/api/auth/otp/request`| Public | `otpRequestLimiter` (5/15m IP, 3/10m email) | `{ email, purpose }` (`'verify_email'` or `'reset_password'`) | `200 OK { success, email }` | [LoginScreen](file:///e:/Websites/Wehere/lib/screens/auth/login_screen.dart), [OtpVerificationScreen](file:///e:/Websites/Wehere/lib/screens/auth/otp_verification_screen.dart) |
+| `POST` | `/api/auth/otp/verify` | Public (Optionally `signupToken`) | `otpVerifyLimiter` (10/15m, 5-attempt lockout) | `{ otp, signupToken? }` | `200 OK { success, token, user }` | [OtpVerificationScreen](file:///e:/Websites/Wehere/lib/screens/auth/otp_verification_screen.dart) (Email Verification) |
+| `POST` | `/api/auth/reset-password`| Public | `resetPasswordLimiter` (5/15m) | `{ email, otp, newPassword }` | `200 OK { success, message }` | [ResetPasswordScreen](file:///e:/Websites/Wehere/lib/screens/auth/reset_password_screen.dart) (Password Recovery) |
+| `PUT` | `/api/auth/onboarding` | `authenticateToken`, `requireVerified` | Standard | `{ name, displayName, realFirstName, handle, nameDisplayPreference, location, profession, interests, feelings, supportTypes, isAnonymous, dateOfBirth? }` | `200 OK { success, user }` | [OnboardingFlowScreen](file:///e:/Websites/Wehere/lib/screens/onboarding/onboarding_flow_screen.dart) (5-Step Wizard; enforces 18+) |
+| `POST` | `/api/auth/change-password`| `authenticateToken`, `requireVerified` | Standard | `{ currentPassword, newPassword }` | `200 OK { success, message }` | [ProfileScreen](file:///e:/Websites/Wehere/lib/screens/profile/profile_screen.dart) (Account Settings) |
 
 ---
 
 ### B. User Profile & Moderation Routes (`/api/users`)
 Mounted from [backend/src/routes/users.js](file:///e:/Websites/Wehere/backend/src/routes/users.js).
 
-| Method | Endpoint | Auth Required | Request Body / Form | Response Payload | Consumed By (Feature / Screen) |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| `GET` | `/api/users/me` | `authenticateToken` | None | `200 OK { id, email, pseudonym, realFirstName, images, interests, ... }` | `AuthNotifier.initializeSession()`, `AppState.fetchCurrentUser()` |
-| `PUT` | `/api/users/me` | `authenticateToken`, `requireVerified` | `{ bio, pseudonym, location, profession, nameDisplayPreference, isAnonymous }` | `200 OK { success, user }` | [EditProfileScreen](file:///e:/Websites/Wehere/lib/screens/profile/edit_profile_screen.dart) |
-| `POST` | `/api/users/me/photos`| `authenticateToken`, `requireVerified` | Multipart: `photo` (Single file) | `200 OK { success, images }` | [PhotoGrid](file:///e:/Websites/Wehere/lib/widgets/profile/photo_grid.dart) (Feature: Profile Photos) |
-| `PUT` | `/api/users/me/photos/order`| `authenticateToken`, `requireVerified` | `{ images: string[] }` | `200 OK { success, images }` | [PhotoGrid](file:///e:/Websites/Wehere/lib/widgets/profile/photo_grid.dart) (Feature: Photo Reordering) |
-| `DELETE` | `/api/users/me/photos`| `authenticateToken`, `requireVerified` | `{ photoUrl: string }` | `200 OK { success, images }` | [PhotoGrid](file:///e:/Websites/Wehere/lib/widgets/profile/photo_grid.dart) (Feature: Photo Deletion) |
-| `POST` | `/api/users/:id/block`| `authenticateToken`, `requireVerified` | None | `200 OK { success: true }` | [ProfileDetailSheet](file:///e:/Websites/Wehere/lib/widgets/discovery/profile_detail_sheet.dart), Chat Safety Menu |
-| `POST` | `/api/users/:id/report`| `authenticateToken`, `requireVerified` | `{ reason, description?, reportedPhotoUrl? }` | `200 OK { success: true, reportId }` | [ProfileDetailSheet](file:///e:/Websites/Wehere/lib/widgets/discovery/profile_detail_sheet.dart), Chat Safety Menu |
-| `DELETE` | `/api/users/me` | `authenticateToken`, `requireVerified` | None | `200 OK { message, scheduledDeletionDate }` | [ProfileScreen](file:///e:/Websites/Wehere/lib/screens/profile/profile_screen.dart) (Schedules deletion in 7 days) |
+| Method | Endpoint | Auth Required | Rate Limit | Request Body / Form | Response Payload | Consumed By (Feature / Screen) |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| `GET` | `/api/users/me` | `authenticateToken` | Standard | None | `200 OK { id, email, pseudonym, realFirstName, images, interests, age, needsDob, ... }` | `AuthNotifier.initializeSession()`, `AppState.fetchCurrentUser()` |
+| `PUT` | `/api/users/me` | `authenticateToken`, `requireVerified` | Standard | `{ bio, pseudonym, location, profession, nameDisplayPreference, isAnonymous }` (rejects `dateOfBirth` / `age`) | `200 OK { success, user }` | [EditProfileScreen](file:///e:/Websites/Wehere/lib/screens/profile/edit_profile_screen.dart) |
+| `PUT` | `/api/users/me/dob` | `authenticateToken`, `requireVerified` | Standard | `{ dateOfBirth: 'YYYY-MM-DD' }` | `200 OK { success, age, user }` | [DobGateScreen](file:///e:/Websites/Wehere/lib/screens/auth/dob_gate_screen.dart) (Existing users without DOB; 18+ enforced; 409 if already set) |
+| `POST` | `/api/users/me/photos`| `authenticateToken`, `requireVerified` | Standard | Multipart: `photo` (Single file) | `200 OK { success, images }` | [PhotoGrid](file:///e:/Websites/Wehere/lib/widgets/profile/photo_grid.dart) |
+| `PUT` | `/api/users/me/photos/order`| `authenticateToken`, `requireVerified` | Standard | `{ images: string[] }` | `200 OK { success, images }` | [PhotoGrid](file:///e:/Websites/Wehere/lib/widgets/profile/photo_grid.dart) |
+| `DELETE` | `/api/users/me/photos`| `authenticateToken`, `requireVerified` | Standard | `{ photoUrl: string }` | `200 OK { success, images }` | [PhotoGrid](file:///e:/Websites/Wehere/lib/widgets/profile/photo_grid.dart) |
+| `POST` | `/api/users/:id/block`| `authenticateToken`, `requireVerified` | Standard | None | `200 OK { success: true }` | [ProfileDetailSheet](file:///e:/Websites/Wehere/lib/widgets/discovery/profile_detail_sheet.dart), Chat Safety Menu |
+| `POST` | `/api/users/:id/report`| `authenticateToken`, `requireVerified` | `reportLimiter` (10/hr) | `{ reason, description?, reportedPhotoUrl? }` | `200 OK { success: true, reportId }` | [ProfileDetailSheet](file:///e:/Websites/Wehere/lib/widgets/discovery/profile_detail_sheet.dart), Chat Safety Menu |
+| `DELETE` | `/api/users/me` | `authenticateToken`, `requireVerified` | Standard | None | `200 OK { message, scheduledDeletionDate }` | [ProfileScreen](file:///e:/Websites/Wehere/lib/screens/profile/profile_screen.dart) (Schedules deletion in 7 days) |
 
 ---
 
@@ -52,8 +68,8 @@ Mounted from [backend/src/routes/match.js](file:///e:/Websites/Wehere/backend/sr
 
 | Method | Endpoint | Auth Required | Request Body / Query | Response Payload | Consumed By (Feature / Screen) |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| `GET` | `/api/match/discover` (alias `/feed`) | `authenticateToken`, `requireVerified` | Query params: `page`, `limit` | `200 OK MatchCard[]` (Calculates compatibility scores, filters out blocked users) | [DiscoverSwipeScreen](file:///e:/Websites/Wehere/lib/screens/discover/discover_swipe_screen.dart) |
-| `POST` | `/api/match/swipe` | `authenticateToken`, `requireVerified` | `{ targetUserId: string, isRight: boolean }` | `200 OK { isMatch: boolean, match?, conversationId? }` | [DiscoverSwipeScreen](file:///e:/Websites/Wehere/lib/screens/discover/discover_swipe_screen.dart) (Swiping) |
+| `GET` | `/api/match/discover` | `authenticateToken`, `requireVerified`, `requireAdult` | Query params: `page`, `limit` | `200 OK MatchCard[]` (Computes `age`, filters out null DOB / under 18 and blocked peers) | [DiscoverSwipeScreen](file:///e:/Websites/Wehere/lib/screens/discover/discover_swipe_screen.dart) |
+| `POST` | `/api/match/swipe` | `authenticateToken`, `requireVerified`, `requireAdult` | `{ targetUserId: string, isRight: boolean }` | `200 OK { isMatch: boolean, match?, conversationId? }` | [DiscoverSwipeScreen](file:///e:/Websites/Wehere/lib/screens/discover/discover_swipe_screen.dart) |
 
 ---
 
@@ -62,11 +78,11 @@ Mounted from [backend/src/routes/conversations.js](file:///e:/Websites/Wehere/ba
 
 | Method | Endpoint | Auth Required | Request Body | Response Payload | Consumed By (Feature / Screen) |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| `GET` | `/api/conversations` | `authenticateToken`, `requireVerified` | None | `200 OK Conversation[]` with peer profiles & last message | [ChatListScreen](file:///e:/Websites/Wehere/lib/screens/chat/chat_list_screen.dart) |
-| `GET` | `/api/conversations/:id/messages`| `authenticateToken`, `requireVerified` | Query: `limit`, `before` | `200 OK Message[]` | [ChatConversationScreen](file:///e:/Websites/Wehere/lib/screens/chat/chat_conversation_screen.dart) |
-| `GET` | `/api/conversations/:id/disclosure`| `authenticateToken`, `requireVerified` | None | `200 OK { isMutuallyRevealed, myRevealed, peerRevealed, peerFirstName }` | [ChatConversationScreen](file:///e:/Websites/Wehere/lib/screens/chat/chat_conversation_screen.dart) |
-| `POST` | `/api/conversations/:id/reveal-name`| `authenticateToken`, `requireVerified` | `{ realFirstName? }` | `200 OK { success, isMutuallyRevealed, userAFirstName, userBFirstName }` | [ChatConversationScreen](file:///e:/Websites/Wehere/lib/screens/chat/chat_conversation_screen.dart) |
-| `POST` | `/api/conversations/:id/decline-reveal`| `authenticateToken`, `requireVerified` | None | `200 OK { success: true }` | [ChatConversationScreen](file:///e:/Websites/Wehere/lib/screens/chat/chat_conversation_screen.dart) |
+| `GET` | `/api/conversations` | `authenticateToken`, `requireVerified`, `requireAdult` | None | `200 OK Conversation[]` with peer profiles & last message | [ChatListScreen](file:///e:/Websites/Wehere/lib/screens/chat/chat_list_screen.dart) |
+| `GET` | `/api/conversations/:id/messages`| `authenticateToken`, `requireVerified`, `requireAdult` | Query: `limit`, `before` | `200 OK Message[]` | [ChatConversationScreen](file:///e:/Websites/Wehere/lib/screens/chat/chat_conversation_screen.dart) |
+| `GET` | `/api/conversations/:id/disclosure`| `authenticateToken`, `requireVerified`, `requireAdult` | None | `200 OK { isMutuallyRevealed, myRevealed, peerRevealed, peerFirstName }` | [ChatConversationScreen](file:///e:/Websites/Wehere/lib/screens/chat/chat_conversation_screen.dart) |
+| `POST` | `/api/conversations/:id/reveal-name`| `authenticateToken`, `requireVerified`, `requireAdult` | `{ realFirstName? }` | `200 OK { success, isMutuallyRevealed, userAFirstName, userBFirstName }` | [ChatConversationScreen](file:///e:/Websites/Wehere/lib/screens/chat/chat_conversation_screen.dart) |
+| `POST` | `/api/conversations/:id/decline-reveal`| `authenticateToken`, `requireVerified`, `requireAdult` | None | `200 OK { success: true }` | [ChatConversationScreen](file:///e:/Websites/Wehere/lib/screens/chat/chat_conversation_screen.dart) |
 
 ---
 
@@ -89,7 +105,7 @@ Mounted from [backend/src/routes/progress.js](file:///e:/Websites/Wehere/backend
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | `GET` | `/api/progress` | `authenticateToken`, `requireVerified` | None | `200 OK { currentStreak, weeklyProgress, xp, level }` | [HomeScreen](file:///e:/Websites/Wehere/lib/screens/home/home_screen.dart), [ProgressDashboardScreen](file:///e:/Websites/Wehere/lib/screens/progress/progress_dashboard_screen.dart) |
 | `GET` | `/api/progress/mood/today`| `authenticateToken`, `requireVerified` | None | `200 OK { mood: string }` | [HomeScreen](file:///e:/Websites/Wehere/lib/screens/home/home_screen.dart) |
-| `POST` | `/api/progress/mood` | `authenticateToken`, `requireVerified` | `{ mood: string }` | `200 OK { success: true, streak: int }` (+15 XP) | [HomeScreen](file:///e:/Websites/Wehere/lib/screens/home/home_screen.dart) (Mood Check-in) |
+| `POST` | `/api/progress/mood` | `authenticateToken`, `requireVerified` | `{ mood: string }` | `200 OK { success: true, streak: int }` (+15 XP) | [HomeScreen](file:///e:/Websites/Wehere/lib/screens/home/home_screen.dart) |
 | `GET` | `/api/goals` | `authenticateToken`, `requireVerified` | None | `200 OK WellnessGoal[]` | [ProgressDashboardScreen](file:///e:/Websites/Wehere/lib/screens/progress/progress_dashboard_screen.dart) |
 | `POST` | `/api/goals` | `authenticateToken`, `requireVerified` | `{ title, subtitle, categoryColor }` | `201 Created WellnessGoal` | [ProgressDashboardScreen](file:///e:/Websites/Wehere/lib/screens/progress/progress_dashboard_screen.dart) |
 | `PUT` | `/api/goals/:id/toggle`| `authenticateToken`, `requireVerified` | None | `200 OK WellnessGoal` (+10 XP) | [ProgressDashboardScreen](file:///e:/Websites/Wehere/lib/screens/progress/progress_dashboard_screen.dart) |
@@ -99,13 +115,13 @@ Mounted from [backend/src/routes/progress.js](file:///e:/Websites/Wehere/backend
 ### G. Community Feed Routes (`/api/community`)
 Mounted from [backend/src/routes/community.js](file:///e:/Websites/Wehere/backend/src/routes/community.js).
 
-| Method | Endpoint | Auth Required | Request Body | Response Payload | Consumed By (Feature / Screen) |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| `GET` | `/api/community` | `authenticateToken`, `requireVerified` | Query: `topic`, `page`, `limit` | `200 OK CommunityPost[]` | [CommunityScreen](file:///e:/Websites/Wehere/lib/screens/community/community_screen.dart) |
-| `POST` | `/api/community` | `authenticateToken`, `requireVerified` | `{ topic, content }` | `201 Created CommunityPost` | [CommunityScreen](file:///e:/Websites/Wehere/lib/screens/community/community_screen.dart) |
-| `POST` | `/api/community/:id/like`| `authenticateToken`, `requireVerified` | None | `200 OK { success, likesCount }` | [CommunityScreen](file:///e:/Websites/Wehere/lib/screens/community/community_screen.dart) |
-| `GET` | `/api/community/:id/comments`| `authenticateToken`, `requireVerified` | None | `200 OK Comment[]` | [CommunityScreen](file:///e:/Websites/Wehere/lib/screens/community/community_screen.dart) |
-| `POST` | `/api/community/:id/comments`| `authenticateToken`, `requireVerified` | `{ commentText }` | `201 Created Comment` | [CommunityScreen](file:///e:/Websites/Wehere/lib/screens/community/community_screen.dart) |
+| Method | Endpoint | Auth Required | Rate Limit | Request Body | Response Payload | Consumed By (Feature / Screen) |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| `GET` | `/api/community` | `authenticateToken`, `requireVerified`, `requireAdult` | Standard | Query: `topic`, `page`, `limit` | `200 OK CommunityPost[]` | [CommunityScreen](file:///e:/Websites/Wehere/lib/screens/community/community_screen.dart) |
+| `POST` | `/api/community` | `authenticateToken`, `requireVerified`, `requireAdult` | `communityLimiter` (20/hr) | `{ topic, content }` | `201 Created CommunityPost` | [CommunityScreen](file:///e:/Websites/Wehere/lib/screens/community/community_screen.dart) |
+| `POST` | `/api/community/:id/like`| `authenticateToken`, `requireVerified`, `requireAdult` | Standard | None | `200 OK { success, likesCount }` | [CommunityScreen](file:///e:/Websites/Wehere/lib/screens/community/community_screen.dart) |
+| `GET` | `/api/community/:id/comments`| `authenticateToken`, `requireVerified`, `requireAdult` | Standard | None | `200 OK Comment[]` | [CommunityScreen](file:///e:/Websites/Wehere/lib/screens/community/community_screen.dart) |
+| `POST` | `/api/community/:id/comments`| `authenticateToken`, `requireVerified`, `requireAdult` | Standard | `{ commentText }` | `201 Created Comment` | [CommunityScreen](file:///e:/Websites/Wehere/lib/screens/community/community_screen.dart) |
 
 ---
 
@@ -121,7 +137,7 @@ Mounted from [backend/src/routes/sos.js](file:///e:/Websites/Wehere/backend/src/
 
 ---
 
-### I. In-App Notifications & Admin Configuration
+### I. In-App Notifications & Configuration
 Mounted from [backend/src/routes/notifications.js](file:///e:/Websites/Wehere/backend/src/routes/notifications.js) and [backend/src/routes/config.js](file:///e:/Websites/Wehere/backend/src/routes/config.js).
 
 | Method | Endpoint | Auth Required | Request Body | Response Payload | Consumed By (Feature / Screen) |
@@ -134,33 +150,34 @@ Mounted from [backend/src/routes/notifications.js](file:///e:/Websites/Wehere/ba
 ---
 
 ### J. Admin Panel Routes (`/api/admin`)
-Mounted from [backend/src/routes/admin.js](file:///e:/Websites/Wehere/backend/src/routes/admin.js). Consumed exclusively by `admin-panel/`.
+Mounted from [backend/src/routes/admin.js](file:///e:/Websites/Wehere/backend/src/routes/admin.js). Consumed exclusively by `admin-panel/`. Entire router rate-limited to 120 req/min via `adminApiLimiter`.
 
 | Method | Endpoint | Auth Required | Request Body | Response Payload | Consumed By (Admin View) |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| `GET` | `/api/admin/stats` | Header `x-api-key` | None | `{ totalUsers, activeMatches, totalMessages, reportedUsers, recentUsers }` | [Overview Dashboard](file:///e:/Websites/Wehere/admin-panel/src/app/page.tsx#L7) |
-| `GET` | `/api/admin/users` | Header `x-api-key` | Query: `search`, `page`, `limit` | `{ users: User[], total, pages }` | Admin Users Table |
-| `POST` | `/api/admin/users` | Header `x-api-key` | `{ email, password, pseudonym, role }` | `201 Created User` | Admin User Creator |
-| `PUT` | `/api/admin/users/:id` | Header `x-api-key` | `{ role, pseudonym, email, scheduledDeletionDate }` | `200 OK User` | Admin User Editor |
-| `PUT` | `/api/admin/users/:id/ban` | Header `x-api-key` | `{ isBanned: boolean }` | `200 OK { id, pseudonym, isBanned }` | User Moderation Action |
-| `DELETE` | `/api/admin/users/:id` | Header `x-api-key` | None | `200 OK { message: "User deleted" }` | Hard Deletion |
-| `GET` | `/api/admin/users/:id/analytics` | Header `x-api-key` | None | `{ user, stats: { totalMatches, activeMatches, messagesSent, journalsWritten } }` | **Buggy**: Throws error on `prisma.journal` |
-| `GET` | `/api/admin/matches` | Header `x-api-key` | Query: `page`, `limit` | `200 OK Match[]` | Matches Audit Table |
-| `GET` | `/api/admin/reports` | Header `x-api-key` | None | `200 OK Report[]` with reporter & reported details | Moderation Queue |
+| `POST` | `/api/admin/login` | Public (`loginLimiter`) | `{ email, password }` | `200 OK { token }` (12-hour expiry) | [Admin Login Page](file:///e:/Websites/Wehere/admin-panel/src/app/login/page.tsx) |
+| `GET` | `/api/admin/stats` | `adminGuard` | None | `{ totalUsers, activeMatches, totalMessages, reportedUsers, recentUsers }` | [Overview Dashboard](file:///e:/Websites/Wehere/admin-panel/src/app/page.tsx) |
+| `GET` | `/api/admin/users` | `adminGuard` | Query: `search`, `page`, `limit` | `{ users: User[], total, pages }` (`safeUserSelect`) | Admin Users Table |
+| `POST` | `/api/admin/users` | `adminGuard` | `{ email, password, pseudonym, role }` | `201 Created User` | Admin User Creator |
+| `PUT` | `/api/admin/users/:id` | `adminGuard` | `{ role, pseudonym, email, scheduledDeletionDate }` | `200 OK User` | Admin User Editor |
+| `PUT` | `/api/admin/users/:id/ban` | `adminGuard` | `{ isBanned: boolean }` | `200 OK { id, pseudonym, isBanned }` (increments `tokenVersion`) | User Moderation Action |
+| `DELETE` | `/api/admin/users/:id` | `adminGuard` | None | `200 OK { message: "User deleted" }` | Hard Deletion |
+| `GET` | `/api/admin/users/:id/analytics` | `adminGuard` | None | `{ user, stats: { totalMatches, activeMatches, messagesSent, journalsWritten } }` | User Analytics Detail |
+| `GET` | `/api/admin/matches` | `adminGuard` | Query: `page`, `limit` | `200 OK Match[]` | Matches Audit Table |
+| `GET` | `/api/admin/reports` | `adminGuard` | None | `200 OK Report[]` with reporter & reported details | Moderation Queue |
 
 ---
 
 ## 3. Real-Time WebSocket Server Architecture
 
-Mounted in [backend/src/server.js](file:///e:/Websites/Wehere/backend/src/server.js#L101-L232) using `socket.io`.
+Mounted in [backend/src/server.js](file:///e:/Websites/Wehere/backend/src/server.js) using `socket.io`.
 
 ### Handshake & Authentication
-Every incoming WebSocket connection must supply a valid JWT token in its handshake packet:
+Every incoming WebSocket connection must supply a valid JWT token in its handshake packet and must pass adulthood verification:
 ```javascript
 io.use((socket, next) => {
   const token = socket.handshake.auth.token;
   jwt.verify(token, process.env.JWT_SECRET, async (err, decoded) => {
-    // Validates tokenVersion and emailVerified
+    // Validates tokenVersion, emailVerified, and dateOfBirth >= 18
     socket.user = user;
     next();
   });

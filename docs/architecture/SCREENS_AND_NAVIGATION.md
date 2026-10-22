@@ -36,12 +36,17 @@ Has Completed Onboarding?    ------(NO)------> Redirect to OnboardingFlowScreen
             |
           (YES)
             v
+Does User Need DOB (needsDob)? ---(YES)------> Redirect to DobGateScreen
+            |
+           (NO)
+            v
  Render Requested Screen (e.g., MainNavigationShell)
 ```
 
 - **Unauthenticated**: Renders [LoginScreen](file:///e:/Websites/Wehere/lib/screens/auth/login_screen.dart).
 - **Unverified**: Renders [OtpVerificationScreen](file:///e:/Websites/Wehere/lib/screens/auth/otp_verification_screen.dart) passing `auth.registeredEmail`.
 - **Incomplete Onboarding**: Renders [OnboardingFlowScreen](file:///e:/Websites/Wehere/lib/screens/onboarding/onboarding_flow_screen.dart).
+- **Missing Date of Birth**: Renders [DobGateScreen](file:///e:/Websites/Wehere/lib/screens/auth/dob_gate_screen.dart) to enforce the 18+ requirement on existing accounts.
 - **Compliant**: Renders the target builder.
 
 ---
@@ -68,7 +73,8 @@ Has Completed Onboarding?    ------(NO)------> Redirect to OnboardingFlowScreen
 | `JournalSuccessScreen`| [journal_success_screen.dart](file:///e:/Websites/Wehere/lib/screens/journal/journal_success_screen.dart) | `AppRoutes.journalSuccess` (`'/journal/success'`) | `entry` (`JournalEntry`) | Fade | Runtime check (`entry != null`) |
 | `CommunityScreen` | [community_screen.dart](file:///e:/Websites/Wehere/lib/screens/community/community_screen.dart) | `AppRoutes.community` (`'/community'`) | None | Slide from Right | None |
 | `ProgressDashboardScreen`| [progress_dashboard_screen.dart](file:///e:/Websites/Wehere/lib/screens/progress/progress_dashboard_screen.dart) | `AppRoutes.progress` (`'/progress'`) | None | Slide from Right | None |
-| `EditProfileScreen` | [edit_profile_screen.dart](file:///e:/Websites/Wehere/lib/screens/profile/edit_profile_screen.dart) | Direct `Navigator.push` from Profile | None | Standard Material Page | Inherits from Profile |
+| `EditProfileScreen` | [edit_profile_screen.dart](file:///e:/Websites/Wehere/lib/screens/profile/edit_profile_screen.dart) | Direct `Navigator.push` from Profile | None | Standard Material Page | Inherits from Profile (Age read-only) |
+| `DobGateScreen` | [dob_gate_screen.dart](file:///e:/Websites/Wehere/lib/screens/auth/dob_gate_screen.dart) | `AppRoutes.dobGate` (`'/auth/dob-gate'`) | None | Fullscreen Form | Protected (`AuthNotifier.needsDob`) |
 | `SosHelpScreen` | [sos_help_screen.dart](file:///e:/Websites/Wehere/lib/screens/sos/sos_help_screen.dart) | `AppRoutes.sos` (`'/sos'`) | None | High-Priority Slide Up | None (Emergency Route) |
 | `CampusCorporateScreen`| [campus_corporate_screen.dart](file:///e:/Websites/Wehere/lib/screens/institutional/campus_corporate_screen.dart) | `AppRoutes.institutional` (`'/institutional'`) | None | Slide from Right | None |
 | `PricingScreen` | [subscription_sheet.dart](file:///e:/Websites/Wehere/lib/widgets/subscription/subscription_sheet.dart) | Direct `showWeherePlusSubscriptionSheet` | None | Fullscreen Dialog | Gated by Free Tier Limits |

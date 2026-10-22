@@ -18,13 +18,13 @@ This document serves as the comprehensive senior architectural audit of all flaw
 
 ## 2. Bugs, Crashes & Security Vulnerabilities
 
-| Severity | Issue Description | Exact File Path & Lines | Impact | Required Fix |
+| Severity | Issue Description | Exact File Path & Lines | Impact | Status / Fix |
 | :--- | :--- | :--- | :--- | :--- |
-| **CRITICAL** | **Backend Prisma Error in Admin Analytics Endpoint** | [backend/src/routes/admin.js:L157](file:///e:/Websites/Wehere/backend/src/routes/admin.js#L157) | Query calls `prisma.journal.count({ where: { authorId: id } })`. In [schema.prisma](file:///e:/Websites/Wehere/backend/prisma/schema.prisma#L95), the model is `JournalEntry` and the field is `userId`. Hits to this route crash with HTTP 500. | Change to `prisma.journalEntry.count({ where: { userId: id } })`. |
-| **CRITICAL** | **iOS App Store Rejection / Crash (Missing Privacy Keys)** | [ios/Runner/Info.plist](file:///e:/Websites/Wehere/ios/Runner/Info.plist) | Lacks `NSCameraUsageDescription`, `NSPhotoLibraryUsageDescription`, and `NSMicrophoneUsageDescription`. | Add descriptive user permission strings to `Info.plist`. |
-| **HIGH** | **Cleartext HTTP Traffic over Public Internet** | [app_constants.dart:L2](file:///e:/Websites/Wehere/lib/core/constants/app_constants.dart#L2), [AndroidManifest.xml:L6](file:///e:/Websites/Wehere/android/app/src/main/AndroidManifest.xml#L6), [Info.plist:L44](file:///e:/Websites/Wehere/ios/Runner/Info.plist#L44) | Production API uses `http://200.97.165.22:4000/api`. Passwords, reflections, and photos can be intercepted over public networks. | Enable SSL/TLS, switch to `https://`, and disable `usesCleartextTraffic` and `NSAllowsArbitraryLoads`. |
-| **HIGH** | **Unencrypted JWT Storage Fallback** | [storage_helper.dart:L23-L26](file:///e:/Websites/Wehere/lib/core/utils/storage_helper.dart#L23-L26) | When `FlutterSecureStorage` throws `PlatformException`, token is written to unencrypted `SharedPreferences` in plaintext. | Restrict plaintext fallback to debug mode (`kDebugMode`) or encrypt before saving. |
-| **MEDIUM** | **Direct HTTP Calls Bypassing State Layer** | [edit_profile_screen.dart:L365](file:///e:/Websites/Wehere/lib/screens/profile/edit_profile_screen.dart#L365), [login_screen.dart:L40](file:///e:/Websites/Wehere/lib/screens/auth/login_screen.dart#L40) | Screens call `apiClient.put()` directly without updating `AppState.currentUser`, creating state synchronization divergence. | Route all mutations through dedicated methods in `AppState` or `AuthNotifier`. |
+| **CRITICAL** | **Backend Prisma Error in Admin Analytics Endpoint** | [backend/src/routes/admin.js](file:///e:/Websites/Wehere/backend/src/routes/admin.js) | Query calls `prisma.journal.count({ where: { authorId: id } })`. Crashes with HTTP 500. | **RESOLVED (Phase 1)**: Corrected to `prisma.journalEntry.count({ where: { userId: id } })`. |
+| **CRITICAL** | **iOS App Store Rejection / Crash (Missing Privacy Keys)** | [ios/Runner/Info.plist](file:///e:/Websites/Wehere/ios/Runner/Info.plist) | Lacks camera & photo library strings. | **PARTIALLY RESOLVED (Phase 1/6)**: `NSCameraUsageDescription` and `NSPhotoLibraryUsageDescription` added. |
+| **HIGH** | **Cleartext HTTP Traffic over Public Internet** | [app_constants.dart](file:///e:/Websites/Wehere/lib/core/constants/app_constants.dart), [AndroidManifest.xml](file:///e:/Websites/Wehere/android/app/src/main/AndroidManifest.xml), [Info.plist](file:///e:/Websites/Wehere/ios/Runner/Info.plist) | Hardcoded unencrypted IP `http://200.97.165.22:4000/api` was used. | **RESOLVED (Phase 1)**: Base URL centralized via `--dart-define=API_URL`, release mode startup guard requires HTTPS, cleartext removed from main manifest. |
+| **HIGH** | **Unencrypted JWT Storage Fallback** | [storage_helper.dart](file:///e:/Websites/Wehere/lib/core/utils/storage_helper.dart) | Plaintext fallback to `SharedPreferences` on keychain exceptions. | **RESOLVED (Phase 1)**: Plaintext fallback restricted strictly to `kDebugMode`. Release builds fail securely. |
+| **MEDIUM** | **Direct HTTP Calls Bypassing State Layer** | [edit_profile_screen.dart](file:///e:/Websites/Wehere/lib/screens/profile/edit_profile_screen.dart), [login_screen.dart](file:///e:/Websites/Wehere/lib/screens/auth/login_screen.dart) | Screens call `apiClient.put()` directly without updating `AppState.currentUser`. | Pending Phase 8 refactor. |
 
 ---
 
@@ -67,16 +67,16 @@ This document serves as the comprehensive senior architectural audit of all flaw
 
 ## 5. Prioritized Remediation Roadmap
 
-### Priority 0: Critical Blockers (Fix Immediately)
-1. Fix runtime crash bug in [backend/src/routes/admin.js:L157](file:///e:/Websites/Wehere/backend/src/routes/admin.js#L157) (`prisma.journal` -> `prisma.journalEntry`).
-2. Add missing camera, photo library, and microphone usage descriptions to [ios/Runner/Info.plist](file:///e:/Websites/Wehere/ios/Runner/Info.plist).
-3. Remove the local Windows path (`C:/Users/paras/...`) in [subscription_sheet.dart:L222](file:///e:/Websites/Wehere/lib/widgets/subscription/subscription_sheet.dart#L222) and bundle the asset.
-4. Replace cleartext HTTP base URL (`http://200.97.165.22:4000/api`) with HTTPS/TLS.
+### Priority 0: Critical Blockers
+1. **[RESOLVED]** Fix runtime crash bug in `backend/src/routes/admin.js` (`prisma.journal` -> `prisma.journalEntry`).
+2. Add missing camera and photo library usage descriptions to `ios/Runner/Info.plist` (Completed in Phase 1; remaining native configuration in Phase 6).
+3. Remove the local Windows path (`C:/Users/paras/...`) in `subscription_sheet.dart` and bundle the asset (Phase 6).
+4. **[RESOLVED]** Replace cleartext HTTP base URL (`http://200.97.165.22:4000/api`) with HTTPS/TLS via `--dart-define=API_URL`.
 
 ### Priority 1: Security & Compliance
-1. Restrict plaintext `SharedPreferences` token fallback in [storage_helper.dart](file:///e:/Websites/Wehere/lib/core/utils/storage_helper.dart) to debug builds only.
-2. Implement refresh token rotation (`/api/auth/refresh`) to prevent indefinite 30-day token replay windows.
-3. Configure release keystore signing in [android/app/build.gradle.kts](file:///e:/Websites/Wehere/android/app/build.gradle.kts).
+1. **[RESOLVED]** Restrict plaintext `SharedPreferences` token fallback in `storage_helper.dart` to debug builds only.
+2. Implement refresh token rotation (`/api/auth/refresh`) to prevent indefinite 30-day token replay windows (Phase 2).
+3. Configure release keystore signing in `android/app/build.gradle.kts` (Phase 6).
 
 ### Priority 2: Real Backend Integrations (Unwiring Fakes)
 1. Replace mock payment flow in [subscription_sheet.dart](file:///e:/Websites/Wehere/lib/widgets/subscription/subscription_sheet.dart) with real Google Play Billing / Apple StoreKit integration.
