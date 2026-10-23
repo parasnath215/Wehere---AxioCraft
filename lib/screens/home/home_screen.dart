@@ -467,14 +467,14 @@ class HomeScreen extends StatelessWidget {
         ),
         const SizedBox(height: 12),
 
-        // 3. Get help now
+        // 3. Help & Grievance
         _buildActionRowItem(
-          icon: Icons.support_outlined,
+          icon: Icons.support_agent_rounded,
           iconBg: AppColors.actionBlueBg,
           iconColor: AppColors.actionBlue,
-          title: 'Get help now',
-          subtitle: 'Crisis lines and grounding tools',
-          onTap: () => Navigator.pushNamed(context, AppRoutes.sos),
+          title: 'Help & Grievance',
+          subtitle: 'Support & customer complaints',
+          onTap: () => Navigator.pushNamed(context, AppRoutes.support),
         ),
       ],
     );
@@ -626,13 +626,13 @@ class HomeScreen extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               _buildSupportOption(
-                icon: Icons.health_and_safety_rounded,
+                icon: Icons.support_agent_rounded,
                 color: AppColors.primary,
-                title: 'Access crisis helplines & grounding tools',
+                title: 'Customer support & grievance redressal',
                 isPrimary: true,
                 onTap: () {
                   Navigator.pop(ctx);
-                  Navigator.pushNamed(context, AppRoutes.sos);
+                  Navigator.pushNamed(context, AppRoutes.support);
                 },
               ),
               const SizedBox(height: 12),

@@ -456,7 +456,7 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
         content: const Text(
           '1. Treat each other with kindness, patience, and non-judgment.\n\n'
           '2. Keep personal details confidential.\n\n'
-          '3. Wehere is a peer support space. If in immediate danger, please reach out through our SOS Help button.',
+          '3. Wehere is a peer support space. For any complaints or support, reach out to grievance@wehere.co.in.',
         ),
         actions: [
           ElevatedButton(

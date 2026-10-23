@@ -98,7 +98,6 @@ app.use('/api/users', require('./routes/users'));
 app.use('/api/journal', require('./routes/journal'));
 app.use('/api/match', require('./routes/match'));
 app.use('/api/conversations', require('./routes/conversations'));
-app.use('/api/sos', require('./routes/sos'));
 app.use('/api/community', require('./routes/community'));
 app.use('/api/goals', require('./routes/goals'));
 app.use('/api/progress', require('./routes/progress'));

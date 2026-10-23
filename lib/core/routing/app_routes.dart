@@ -24,6 +24,8 @@ class AppRoutes {
   static const String journalSuccess = '/journal/success';
   static const String progress = '/progress';
   static const String profile = '/profile';
-  static const String sos = '/sos';
+  static const String support = '/support';
+  static const String grievance = '/support';
+  static const String sos = '/support';
   static const String institutional = '/institutional';
 }

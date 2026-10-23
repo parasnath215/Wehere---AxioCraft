@@ -239,9 +239,9 @@ class ProfileScreen extends StatelessWidget {
                     ),
                     const Divider(height: 1, color: AppColors.cardBorder),
                     _buildSettingTile(
-                      icon: Icons.support_rounded,
-                      title: 'Crisis resources',
-                      onTap: () => Navigator.pushNamed(context, AppRoutes.sos),
+                      icon: Icons.support_agent_rounded,
+                      title: 'Help & Customer Grievance',
+                      onTap: () => Navigator.pushNamed(context, AppRoutes.support),
                     ),
                     const Divider(height: 1, color: AppColors.cardBorder),
                     _buildSettingTile(

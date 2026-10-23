@@ -362,7 +362,6 @@ class AppState extends ChangeNotifier {
     final journalCount = _journalEntries.length;
     final completedGoals = _goals.where((g) => g.isCompleted).length;
     final totalGoals = _goals.isEmpty ? 1 : _goals.length;
-    final contactsCount = _emergencyContacts.length;
     final streak = _dayStreak;
     final chatsCount = _messages.length;
 
@@ -436,16 +435,6 @@ class AppState extends ChangeNotifier {
         currentProgress: _goals.isEmpty ? 0 : completedGoals.clamp(0, totalGoals),
         targetProgress: _goals.isEmpty ? 1 : totalGoals,
         isUnlocked: _goals.isNotEmpty && completedGoals >= totalGoals,
-      ),
-      Milestone(
-        id: 'safety_guardian',
-        title: 'Safety Guardian',
-        description: 'Added a trusted contact to create your safety net',
-        emoji: '🛡️',
-        category: 'Safety',
-        currentProgress: contactsCount.clamp(0, 1),
-        targetProgress: 1,
-        isUnlocked: contactsCount >= 1,
       ),
       Milestone(
         id: 'peer_connector',
@@ -739,20 +728,6 @@ class AppState extends ChangeNotifier {
       } catch (e) {
       }
 
-      // Fetch SOS Contacts
-      try {
-        final sosRes = await apiClient.get('/sos/contacts');
-        _emergencyContacts.clear();
-        for (var c in sosRes.data) {
-          _emergencyContacts.add(EmergencyContact(
-            id: c['id'],
-            name: c['name'],
-            phone: c['phone'],
-            relationship: c['relationship'] ?? '',
-          ));
-        }
-      } catch (e) {
-      }
 
       // Fetch Notifications
       try {
@@ -1593,34 +1568,9 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  Future<void> addEmergencyContact(String name, String phone, String relationship) async {
-    try {
-      final res = await apiClient.post('/sos/contacts', data: {
-        'name': name,
-        'phone': phone,
-        'relationship': relationship,
-      });
-      final contact = EmergencyContact(
-        id: res.data['id'],
-        name: res.data['name'],
-        phone: res.data['phone'],
-        relationship: res.data['relationship'] ?? '',
-      );
-      _emergencyContacts.add(contact);
-      notifyListeners();
-      await checkMilestones();
-    } catch (e) {
-    }
-  }
+  Future<void> addEmergencyContact(String name, String phone, String relationship) async {}
 
-  Future<void> removeEmergencyContact(String id) async {
-    try {
-      await apiClient.delete('/sos/contacts/$id');
-      _emergencyContacts.removeWhere((c) => c.id == id);
-      notifyListeners();
-    } catch (e) {
-    }
-  }
+  Future<void> removeEmergencyContact(String id) async {}
 
   Future<bool> setAnonymity(bool val) async {
     final oldVal = isAnonymousMode;

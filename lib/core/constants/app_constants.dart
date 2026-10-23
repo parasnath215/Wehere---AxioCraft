@@ -37,8 +37,9 @@ class AppConstants {
   static const String appTagline = 'A safe place to talk, connect and heal.';
   static const String safeSpaceNotice =
       'You are in a Safe Space. Be kind, respectful, and supportive. We are here for a positive conversation.';
+  static const String grievanceEmail = 'grievance@wehere.co.in';
   static const String therapyDisclaimer =
-      'Disclaimer: Wehere is a peer-to-peer emotional support community, not a crisis service or licensed medical provider. If you or someone you know is in immediate physical danger or experiencing a medical or psychological emergency, please contact your local emergency services (112 in India) or reach out to a trusted professional immediately.';
+      'Disclaimer: Wehere is a peer-to-peer emotional wellness community, not a crisis service or licensed medical provider. We do not provide emergency intervention or SOS response. For customer complaints and grievances, reach us at grievance@wehere.co.in.';
 
   // Default support topics / interests
   static const List<String> interests = [

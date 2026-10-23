@@ -19,7 +19,7 @@ import '../../screens/journal/new_journal_screen.dart';
 import '../../screens/journal/journal_success_screen.dart';
 import '../../screens/progress/progress_dashboard_screen.dart';
 import '../../screens/profile/profile_screen.dart';
-import '../../screens/sos/sos_help_screen.dart';
+import '../../screens/support/support_grievance_screen.dart';
 import '../../screens/institutional/campus_corporate_screen.dart';
 import '../../screens/community/community_screen.dart';
 import '../../models/user_profile.dart';
@@ -131,10 +131,10 @@ class AppRouter {
           transitionType: PageTransitionType.slideRight,
         );
 
-      // Global Emergency Priority Route: SOS Help Hub
-      case AppRoutes.sos:
+      // Customer Support & Grievance Redressal Hub
+      case AppRoutes.support:
         return _buildPageRoute(
-          const SosHelpScreen(),
+          const SupportGrievanceScreen(),
           settings,
           transitionType: PageTransitionType.slideUp,
         );
