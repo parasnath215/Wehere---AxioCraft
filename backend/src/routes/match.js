@@ -38,16 +38,20 @@ router.get(['/discover', '/feed'], authenticateToken, requireVerified, requireAd
     
     const excludedUserIds = swipes.map(s => s.swipedId);
     blocks.forEach(b => {
-      excludedUserIds.push(b.blockerId === userId ? b.blockedId : b.blockerId);
+      if (b.blockerId === userId && b.blockedId) excludedUserIds.push(b.blockedId);
+      if (b.blockedId === userId && b.blockerId) excludedUserIds.push(b.blockerId);
     });
     existingMatches.forEach(m => {
-      excludedUserIds.push(m.userAId === userId ? m.userBId : m.userAId);
+      if (m.userAId === userId && m.userBId) excludedUserIds.push(m.userBId);
+      if (m.userBId === userId && m.userAId) excludedUserIds.push(m.userAId);
     });
-    excludedUserIds.push(userId); // Exclude self
+    excludedUserIds.push(userId); // Strictly exclude self
+
+    const cleanExcludedIds = Array.from(new Set(excludedUserIds.filter(id => typeof id === 'string' && id.trim().length > 0)));
 
     const matches = await prisma.user.findMany({
       where: {
-        id: { notIn: excludedUserIds },
+        id: { notIn: cleanExcludedIds, not: userId },
         isBanned: false,
         dateOfBirth: { not: null }
       },
@@ -62,10 +66,13 @@ router.get(['/discover', '/feed'], authenticateToken, requireVerified, requireAd
     const THREE_DAYS_AGO = Date.now() - (3 * 24 * 60 * 60 * 1000);
     let scoredMatches = [];
 
+    const userInterests = currentUser?.interests || [];
+    const userSupport = currentUser?.supportTypes || [];
+
     for (const u of matches) {
       if (!u.dateOfBirth || calcAge(u.dateOfBirth) < 18) continue;
-      const sharedInterests = u.interests.filter(i => currentUser.interests.includes(i));
-      const sharedSupport = u.supportTypes.filter(s => currentUser.supportTypes.includes(s));
+      const sharedInterests = (u.interests || []).filter(i => userInterests.includes(i));
+      const sharedSupport = (u.supportTypes || []).filter(s => userSupport.includes(s));
       
       let score = (sharedInterests.length * 2) + (sharedSupport.length * 2);
       if (new Date(u.updatedAt).getTime() > THREE_DAYS_AGO) {
@@ -188,6 +195,22 @@ router.post('/swipe', authenticateToken, requireVerified, requireAdult, async (r
           return { match, conversation, isMatch: true };
         });
         
+        // Emit real-time match notification to both users via Socket.io
+        try {
+          const io = req.app.get('io');
+          if (io) {
+            const matchPayload = {
+              matchId: result.match.id,
+              conversationId: result.conversation.id,
+              isMatch: true,
+            };
+            io.to(userId).to(`user_${userId}`).emit('new_match', { ...matchPayload, peerId: targetUserId });
+            io.to(targetUserId).to(`user_${targetUserId}`).emit('new_match', { ...matchPayload, peerId: userId });
+          }
+        } catch (socketErr) {
+          console.error('[Socket] Failed to emit new_match event:', socketErr);
+        }
+
         return res.status(200).json(result);
       }
     }

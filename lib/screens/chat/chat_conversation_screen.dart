@@ -11,10 +11,14 @@ import '../../widgets/shared/avatar_widget.dart';
 
 class ChatConversationScreen extends StatefulWidget {
   final UserProfile peer;
+  final String? initialMessage;
+  final bool autoSendInitialMessage;
 
   const ChatConversationScreen({
     super.key,
     required this.peer,
+    this.initialMessage,
+    this.autoSendInitialMessage = false,
   });
 
   @override
@@ -27,13 +31,26 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       final appState = Provider.of<AppState>(context, listen: false);
-      final conversationId = appState.getConversationId(widget.peer.id);
+      var conversationId = appState.getConversationId(widget.peer.id);
+      if (conversationId == null) {
+        await appState.fetchConversations();
+        conversationId = appState.getConversationId(widget.peer.id);
+      }
       if (conversationId != null) {
         appState.joinConversation(conversationId);
       }
       appState.fetchConversationDisclosure(widget.peer.id);
+
+      if (widget.initialMessage != null && widget.initialMessage!.isNotEmpty) {
+        if (widget.autoSendInitialMessage && conversationId != null) {
+          appState.sendMessage(widget.peer.id, widget.initialMessage!, conversationId, isIcebreaker: true);
+          _scrollToBottom();
+        } else {
+          _textController.text = widget.initialMessage!;
+        }
+      }
     });
   }
 
@@ -49,17 +66,21 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
     });
   }
 
-  void _handleSendMessage() {
+  void _handleSendMessage() async {
     final text = _textController.text.trim();
     if (text.isEmpty) return;
 
     final appState = Provider.of<AppState>(context, listen: false);
-    final conversationId = appState.getConversationId(widget.peer.id);
+    var conversationId = appState.getConversationId(widget.peer.id);
+    if (conversationId == null) {
+      await appState.fetchConversations();
+      conversationId = appState.getConversationId(widget.peer.id);
+    }
     if (conversationId != null) {
       appState.sendMessage(widget.peer.id, text, conversationId);
+      _textController.clear();
+      _scrollToBottom();
     }
-    _textController.clear();
-    _scrollToBottom();
   }
 
   @override
@@ -244,49 +265,15 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
                                 color: AppColors.textPrimary,
                               ),
                             ),
-                            const SizedBox(height: 6),
+                            const SizedBox(height: 8),
                             Text(
-                              'You both share common wellness interests. Break the ice with a gentle question below.',
+                              'Say hello and start your conversation.',
                               textAlign: TextAlign.center,
                               style: GoogleFonts.plusJakartaSans(
-                                fontSize: 13,
+                                fontSize: 13.5,
                                 color: AppColors.textSecondary,
                                 height: 1.4,
                               ),
-                            ),
-                            const SizedBox(height: 18),
-                            Wrap(
-                              spacing: 8,
-                              runSpacing: 8,
-                              alignment: WrapAlignment.center,
-                              children: [
-                                "What's one gentle win from your day? ✨",
-                                "How are you taking care of yourself today? 🌿",
-                                "Happy to listen or just sit in quiet. 💜",
-                              ].map((prompt) {
-                                return GestureDetector(
-                                  onTap: () {
-                                    _textController.text = prompt;
-                                    _handleSendMessage();
-                                  },
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFEEEDFC),
-                                      borderRadius: BorderRadius.circular(18),
-                                      border: Border.all(color: const Color(0xFFDDD6FE)),
-                                    ),
-                                    child: Text(
-                                      prompt,
-                                      style: GoogleFonts.plusJakartaSans(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                        color: const Color(0xFF4F46E5),
-                                      ),
-                                    ),
-                                  ),
-                                );
-                              }).toList(),
                             ),
                           ],
                         ),

@@ -175,6 +175,10 @@ io.use((socket, next) => {
 
 io.on('connection', (socket) => {
   console.log('User connected:', socket.id, 'User ID:', socket.user.id);
+  if (socket.user && socket.user.id) {
+    socket.join(socket.user.id);
+    socket.join(`user_${socket.user.id}`);
+  }
 
   socket.on('join_conversation', async (conversationId) => {
     try {

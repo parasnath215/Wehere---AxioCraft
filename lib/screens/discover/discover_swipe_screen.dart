@@ -8,6 +8,7 @@ import '../../widgets/discovery/card_action_buttons.dart';
 import '../../widgets/discovery/match_dialog.dart';
 import '../../widgets/discovery/profile_detail_sheet.dart';
 import '../../widgets/common/animated_pulse.dart';
+import '../../widgets/chat/icebreaker_sheet.dart';
 import '../chat/chat_conversation_screen.dart';
 
 class DiscoverSwipeScreen extends StatefulWidget {
@@ -18,6 +19,17 @@ class DiscoverSwipeScreen extends StatefulWidget {
 }
 
 class _DiscoverSwipeScreenState extends State<DiscoverSwipeScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final appState = Provider.of<AppState>(context, listen: false);
+      if (appState.cards.isEmpty && !appState.isLoadingDeck) {
+        appState.fetchDiscoverDeck();
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
@@ -106,65 +118,87 @@ class _DiscoverSwipeScreenState extends State<DiscoverSwipeScreen> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const AnimatedPulse(
-                              duration: Duration(milliseconds: 1800),
-                              minScale: 0.92,
-                              maxScale: 1.08,
-                              child: DecoratedBox(
-                                decoration: BoxDecoration(
-                                  color: AppColors.primarySoft,
-                                  shape: BoxShape.circle,
+                            if (appState.isLoadingDeck) ...[
+                              const SizedBox(
+                                width: 44,
+                                height: 44,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 3,
+                                  color: AppColors.primary,
                                 ),
-                                child: SizedBox(
-                                  width: 80,
-                                  height: 80,
-                                  child: Icon(
-                                    Icons.favorite_rounded,
-                                    size: 40,
-                                    color: AppColors.primary,
+                              ),
+                              const SizedBox(height: 20),
+                              Text(
+                                'Finding supportive peers...',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 15,
+                                  color: AppColors.textSecondary,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ] else ...[
+                              const AnimatedPulse(
+                                duration: Duration(milliseconds: 1800),
+                                minScale: 0.92,
+                                maxScale: 1.08,
+                                child: DecoratedBox(
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primarySoft,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: SizedBox(
+                                    width: 80,
+                                    height: 80,
+                                    child: Icon(
+                                      Icons.favorite_rounded,
+                                      size: 40,
+                                      color: AppColors.primary,
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
-                            const SizedBox(height: 20),
-                            Text(
-                              'You’ve seen everyone for now! 💜',
-                              textAlign: TextAlign.center,
-                              style: GoogleFonts.newsreader(
-                                fontSize: 22,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.textPrimary,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Check back soon for more kind, empathetic peers or refresh your deck.',
-                              textAlign: TextAlign.center,
-                              style: GoogleFonts.plusJakartaSans(
-                                fontSize: 13,
-                                color: AppColors.textSecondary,
-                              ),
-                            ),
-                            const SizedBox(height: 20),
-                            ElevatedButton.icon(
-                              onPressed: () => appState.refreshDeck(),
-                              icon: const Icon(Icons.refresh_rounded, size: 20),
-                              label: const Text(
-                                'Refresh Deck',
-                                style: TextStyle(fontWeight: FontWeight.bold),
-                              ),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.primary,
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 24,
-                                  vertical: 12,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(24),
+                              const SizedBox(height: 20),
+                              Text(
+                                'You’ve seen everyone for now! 💜',
+                                textAlign: TextAlign.center,
+                                style: GoogleFonts.newsreader(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.textPrimary,
                                 ),
                               ),
-                            ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Check back soon for more kind, empathetic peers or refresh to see newly active members.',
+                                textAlign: TextAlign.center,
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 13,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                              const SizedBox(height: 20),
+                              ElevatedButton.icon(
+                                onPressed: appState.isLoadingDeck
+                                    ? null
+                                    : () => appState.refreshDeck(),
+                                icon: const Icon(Icons.refresh_rounded, size: 20),
+                                label: const Text(
+                                  'Refresh Deck',
+                                  style: TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.primary,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 24,
+                                    vertical: 12,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(24),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ],
                         ),
                       ),
@@ -241,11 +275,26 @@ class _DiscoverSwipeScreenState extends State<DiscoverSwipeScreen> {
           );
         },
         onSendIcebreaker: () {
-          Navigator.pop(ctx);
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => ChatConversationScreen(peer: matchedCard.profile),
+          showModalBottomSheet(
+            context: context,
+            backgroundColor: Colors.transparent,
+            isScrollControlled: true,
+            builder: (sheetCtx) => IcebreakerSheet(
+              onSelectPrompt: (prompt) {
+                if (Navigator.canPop(ctx)) {
+                  Navigator.pop(ctx);
+                }
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ChatConversationScreen(
+                      peer: matchedCard.profile,
+                      initialMessage: prompt,
+                      autoSendInitialMessage: true,
+                    ),
+                  ),
+                );
+              },
             ),
           );
         },

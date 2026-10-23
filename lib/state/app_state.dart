@@ -147,23 +147,26 @@ class AppState extends ChangeNotifier {
   bool smsNotifications = false;
 
   // Active Swipe Card Deck & Filtering
-  List<MatchCard> _cards = [];
+  final List<MatchCard> _cards = [];
   final List<MatchCard> _swipedHistory = [];
   String _activeDiscoveryFilter = 'For You';
+  bool _isLoadingDeck = false;
 
   List<MatchCard> get cards => _cards;
   String get activeDiscoveryFilter => _activeDiscoveryFilter;
   bool get canRewind => _swipedHistory.isNotEmpty;
+  bool get isLoadingDeck => _isLoadingDeck;
 
   List<MatchCard> get filteredCards {
+    final available = _cards.where((c) => c.profile.id != _currentUser.id).toList();
     if (_activeDiscoveryFilter == 'New') {
-      return _cards.where((c) => c.isNewHere).toList();
+      return available.where((c) => c.isNewHere).toList();
     } else if (_activeDiscoveryFilter == 'Active Now') {
-      return _cards.where((c) => c.profile.isOnline).toList();
+      return available.where((c) => c.profile.isOnline).toList();
     } else if (_activeDiscoveryFilter == 'Near You') {
-      return _cards.where((c) => c.profile.location.contains('Mumbai')).toList();
+      return available.where((c) => c.profile.location.contains('Mumbai')).toList();
     }
-    return _cards;
+    return available;
   }
 
   // Swiped history
@@ -323,78 +326,7 @@ class AppState extends ChangeNotifier {
   List<UserNotification> get notifications => _notifications;
 
   AppState() {
-    _initMockData();
     _loadPersistedMilestones();
-  }
-
-  void _initMockData() {
-    if (_cards.isEmpty) {
-      _cards = [
-        MatchCard(
-          profile: UserProfile(
-            id: 'peer_test_01',
-            name: 'Test',
-            age: 24,
-            location: 'Mumbai, India',
-            bio: 'Learning to slow down. Happy to listen or just sit in the quiet together.',
-            avatarUrl: 'assets/images/peer_test.jpg',
-            images: ['assets/images/peer_test.jpg'],
-            isVerified: true,
-            isOnline: true,
-            moodStatus: 'Peaceful',
-            matchPercentage: 90,
-            interests: ['Relationships', 'Career', 'Mindfulness'],
-            feelings: ['Calm', 'Reflective'],
-            supportTypes: ['Emotional support'],
-            values: ['Listening', 'Patience'],
-          ),
-          isNewHere: true,
-          commonInterests: ['Relationships', 'Career'],
-        ),
-        MatchCard(
-          profile: UserProfile(
-            id: 'peer_ananya_02',
-            name: 'Ananya',
-            age: 26,
-            location: 'Bengaluru, India',
-            bio: 'Lover of tea, long evening walks, and honest conversations. Big believer that healing is not linear.',
-            avatarUrl: 'assets/images/peer_test.jpg',
-            images: ['assets/images/peer_test.jpg'],
-            isVerified: true,
-            isOnline: true,
-            moodStatus: 'Optimistic',
-            matchPercentage: 85,
-            interests: ['Mindfulness', 'Creativity', 'Reading'],
-            feelings: ['Hopeful'],
-            supportTypes: ['Someone to Talk To', 'New Friends'],
-            values: ['Empathy', 'Kindness'],
-          ),
-          isNewHere: false,
-          commonInterests: ['Mindfulness'],
-        ),
-        MatchCard(
-          profile: UserProfile(
-            id: 'peer_rohan_03',
-            name: 'Rohan',
-            age: 27,
-            location: 'Delhi, India',
-            bio: 'Navigating career pressures and learning to practice gratitude every single day.',
-            avatarUrl: 'assets/images/paras_avatar.jpg',
-            images: ['assets/images/paras_avatar.jpg'],
-            isVerified: true,
-            isOnline: false,
-            moodStatus: 'Focused',
-            matchPercentage: 78,
-            interests: ['Career', 'Personal Growth'],
-            feelings: ['Career pressure'],
-            supportTypes: ['Accountability partner'],
-            values: ['Growth', 'Support'],
-          ),
-          isNewHere: true,
-          commonInterests: ['Career'],
-        ),
-      ];
-    }
   }
 
   // --- MILESTONES SYSTEM ---
@@ -554,8 +486,11 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  /// Resets all in-memory user-specific state when signing out or switching accounts.
   void resetUserSession() {
+    _cards.clear();
+    _swipedHistory.clear();
+    _lastMatch = null;
+    _matchedUsers.clear();
     _journalEntries.clear();
     _emergencyContacts.clear();
     _goals.clear();
@@ -590,6 +525,88 @@ class AppState extends ChangeNotifier {
   // --- ACTIONS ---
 
   bool isLoadingData = false;
+
+  Future<void> fetchConversations() async {
+    try {
+      final convRes = await apiClient.get('/conversations');
+      _unreadMessages = 0;
+      for (var c in convRes.data) {
+        final peerId = c['peerId']?.toString() ?? '';
+        if (peerId.isEmpty) continue;
+
+        final convId = c['id']?.toString() ?? '';
+        if (convId.isNotEmpty) {
+          _conversationIds[peerId] = convId;
+          joinConversation(convId);
+        }
+
+        _unreadMessages += (c['unreadCount'] as int? ?? 0);
+        // fetch messages for conversation
+        try {
+          final msgRes = await apiClient.get('/conversations/$convId/messages');
+          List<ChatMessage> chatMessages = [];
+          for (var m in msgRes.data) {
+            chatMessages.add(ChatMessage(
+              id: m['id'],
+              senderId: m['senderId'],
+              text: m['content'],
+              timestamp: DateTime.parse(m['createdAt']),
+              isMine: m['senderId'] == _currentUser.id,
+            ));
+          }
+          _messages[peerId] = chatMessages;
+        } catch (_) {}
+
+        final existingIdx = _matchedUsers.indexWhere((u) => u.id == peerId);
+        String pAvatar = c['peerAvatar'] ?? '';
+        if (pAvatar.isNotEmpty && !pAvatar.startsWith('http') && !pAvatar.startsWith('assets/')) {
+          pAvatar = AppConstants.apiBaseUrl.replaceAll('/api', '') + (pAvatar.startsWith('/') ? pAvatar : '/$pAvatar');
+        }
+        if (pAvatar.isEmpty) pAvatar = 'assets/images/peer_test.jpg';
+
+        final peerProfile = UserProfile(
+          id: peerId,
+          name: c['peerName'] ?? 'Anonymous',
+          displayName: c['peerDisplayName'],
+          realFirstName: c['peerRealFirstName'],
+          handle: c['peerHandle'],
+          isMutuallyRevealed: c['isMutuallyRevealed'] ?? false,
+          myRevealed: c['myRevealed'] ?? false,
+          peerRevealed: c['peerRevealed'] ?? false,
+          age: 24,
+          location: '',
+          bio: '',
+          avatarUrl: pAvatar,
+          isVerified: true,
+          isOnline: true,
+          moodStatus: '',
+          matchPercentage: 90,
+          interests: [],
+          values: [],
+        );
+
+        if (existingIdx != -1) {
+          _matchedUsers[existingIdx] = _matchedUsers[existingIdx].copyWith(
+            name: peerProfile.name,
+            displayName: peerProfile.displayName,
+            realFirstName: peerProfile.realFirstName,
+            handle: peerProfile.handle,
+            isMutuallyRevealed: peerProfile.isMutuallyRevealed,
+            myRevealed: peerProfile.myRevealed,
+            peerRevealed: peerProfile.peerRevealed,
+            avatarUrl: (peerProfile.avatarUrl.isNotEmpty && !peerProfile.avatarUrl.contains('peer_test.jpg'))
+                ? peerProfile.avatarUrl
+                : _matchedUsers[existingIdx].avatarUrl,
+          );
+        } else {
+          _matchedUsers.insert(0, peerProfile);
+        }
+      }
+      notifyListeners();
+    } catch (e) {
+      debugPrint('fetchConversations error: $e');
+    }
+  }
 
   Future<void> fetchBackendData() async {
     isLoadingData = true;
@@ -681,111 +698,10 @@ class AppState extends ChangeNotifier {
       }
 
       // Fetch Conversations
-      try {
-        final convRes = await apiClient.get('/conversations');
-        _messages.clear();
-        _unreadMessages = 0;
-        for (var c in convRes.data) {
-          _conversationIds[c['peerId']] = c['id'];
-          _unreadMessages += (c['unreadCount'] as int? ?? 0);
-          // fetch messages for conversation
-          try {
-             final msgRes = await apiClient.get('/conversations/${c['id']}/messages');
-             List<ChatMessage> chatMessages = [];
-             for (var m in msgRes.data) {
-                chatMessages.add(ChatMessage(
-                  id: m['id'],
-                  senderId: m['senderId'],
-                  text: m['content'],
-                  timestamp: DateTime.parse(m['createdAt']),
-                  isMine: m['senderId'] == _currentUser.id,
-                ));
-             }
-             _messages[c['peerId']] = chatMessages;
-             
-             // Also ensure matchedUsers has the peer
-             final existingIdx = _matchedUsers.indexWhere((u) => u.id == c['peerId']);
-             String pAvatar = c['peerAvatar'] ?? '';
-             if (pAvatar.isNotEmpty && !pAvatar.startsWith('http') && !pAvatar.startsWith('assets/')) {
-               pAvatar = AppConstants.apiBaseUrl.replaceAll('/api', '') + pAvatar;
-             }
-             if (pAvatar.isEmpty) pAvatar = 'assets/mockups/discover_swipe.jpeg';
-
-             final peerProfile = UserProfile(
-               id: c['peerId'],
-               name: c['peerName'] ?? 'Anonymous',
-               displayName: c['peerDisplayName'],
-               realFirstName: c['peerRealFirstName'],
-               handle: c['peerHandle'],
-               isMutuallyRevealed: c['isMutuallyRevealed'] ?? false,
-               myRevealed: c['myRevealed'] ?? false,
-               peerRevealed: c['peerRevealed'] ?? false,
-               age: 24,
-               location: '',
-               bio: '',
-               avatarUrl: pAvatar,
-               isVerified: true,
-               isOnline: true,
-               moodStatus: '',
-               matchPercentage: 90,
-               interests: [],
-               values: [],
-             );
-
-             if (existingIdx != -1) {
-               _matchedUsers[existingIdx] = peerProfile;
-             } else {
-               _matchedUsers.add(peerProfile);
-             }
-          } catch(e) {
-          }
-        }
-      } catch (e) {
-      }
+      await fetchConversations();
 
       // Fetch Matches
-      try {
-        final discoverRes = await apiClient.get('/match/discover');
-        _cards.clear();
-        final List matchesData = discoverRes.data['matches'] ?? [];
-        for (var peer in matchesData) {
-           String pAvatar = peer['avatar'] ?? '';
-           if (pAvatar.isEmpty && peer['images'] != null && (peer['images'] as List).isNotEmpty) {
-             pAvatar = peer['images'][0];
-           }
-           if (pAvatar.isNotEmpty && !pAvatar.startsWith('http') && !pAvatar.startsWith('assets/')) {
-             pAvatar = AppConstants.apiBaseUrl.replaceAll('/api', '') + pAvatar;
-           }
-           if (pAvatar.isEmpty) pAvatar = 'assets/mockups/discover_swipe.jpeg';
-
-           final cardName = peer['cardName'] ?? peer['card_name'] ?? peer['name'] ?? peer['displayName'] ?? peer['pseudonym'] ?? 'Anonymous';
-           final cardAlias = peer['displayName'] ?? peer['display_name'] ?? peer['pseudonym'];
-
-           _cards.add(MatchCard(
-              profile: UserProfile(
-                id: peer['id'],
-                name: cardName,
-                displayName: cardAlias,
-                handle: peer['handle'],
-                age: 24, // Not tracked on backend
-                location: peer['location'] ?? 'Remote',
-                bio: peer['bio'] ?? '',
-                avatarUrl: pAvatar,
-                images: peer['images'] != null ? List<String>.from(peer['images']) : [],
-                isVerified: true,
-                isOnline: true,
-                moodStatus: '',
-                matchPercentage: peer['score'] != null ? (peer['score'] * 10).clamp(50, 99).toInt() : 90,
-                interests: peer['interests'] != null ? List<String>.from(peer['interests']) : [],
-                supportTypes: peer['supportTypes'] != null ? List<String>.from(peer['supportTypes']) : [],
-                feelings: peer['feelings'] != null ? List<String>.from(peer['feelings']) : [],
-                values: peer['supportTypes'] != null ? List<String>.from(peer['supportTypes']) : [],
-              ),
-              isNewHere: true,
-              commonInterests: peer['interests'] != null ? List<String>.from(peer['interests']).take(3).toList() : [],
-           ));
-        }
-      } catch (e) {}      
+      await fetchDiscoverDeck();
       // Fetch Community Posts
       try {
         final communityRes = await apiClient.get('/community');
@@ -872,6 +788,9 @@ class AppState extends ChangeNotifier {
   void setTabIndex(int index) {
     _currentTabIndex = index;
     notifyListeners();
+    if (index == 3) {
+      fetchConversations();
+    }
   }
 
 
@@ -911,11 +830,24 @@ class AppState extends ChangeNotifier {
       });
       
       if (res.data['isMatch'] == true) {
-        _matchedUsers.insert(0, popped.profile);
+        final convData = res.data['conversation'];
+        if (convData != null && convData['id'] != null) {
+          final convId = convData['id'].toString();
+          _conversationIds[popped.profile.id] = convId;
+          joinConversation(convId);
+        }
+
+        final existingIdx = _matchedUsers.indexWhere((u) => u.id == popped.profile.id);
+        if (existingIdx != -1) {
+          _matchedUsers[existingIdx] = popped.profile;
+        } else {
+          _matchedUsers.insert(0, popped.profile);
+        }
         _lastMatch = popped;
-        // _currentXp += 50; // XP is now updated from backend. You could fetch profile again or just add locally for optimistic update.
         _currentXp += 50; 
         notifyListeners();
+        // Trigger live conversation sync in background
+        fetchConversations();
         return true; 
       } else {
         notifyListeners();
@@ -960,9 +892,83 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  void refreshDeck() {
-    _initMockData();
+  Future<void> fetchDiscoverDeck() async {
+    _isLoadingDeck = true;
     notifyListeners();
+
+    try {
+      final discoverRes = await apiClient.get('/match/discover');
+      _cards.clear();
+      final List matchesData = discoverRes.data['matches'] ?? [];
+
+      final currentUserId = _currentUser.id;
+      final savedUserId = await StorageHelper.read(key: 'user_id');
+      final savedEmail = (await StorageHelper.read(key: 'user_email'))?.toLowerCase();
+      final currentHandle = _currentUser.handle;
+
+      for (var peer in matchesData) {
+        final peerId = peer['id']?.toString() ?? '';
+        // 1. Strictly filter out own profile
+        if (peerId.isEmpty || peerId == currentUserId || (savedUserId != null && peerId == savedUserId)) {
+          continue;
+        }
+        if (savedEmail != null && peer['email'] != null && peer['email'].toString().toLowerCase() == savedEmail) {
+          continue;
+        }
+        if (currentHandle != null && currentHandle.isNotEmpty && peer['handle'] == currentHandle) {
+          continue;
+        }
+
+        String pAvatar = peer['avatar'] ?? '';
+        if (pAvatar.isEmpty && peer['images'] != null && (peer['images'] as List).isNotEmpty) {
+          pAvatar = peer['images'][0];
+        }
+        if (pAvatar.isNotEmpty && !pAvatar.startsWith('http') && !pAvatar.startsWith('assets/')) {
+          pAvatar = AppConstants.apiBaseUrl.replaceAll('/api', '') + (pAvatar.startsWith('/') ? pAvatar : '/$pAvatar');
+        }
+
+        final cardName = peer['cardName'] ?? peer['card_name'] ?? peer['name'] ?? peer['displayName'] ?? peer['pseudonym'] ?? 'Anonymous';
+        final cardAlias = peer['displayName'] ?? peer['display_name'] ?? peer['pseudonym'];
+
+        int peerAge = 24;
+        if (peer['age'] != null && peer['age'] is int && peer['age'] > 0) {
+          peerAge = peer['age'];
+        }
+
+        _cards.add(MatchCard(
+          profile: UserProfile(
+            id: peerId,
+            name: cardName,
+            displayName: cardAlias,
+            handle: peer['handle'],
+            age: peerAge,
+            location: peer['location'] ?? 'Remote',
+            bio: peer['bio'] ?? '',
+            avatarUrl: pAvatar,
+            images: peer['images'] != null ? List<String>.from(peer['images']) : (pAvatar.isNotEmpty ? [pAvatar] : []),
+            isVerified: true,
+            isOnline: true,
+            moodStatus: '',
+            matchPercentage: peer['score'] != null ? (peer['score'] * 10).clamp(50, 99).toInt() : 90,
+            interests: peer['interests'] != null ? List<String>.from(peer['interests']) : [],
+            supportTypes: peer['supportTypes'] != null ? List<String>.from(peer['supportTypes']) : [],
+            feelings: peer['feelings'] != null ? List<String>.from(peer['feelings']) : [],
+            values: peer['supportTypes'] != null ? List<String>.from(peer['supportTypes']) : [],
+          ),
+          isNewHere: true,
+          commonInterests: peer['interests'] != null ? List<String>.from(peer['interests']).take(3).toList() : [],
+        ));
+      }
+    } catch (e) {
+      debugPrint('fetchDiscoverDeck error: $e');
+    } finally {
+      _isLoadingDeck = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> refreshDeck() async {
+    await fetchDiscoverDeck();
   }
 
   void clearLastMatch() {
@@ -982,7 +988,12 @@ class AppState extends ChangeNotifier {
       .build());
 
     _socket?.onConnect((_) {
-      // Ideally, the backend emits conversation IDs or we join them based on matches.
+      debugPrint('[Socket] Connected to server successfully');
+    });
+
+    _socket?.on('new_match', (data) {
+      debugPrint('[Socket] Live new_match received: $data');
+      fetchConversations();
     });
 
     _socket?.on('receive_message', (data) {
@@ -997,7 +1008,11 @@ class AppState extends ChangeNotifier {
       // If we sent it, it's already in UI, but to avoid duplication we could ignore if isMine
       if (!msg.isMine) {
         _messages.putIfAbsent(data['senderId'], () => []).add(msg);
-        notifyListeners();
+        if (!_matchedUsers.any((u) => u.id == data['senderId'])) {
+          fetchConversations();
+        } else {
+          notifyListeners();
+        }
       }
     });
 
@@ -1779,6 +1794,9 @@ class AppState extends ChangeNotifier {
       _socket?.dispose();
     } catch (_) {}
     _socket = null;
+    _cards.clear();
+    _swipedHistory.clear();
+    _lastMatch = null;
     _messages.clear();
     _matchedUsers.clear();
     _conversationIds.clear();
