@@ -84,6 +84,15 @@ router.post('/signup', signupLimiter, upload.array('images', 6), async (req, res
       return res.status(409).json({ error: 'CONFLICT', message: 'This email is already registered and verified. Please log in.' });
     }
 
+    if (normalizedPhone) {
+      const existingPhoneUser = await prisma.user.findFirst({
+        where: { phone: normalizedPhone, emailVerified: true }
+      });
+      if (existingPhoneUser) {
+        return res.status(409).json({ error: 'CONFLICT', message: 'This phone number is already registered with another account.' });
+      }
+    }
+
     // Delete any stale unverified User record
     if (existingUser && !existingUser.emailVerified) {
       await prisma.user.deleteMany({
@@ -177,7 +186,16 @@ router.post('/signup', signupLimiter, upload.array('images', 6), async (req, res
     });
   } catch (error) {
     if (error instanceof z.ZodError) return res.status(400).json({ error: 'VALIDATION_ERROR', message: error.errors[0]?.message || 'Validation failed' });
-    if (error.code === 'P2002') return res.status(409).json({ error: 'CONFLICT', message: 'Email already exists' });
+    if (error.code === 'P2002') {
+      const target = error.meta?.target || [];
+      const field = Array.isArray(target) ? target.join(', ') : String(target);
+      return res.status(409).json({
+        error: 'CONFLICT',
+        message: field.includes('phone')
+          ? 'This phone number is already registered with another account.'
+          : 'Email already exists'
+      });
+    }
     console.error('Signup error:', error);
     res.status(500).json({ error: 'Internal Server Error' });
   }
@@ -444,6 +462,21 @@ router.post('/social/register', signupLimiter, upload.array('images', 6), async 
       });
     }
 
+    const rawPhone = (phone && typeof phone === 'string' && phone.trim().length > 0) ? phone.trim() : null;
+    const normalizedPhone = rawPhone ? rawPhone.replace(/[^\d+]/g, '') : null;
+
+    if (normalizedPhone) {
+      const existingPhoneUser = await prisma.user.findFirst({
+        where: { phone: normalizedPhone }
+      });
+      if (existingPhoneUser) {
+        return res.status(409).json({
+          error: 'CONFLICT',
+          message: 'This phone number is already registered with another account.'
+        });
+      }
+    }
+
     // Password validation: If password is given validate it with the shared passwordSchema and do NOT trim() it; if absent store null.
     let hashedPassword = null;
     if (password !== undefined && password !== null && password !== '') {
@@ -502,7 +535,7 @@ router.post('/social/register', signupLimiter, upload.array('images', 6), async 
         legalFullName: finalLegalFullName,
         avatar: imagePaths[0],
         images: imagePaths,
-        phone: phone && phone.trim().length > 0 ? phone.trim() : null,
+        phone: normalizedPhone,
         emailVerified: true,
         emailVerifiedAt: new Date(),
         role: 'USER',
@@ -513,6 +546,18 @@ router.post('/social/register', signupLimiter, upload.array('images', 6), async 
   } catch (err) {
     if (err.code === 'ACCOUNT_BANNED' || err.code === 'UNDERAGE') {
       return res.status(err.status || 403).json({ error: err.code, message: err.message });
+    }
+    if (err.code === 'P2002') {
+      const target = err.meta?.target || [];
+      const field = Array.isArray(target) ? target.join(', ') : String(target);
+      return res.status(409).json({
+        error: 'CONFLICT',
+        message: field.includes('phone')
+          ? 'This phone number is already registered with another account.'
+          : field.includes('email')
+          ? 'An account with this email already exists.'
+          : `An account with this ${field || 'detail'} already exists.`
+      });
     }
     console.error('social/register error:', err);
     res.status(500).json({ error: 'Internal Server Error' });
@@ -825,6 +870,18 @@ router.post('/otp/verify', otpVerifyLimiter, async (req, res) => {
 
     return await completeLogin(res, updatedUser);
   } catch (error) {
+    if (error.code === 'P2002') {
+      const target = error.meta?.target || [];
+      const field = Array.isArray(target) ? target.join(', ') : String(target);
+      return res.status(409).json({
+        error: 'CONFLICT',
+        message: field.includes('phone')
+          ? 'This phone number is already registered with another account.'
+          : field.includes('email')
+          ? 'An account with this email already exists.'
+          : `An account with this ${field || 'detail'} already exists.`
+      });
+    }
     console.error('OTP verify error:', error);
     res.status(500).json({ error: 'Internal Server Error' });
   }
