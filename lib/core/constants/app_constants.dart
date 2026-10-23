@@ -26,7 +26,10 @@ class AppConstants {
     return base;
   }
 
-  static const googleServerClientId = String.fromEnvironment('GOOGLE_SERVER_CLIENT_ID');
+  static const googleServerClientId = String.fromEnvironment(
+    'GOOGLE_SERVER_CLIENT_ID',
+    defaultValue: '477223765836-9t4oml9khj3jelnlqc33r093uupa08cr.apps.googleusercontent.com',
+  );
   static const googlePeopleApi = bool.fromEnvironment('GOOGLE_PEOPLE_API', defaultValue: false);
   static const bool useProviderNameAsDisplayName = true;
 
