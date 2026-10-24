@@ -56,10 +56,84 @@ function generateOtp() {
   return crypto.randomInt(100000, 1000000).toString();
 }
 
+function generateOtpEmailTemplate(code, purpose) {
+  const isReset = purpose === 'reset_password';
+  const title = isReset ? 'Reset Your Wehere Password' : 'Verify Your Email Address';
+  const description = isReset
+    ? 'We received a request to reset the password for your Wehere account. Use the verification code below to set a new password:'
+    : 'Welcome to Wehere! Please use the verification code below to verify your email address and activate your account:';
+  const badge = isReset ? 'PASSWORD RESET' : 'EMAIL VERIFICATION';
+
+  const text = `${title}\n\n${description}\n\nVerification Code: ${code}\n\nThis code will expire in 10 minutes.\nFor your security, never share this code with anyone.\nIf you did not request this code, you can safely ignore this email.\n\nCustomer Support: grievance@wehere.co.in\nWehere - A safe place to talk, connect and heal.`;
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${title}</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #F8FAFC; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+  <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #F8FAFC; padding: 40px 16px;">
+    <tr>
+      <td align="center">
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width: 520px; background-color: #FFFFFF; border-radius: 20px; border: 1px solid #E2E8F0; overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,0.03);">
+          <tr>
+            <td style="background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%); padding: 32px 32px 28px; text-align: center;">
+              <h1 style="margin: 0; color: #FFFFFF; font-size: 26px; font-weight: 700; letter-spacing: -0.5px;">🌱 Wehere</h1>
+              <p style="margin: 6px 0 0; color: rgba(255,255,255,0.85); font-size: 13px;">A safe place to talk, connect and heal</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 32px 32px 24px;">
+              <div style="display: inline-block; padding: 4px 12px; background-color: #EEF2FF; border-radius: 6px; font-size: 11px; font-weight: 700; color: #4F46E5; letter-spacing: 0.5px; margin-bottom: 16px;">
+                ${badge}
+              </div>
+              <h2 style="margin: 0 0 12px; color: #0F172A; font-size: 20px; font-weight: 700; line-height: 1.3;">${title}</h2>
+              <p style="margin: 0 0 24px; color: #475569; font-size: 14px; line-height: 1.5;">${description}</p>
+              
+              <div style="background-color: #F8FAFC; border: 2px dashed #C7D2FE; border-radius: 16px; padding: 24px 16px; text-align: center; margin-bottom: 24px;">
+                <div style="font-size: 11px; text-transform: uppercase; color: #64748B; font-weight: 600; letter-spacing: 1px; margin-bottom: 8px;">Your 6-Digit Code</div>
+                <div style="font-family: 'Courier New', Courier, monospace; font-size: 36px; font-weight: 800; color: #4338CA; letter-spacing: 8px; margin: 0;">${code}</div>
+              </div>
+
+              <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #FEF3C7; border: 1px solid #FDE68A; border-radius: 12px; padding: 12px 14px; margin-bottom: 24px;">
+                <tr>
+                  <td style="color: #92400E; font-size: 12px; line-height: 1.4;">
+                    ⏱️ <strong>Expires in 10 minutes.</strong> Never share this code with anyone. Wehere staff will never ask for your code.
+                  </td>
+                </tr>
+              </table>
+
+              <p style="margin: 0; color: #94A3B8; font-size: 12px; line-height: 1.4;">
+                If you did not request this verification code, please ignore this email or contact our grievance team if you have security concerns.
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="background-color: #F8FAFC; border-top: 1px solid #E2E8F0; padding: 20px 32px; text-align: center;">
+              <p style="margin: 0 0 4px; color: #64748B; font-size: 12px;">
+                Customer Support & Grievances: <a href="mailto:grievance@wehere.co.in" style="color: #4F46E5; text-decoration: none; font-weight: 600;">grievance@wehere.co.in</a>
+              </p>
+              <p style="margin: 0; color: #94A3B8; font-size: 11px;">
+                © 2026 Wehere. All rights reserved.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `.trim();
+
+  return { subject: `${title}: ${code}`, text, html };
+}
+
 async function sendOtpEmail(email, code, purpose) {
-  const subject = purpose === 'verify_email' ? 'Verify your Wehere email' : 'Reset your Wehere password';
-  const text = `Your 6-digit code is: ${code}. It expires in 10 minutes.\nIf you didn't request this, ignore it.`;
-  const html = `<p>Your 6-digit code is: <strong>${code}</strong></p><p>It expires in 10 minutes.</p><p><small>If you didn't request this, ignore it.</small></p>`;
+  const { subject, text, html } = generateOtpEmailTemplate(code, purpose);
   await sendEmail({ to: email, subject, text, html });
 }
 
